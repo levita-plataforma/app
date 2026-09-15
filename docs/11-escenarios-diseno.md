@@ -199,7 +199,7 @@ no deben seguir apareciendo como próximos envíos activos.
 
 ## S11 · Incorporación final de Alabanza: repertorio y atril
 
-Esta escena pertenece a la fase 6, cuando la general ya funciona. El equipo de Alabanza entra dentro de Puerta Abierta, manteniendo la UI/UX de su app. Sara tiene además pertenencia y liderazgo en Alabanza. Usar un nuevo servicio EF01, domingo 8 de noviembre de 2026 a las 11:00, con Luis en Sonido; no modificar los contadores de E01 al añadir esta escena.
+Esta escena pertenece a la fase 11 del plan integral, cuando la plataforma general ya funciona. El equipo de Alabanza entra dentro de Puerta Abierta, manteniendo la UI/UX de su app. Sara tiene además pertenencia y liderazgo en Alabanza. Usar un nuevo servicio EF01, domingo 8 de noviembre de 2026 a las 11:00, con Luis en Sonido; no modificar los contadores de E01 al añadir esta escena.
 
 Usar títulos inventados: «Luz al amanecer» (Sol, 72 BPM), «Juntos al caminar»
 (Re, 96 BPM) y «Gracias por hoy» (Do, 68 BPM), en ese orden para EF01. No copiar
@@ -258,4 +258,4 @@ ejemplos no hay sobreasignación, por lo que confirmadas + pendientes/propuestas
 + vacías = 12. No usar esa suma como regla universal para datos sobreasignados.
 Confirmadas cuenta plazas, no puestos; ocho puestos pueden necesitar doce personas.
 Los nombres cambiados de áreas se propagan en la misma iglesia. Los domingos y
-las horas se muestran en Europe/Madrid, también al cruzar el cambio de hora.
+las horas se muestran en Europe/Madrid, también al cruzar el cambio de hora.\n\n---\n\n# Escenarios adicionales para la plataforma integral\n\nAñadir a los prototipos/datos de prueba al menos:\n\n1. Iglesia con dos sedes y una cuenta administradora en ambas.\n2. Persona sin cuenta que pertenece a una familia y recibe invitación después.\n3. Grupo pequeño con líder, miembros y reunión semanal.\n4. Evento con formulario, aforo y lista de espera.\n5. Menor con dos responsables y autorización de recogida distinta del household.\n6. Campaña dirigida solo a un segmento de una sede.\n7. Sala reservada por una actividad y conflicto con otra.\n8. Usuario con rol de church_admin que no puede leer un caso pastoral ni datos de Giving.\n9. Tenant con un módulo deshabilitado pero datos históricos conservados.\n10. Operador LEVITA entrando mediante support session temporal y auditada.\n

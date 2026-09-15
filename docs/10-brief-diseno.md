@@ -78,7 +78,7 @@ principales para que se puedan recorrer, con datos ficticios consistentes.
 19. Integrar el repertorio existente del culto con orden, tono y publicación.
 20. Integrar el atril existente, sus modos de lectura y controles; no reducirlo a una pantalla nueva con solo siguiente.
 
-Es la entrega de integración final de la fase 6; se reutiliza el bloque R existente o se completa lo que falte tras verificarlo. No omitirla de un encargo destinado a
+Es la entrega de integración final de la fase 11 del plan integral; se reutiliza el bloque R existente o se completa lo que falte tras verificarlo. No omitirla de un encargo destinado a
 integrar la app de Alabanza. Se revisa después de las tandas A y B, sin ampliar a otros
 módulos por inferencia.
 
@@ -169,4 +169,4 @@ su turno sin explicación. Los datos y totales deben cuadrar entre pantallas.
 
 ## Paridad funcional, además de visual
 
-Comparar en la app existente y en LEVITA: acceso/recuperación, foto, tema, contraseña, sesión, activación y desactivación push, campana, lectura y respuesta a turno. Mantener los estados de carga y error y el alcance por dispositivo o iglesia que corresponda. La base común entra en las fases de la general; repertorio, atril, equipo e historial específico de Alabanza entran al final. Ver S13 y el [inventario funcional](14-referencia-uiux-alabanza.md).
+Comparar en la app existente y en LEVITA: acceso/recuperación, foto, tema, contraseña, sesión, activación y desactivación push, campana, lectura y respuesta a turno. Mantener los estados de carga y error y el alcance por dispositivo o iglesia que corresponda. La base común entra en las fases de la general; repertorio, atril, equipo e historial específico de Alabanza entran al final. Ver S13 y el [inventario funcional](14-referencia-uiux-alabanza.md).\n\n---\n\n# Ampliación de brief — plataforma integral\n\nLa navegación y el sistema de diseño deben soportar módulos sin parecer productos separados. El diseño debe prever: selector de iglesia, sede contextual, módulos habilitados, People, calendario, Serving, Groups, Events, Kids, Communications, Facilities y administración. Los módulos sensibles (Kids, Pastoral, Giving) deben comunicar visualmente su ámbito y restringir exposición de datos.\n\nEstados obligatorios de componentes: loading, empty, error recuperable, forbidden, module disabled, archived y conflicto. Las tablas administrativas deben tener búsqueda, filtros, paginación y acciones masivas seguras. En móvil priorizar acciones rápidas; en escritorio, densidad y coordinación.\n

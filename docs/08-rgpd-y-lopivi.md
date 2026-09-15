@@ -1,249 +1,138 @@
-# RGPD y LOPIVI
+# RGPD, privacidad, LOPIVI y datos sensibles
 
-> Referencia heredada del producto de turnos localizado en `Documents/Levitaapp`. El código de ese producto no está en este checkout de la landing. Las menciones a implementación, comandos y resultados deben contrastarse allí; no son verificaciones realizadas en esta revisión. Ver [índice](README.md).
+Revisión: **15 de septiembre de 2026**.
 
-> **Esto no es asesoramiento jurídico.** Es el análisis de qué datos trata el
-> producto y qué decisiones de diseño se toman en consecuencia. Antes de abrir
-> la plataforma a iglesias que no sean la piloto, el contrato de encargo, la
-> política de privacidad y las referencias legales de este documento tienen que
-> pasar por un abogado. Las obligaciones de LOPIVI recaen sobre la iglesia, no
-> sobre la herramienta.
+Este documento es una especificación de producto y arquitectura, no asesoramiento jurídico definitivo. Antes del lanzamiento comercial se requiere revisión legal aplicable en España/UE.
 
----
+## 1. Roles de privacidad
 
-## Por qué este documento existe
+Modelo esperado:
 
-Dos razones, y ninguna es burocrática.
+- la iglesia decide finalidades sobre sus personas y actúa normalmente como responsable del tratamiento;
+- LEVITA procesa datos para prestar el servicio y actúa normalmente como encargado respecto de esos datos;
+- LEVITA es responsable de sus propios datos de cuenta, facturación, seguridad y operación en los ámbitos que correspondan.
 
-**El roster de una iglesia revela la religión de quien aparece en él.** No hace
-falta una columna «religión»: estar en la base de datos de voluntarios de una
-iglesia evangélica ya lo dice. Y la religión es una categoría especial de datos
-en el artículo 9 del RGPD, con protección reforzada.
+Debe existir contrato/DPA y registro de subencargados/proveedores.
 
-**El área de niños obliga a tratar datos penales de los voluntarios.** El
-certificado de delitos de naturaleza sexual es información relativa a
-antecedentes penales, que el RGPD trata aparte del resto y con restricciones
-propias.
+## 2. Privacy by design
 
-Un producto que guarde las dos cosas sin haberlo pensado es un incidente
-esperando a ocurrir.
+- minimización;
+- finalidad explícita;
+- acceso mínimo;
+- aislamiento tenant;
+- cifrado en tránsito y en reposo proporcionado por infraestructura adecuada;
+- retención;
+- exportación;
+- eliminación/anonimización;
+- auditoría;
+- gestión de incidentes.
 
----
+## 3. Categorías
 
-## Quién es quién
+### Datos ordinarios
+Nombre, contacto, pertenencia, disponibilidad, asistencia operativa.
 
-| Papel | Quién | Qué significa |
-|---|---|---|
-| Responsable del tratamiento | **La iglesia** | Decide qué datos recoge y para qué |
-| Encargado del tratamiento | **La plataforma** | Los trata por cuenta de la iglesia, siguiendo sus instrucciones |
-| Subencargados | Supabase, Vercel, Resend, Stripe | Proveedores de la plataforma |
+### Datos de mayor sensibilidad
+- información pastoral;
+- peticiones de oración con contenido personal;
+- menores;
+- alergias/necesidades de Kids;
+- donaciones;
+- documentos de cumplimiento;
+- información que pueda revelar categorías especiales.
 
-Consecuencia práctica: **hace falta un contrato de encargo de tratamiento con
-cada iglesia**, firmado antes de que suba un solo dato. No es papeleo opcional;
-es lo que legitima que la plataforma tenga esos datos. Debe listar los
-subencargados y permitir que la iglesia se oponga a cambios.
+No almacenar categorías sensibles por conveniencia si no existe finalidad clara.
 
-Y a la inversa: la iglesia es la responsable, así que las peticiones de
-supresión o de acceso le llegan a ella. El producto tiene que darle las
-herramientas para atenderlas sin escribirnos un correo.
+## 4. Derechos
 
----
+Preparar procesos para:
 
-## Qué datos trata el producto
+- acceso;
+- rectificación;
+- supresión;
+- limitación;
+- portabilidad cuando aplique;
+- oposición cuando aplique.
 
-### Voluntarios adultos
+La iglesia debe poder atender solicitudes sobre sus datos; LEVITA debe aportar herramientas y soporte conforme al contrato.
 
-| Dato | Para qué | Base jurídica |
-|---|---|---|
-| Nombre y apellidos | Identificar quién sirve | Interés legítimo de la entidad |
-| Correo | Invitación y avisos | Interés legítimo |
-| Teléfono | Contacto urgente | Interés legítimo · **opcional** |
-| Área, puesto, nivel | Programar | Interés legítimo |
-| Historial de servicio | Rotación justa y evitar el quemado | Interés legítimo |
-| Bloqueos de disponibilidad | No asignar a quien no puede | Interés legítimo |
-| Suscripción push | Enviar avisos | Consentimiento (el del navegador) |
+## 5. Retención
 
-**Pertenencia a la iglesia.** Como decíamos, es dato de categoría especial. El
-artículo 9.2 del RGPD contempla una excepción para el tratamiento que llevan a
-cabo fundaciones, asociaciones y otras entidades sin ánimo de lucro con
-finalidad religiosa, referido a sus miembros, con garantías adecuadas y con una
-condición que importa mucho aquí: **los datos no se comunican fuera de la
-entidad sin consentimiento de los interesados**.
+Cada módulo define retención. Ejemplos:
 
-De ahí sale una regla de diseño que ya está implementada: el aislamiento entre
-iglesias no es una funcionalidad de producto, es el cumplimiento de esa
-condición. Y otra que hay que respetar en el futuro: **nada de directorios
-compartidos entre iglesias, ni de estadísticas agregadas que permitan
-reidentificar**.
+- programación histórica: puede conservarse para trazabilidad legítima;
+- invitaciones: caducar y limpiar tokens;
+- exportaciones: borrar tras ventana corta;
+- archivos temporales: TTL;
+- Kids/Pastoral/Giving: política específica;
+- tenant cancelado: ventana contractual antes de eliminación/anonimización.
 
-### El motivo del bloqueo, que es una trampa
+## 6. Exportación y baja
 
-`blockouts.reason` es texto libre. Alguien escribirá «operación de rodilla» o
-«tratamiento médico», y eso convierte un campo inocente en un dato de salud.
+Antes de eliminar un tenant, ofrecer exportación según política. La eliminación se ejecuta como proceso controlado y auditable, no como cascada accidental desde UI.
 
-Tres decisiones:
+## 7. Menores y LOPIVI
 
-- El campo es **opcional** y la interfaz no lo pide con insistencia.
-- El texto de ayuda sugiere el nivel adecuado: «viaje», «asuntos personales».
-- Lo ven quien lo escribió y quien administra la iglesia. No el resto del
-  equipo, que solo necesita saber que esa persona no está disponible.
+Para personal que trabaja con menores:
 
-### Credenciales — el dato más delicado
+- registrar estado de requisito/credencial;
+- vigencia y fecha;
+- avisos de caducidad;
+- acceso limitado;
+- evitar almacenar copia completa del certificado cuando basta con verificar estado y referencia;
+- definir procedimiento organizativo de validación.
 
-Se guarda **el tipo de credencial, la fecha de emisión, la de caducidad y quién
-la verificó**. Nada más.
+Kids requiere además autorizaciones de tutores y seguridad de recogida.
 
-**No se guarda el documento.** Ni el PDF, ni el número, ni una copia. Esto no es
-prudencia excesiva: almacenar un certificado de antecedentes penales de decenas
-de voluntarios por iglesia es acumular un riesgo enorme sin ninguna ventaja
-operativa. Lo único que el sistema necesita saber es si está en vigor.
+## 8. Directorio
 
-Acceso: owner y admin de esa iglesia, y la persona interesada a su propio
-registro. **El líder del área no lo ve** — solo necesita saber si puede asignar
-a alguien, y eso lo responde la validación, no la lectura de la fila. Está en
-las políticas RLS de `02-datos-y-rls.md`.
+La visibilidad de datos de contacto debe ser configurable y coherente con finalidad/expectativas. No hacer público el directorio por defecto.
 
-Base jurídica: cumplimiento de una obligación legal, la Ley Orgánica 8/2021.
+## 9. Comunicación
 
-### Menores
+Distinguir mensajes necesarios para prestar el servicio de comunicaciones opcionales. Guardar preferencias y suppression list según canal/finalidad.
 
-**Fuera del alcance.** El producto no guarda ningún dato de menores: ni nombres,
-ni alergias, ni quién los recoge. Eso es un check-in de niños, que es otro
-producto con otro perfil de riesgo, y está explícitamente descartado en
-`docs/areas/06-ninos.md`.
+## 10. Pastoral
 
-Los datos del área de niños que sí se tratan son los de los **voluntarios
-adultos** que sirven ahí.
+No incluir notas pastorales en búsquedas globales, exportaciones generales ni logs. Aplicar permisos explícitos, retención y auditoría de acceso/cambios.
 
----
+## 11. Giving
 
-## Retención
+El importe y patrón de donaciones es información financiera privada. Acceso solo a roles autorizados; no mostrar a líderes generales por defecto.
 
-| Dato | Cuánto se conserva |
-|---|---|
-| Persona activa | Mientras siga en la iglesia |
-| Persona inactiva | 12 meses, y luego anonimización |
-| Historial de servicio | Se anonimiza con la persona: la estadística del área sobrevive, el nombre no |
-| Bloqueos pasados | 12 meses |
-| Credenciales | Hasta 12 meses después de caducar, para acreditar que en su día se verificó |
-| Cola de avisos | 90 días |
-| Bitácora de auditoría | 24 meses |
-| Suscripciones push | Se borran en cuanto el servidor de push devuelve 404 o 410 |
+## 12. Proveedores
 
-«Anonimizar» aquí significa de verdad: sustituir el nombre por un identificador
-y borrar correo y teléfono, conservando las filas de historial para que las
-estadísticas del área no se rompan. No es lo mismo que borrar, y la diferencia
-hay que explicarla en la política de privacidad.
+Mantener inventario de subprocesadores:
 
----
+- hosting;
+- base de datos;
+- auth;
+- email;
+- push;
+- pagos;
+- observabilidad;
+- almacenamiento.
 
-## Derechos, y cómo se atienden
+Para cada uno: datos, finalidad, región, contrato y mecanismo de transferencia si aplica.
 
-La iglesia es la responsable, así que necesita poder resolverlos sola desde el
-panel:
+## 13. Logs
 
-| Derecho | Cómo se implementa |
-|---|---|
-| Acceso | Botón de exportar la ficha completa de una persona en JSON o PDF |
-| Rectificación | Ya está: cada cual edita su nombre, teléfono y correo |
-| Supresión | «Dar de baja y anonimizar», con aviso claro de qué se conserva y por qué |
-| Oposición | Desactivar los avisos por canal, y darse de baja del área |
-| Portabilidad | La misma exportación del derecho de acceso |
-| Limitación | Marcar a la persona como inactiva: deja de aparecer para programar |
+No incluir:
 
-Rectificación ya existía. Acceso, portabilidad y supresión tienen hecha la parte
-de base de datos (`public.exportar_persona()` y `public.anonimizar_persona()`,
-bloque E5); falta el botón en el panel. Oposición y limitación llegan con sus
-pantallas. La supresión es la que hay que tener **antes** de abrir a iglesias
-que no sean la piloto.
+- contraseñas/tokens;
+- contenido pastoral;
+- datos completos de menores;
+- información financiera detallada;
+- cuerpos completos de formularios sensibles.
 
----
+## 14. Brechas
 
-## Dónde están los datos
+Runbook con detección, evaluación, contención, tenants afectados, evidencias, comunicación y obligaciones regulatorias.
 
-Todo en la Unión Europea, y no por preferencia:
+## 15. Fotografías
 
-- **Supabase** en Frankfurt o Irlanda. Base de datos, autenticación, ficheros.
-- **Vercel** con funciones en `fra1`.
-- **Resend** para el correo transaccional: verificar que la región es UE.
-- **Stripe** para la facturación, cuando llegue.
+Definir finalidad y permisos. Para menores, política específica y no asumir que consentimiento para check-in implica consentimiento de publicación.
 
-Cada uno es un subencargado y tiene que aparecer en el contrato de encargo. Si
-alguno se cambia por otro, hay que avisar a las iglesias.
+## 16. Datos de prueba
 
----
-
-## LOPIVI
-
-La **Ley Orgánica 8/2021** de protección integral a la infancia y la
-adolescencia frente a la violencia obliga a las entidades que tienen contacto
-habitual con menores. Una iglesia con escuela dominical lo es.
-
-### Qué obliga a la iglesia
-
-**Certificado de delitos de naturaleza sexual** para quien trabaje en contacto
-habitual con menores. El Ministerio de Justicia lo dice sin matices: aplica a
-«profesionales y voluntarios». Cubre la escuela dominical y también el grupo de
-adolescentes — un chico de 15 años sigue siendo menor, y esa es la laguna que
-más se pasa por alto.
-
-**Protocolo de actuación** adaptado a la actividad real de la entidad, no una
-plantilla genérica.
-
-**Formación** de quien trabaja con menores: reconocer señales de alarma y saber
-cómo actuar.
-
-### Qué puede hacer el producto
-
-No puede cumplir la ley por la iglesia, pero sí puede ponérselo fácil:
-
-- **Impedir** la asignación sin certificado en vigor, en lugar de avisar.
-- **Avisar 60 días antes** de cada caducidad, porque renovarlo lleva tiempo y
-  nadie se acuerda hasta que ya no puede servir.
-- **Registrar quién verificó cada credencial y cuándo**: rastro de auditoría sin
-  guardar el documento.
-- **Aplicar la regla de dos adultos** al publicar un turno de niños.
-- **Dar al líder una vista** de quién cumple los requisitos y quién no.
-
-### Y el argumento comercial
-
-Muchas iglesias pequeñas no saben que esto les aplica. Si las entrevistas
-confirman que la mayoría no pide el certificado, esto deja de ser una función y
-pasa a ser una razón para adoptar la herramienta: les ayuda a cumplir algo que
-hoy incumplen sin saberlo.
-
----
-
-## Qué hay que construir
-
-Ordenado por cuándo hace falta.
-
-**Antes del piloto**
-
-- [ ] Política de privacidad, y aviso en el alta de la iglesia
-- [ ] Texto informativo en la invitación: qué datos se guardan y para qué
-- [ ] `blockouts.reason` opcional, con la ayuda que guía al nivel correcto
-
-**Antes de la segunda iglesia**
-
-- [ ] Contrato de encargo de tratamiento, revisado por abogado
-- [x] Exportación de la ficha de una persona (acceso y portabilidad) — base de
-      datos hecha; falta el botón en el panel
-- [x] «Dar de baja y anonimizar», con lo que conserva bien explicado — base de
-      datos hecha; falta la pantalla que lo explique al confirmar
-- [ ] Registro de actividades de tratamiento, que lleva la plataforma como
-      encargada
-
-**Con el bloque A0**
-
-- [ ] RLS de `person_credentials` según `02-datos-y-rls.md`
-- [ ] Test de aislamiento: **un líder de área no puede leer credenciales**
-- [ ] Aviso de caducidad a 60 días
-- [ ] Nunca aceptar la subida del documento, ni siquiera como adjunto opcional
-
-**Antes de abrirlo a cualquiera**
-
-- [x] Trabajos de retención automáticos con los plazos de la tabla —
-      `app.aplicar_retencion()`; falta programarla con `pg_cron` al desplegar
-- [ ] Procedimiento de notificación de brechas: 72 horas al responsable
-- [ ] Revisión completa por abogado
+No usar producción en desarrollo/preview salvo proceso de anonimización aprobado.

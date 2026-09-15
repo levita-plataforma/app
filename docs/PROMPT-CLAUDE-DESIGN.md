@@ -72,7 +72,7 @@ en una iglesia no cambia otra. La base inicial no es una lista cerrada ni una
 plantilla global que reescribe las personalizaciones de sus iglesias.
 
 El primer núcleo funcional organiza turnos y avisos. No deduzcas módulos de
-membresía, donaciones, contabilidad o chat general por ser una plataforma para
+contabilidad completa o chat general solo por ser una plataforma para
 iglesias. Integra las funciones existentes de Alabanza sin eliminar su experiencia.
 
 USUARIOS
@@ -156,3 +156,12 @@ publicación por líderes, envío de nuevas propuestas, cambios de respuesta e
 integración de cuentas y avisos. No los conviertas en decisiones aprobadas al
 dibujar la pantalla. No simules operaciones reales de pago o envío.
 ```
+
+
+---
+
+## ARQUITECTURA INTEGRAL 2026
+
+El alcance vigente ha evolucionado: LEVITA se diseña como plataforma modular integral. El diseño inmediato debe seguir la fase autorizada del `13-plan-por-fases.md`; no es necesario diseñar todos los módulos simultáneamente. Sin embargo, la arquitectura de navegación debe admitir People, Groups, Discipleship, Events, Kids, Communications, Facilities, Analytics y futuros Pastoral/Giving.
+
+Alabanza se integra funcionalmente en la **Fase 11**, aunque su UI/UX común sigue siendo la referencia desde la Fase 0. El módulo Kids está fuera del MVP inicial pero dentro del roadmap; Giving y Pastoral se reservan para fases avanzadas con controles de privacidad específicos.

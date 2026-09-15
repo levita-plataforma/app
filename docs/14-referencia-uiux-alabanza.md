@@ -141,7 +141,7 @@ referencias técnicas, no una razón para cambiar los nombres que el equipo usa.
 
 La fase 0 del [plan](13-plan-por-fases.md) inventaría componentes, pantallas,
 autenticación, datos y avisos que se reutilizarán. La fase 1 ya usa esa UI y la base de cuenta/perfil; las fases 2–3 conectan los comportamientos comunes a las áreas generales.
-La fase 6, última incorporación, completa la integración funcional de Alabanza y el traspaso de datos
+La fase 11 del plan integral completa la integración funcional de Alabanza y el traspaso de datos
 si es necesario; no es el momento de decidir la apariencia.
 
 La reutilización visual no autoriza copiar consultas de una sola iglesia al

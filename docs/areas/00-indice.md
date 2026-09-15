@@ -1,8 +1,8 @@
 # Áreas de servicio — análisis transversal
 
-> Investigación de referencia. Los nombres de estas doce áreas no son un catálogo cerrado: cada iglesia recibe una base propia y puede crear áreas, editarlas y renombrarlas. Ver [Iglesias y tenants](../12-iglesias-y-tenants.md). Las propuestas de fase de estas fichas se priorizan ahora con el [plan vigente](../13-plan-por-fases.md); el estado de implementación del bloque A0 se conserva en el backlog histórico.
+> Investigación de referencia. Los nombres de estas áreas de referencia no son un catálogo cerrado: cada iglesia recibe una base propia y puede crear áreas, editarlas y renombrarlas. Ver [Iglesias y tenants](../12-iglesias-y-tenants.md). Las propuestas de fase de estas fichas se priorizan ahora con el [plan vigente](../13-plan-por-fases.md); el estado de implementación del bloque A0 se conserva en el backlog histórico.
 
-Doce fichas, una por área, en esta misma carpeta. Este documento es lo que sale
+Dieciséis fichas de referencia, una por área o familia operativa, en esta misma carpeta. No forman un catálogo cerrado: cada iglesia configura las suyas. Este documento es lo que sale
 de compararlas: los patrones que se repiten, los que no, y qué hay que cambiar
 en el modelo de datos por culpa de ellos.
 
@@ -20,12 +20,16 @@ en el modelo de datos por culpa de ellos.
 | 10 | Hospitalidad y café | [`10-hospitalidad.md`](10-hospitalidad.md) | Flexible | 2–4 |
 | 11 | Limpieza y mantenimiento | [`11-limpieza-y-mantenimiento.md`](11-limpieza-y-mantenimiento.md) | Flexible | 2–4 |
 | 12 | Traducción y accesibilidad | [`12-traduccion-y-accesibilidad.md`](12-traduccion-y-accesibilidad.md) | Importante | 1–3 |
+| 13 | Seguridad y emergencias | [`13-seguridad-y-emergencias.md`](13-seguridad-y-emergencias.md) | **Crítica** | 1–4 |
+| 14 | Parking, movilidad y logística | [`14-parking-y-logistica.md`](14-parking-y-logistica.md) | Flexible | 2–8 |
+| 15 | Conexión y seguimiento de nuevos | [`15-conexion-y-seguimiento.md`](15-conexion-y-seguimiento.md) | Importante | 2–6 |
+| 16 | Eventos, protocolo y producción | [`16-eventos-y-protocolo.md`](16-eventos-y-protocolo.md) | Importante | Variable |
 
 ---
 
 ## El error que hay que evitar
 
-Tratar las doce áreas igual. El modelo actual —área, puesto, turno, asignación—
+Tratar todas las áreas igual. El modelo actual —área, puesto, turno, asignación—
 las cubre a todas en apariencia, pero al mirarlas de cerca se rompe en cinco
 sitios. Un producto que no resuelva esos cinco funcionará bien en alabanza y
 mal en niños, sonido e intercesión, que son justo donde más duele fallar.
@@ -163,11 +167,9 @@ producto la respeta.
 
 ### R12 · Datos de menores
 
-El área de niños guarda nombres de menores, alergias y quién puede recogerlos.
-Eso es otro producto —check-in con etiquetas—, con su propio riesgo de RGPD.
+El área de niños puede necesitar nombres de menores, necesidades relevantes y responsables autorizados. Es un dominio de mayor sensibilidad y no debe improvisarse dentro de Serving.
 
-**Cambio:** ninguno. **Fuera del MVP, y explícitamente fuera.** Lo que sí entra
-es el control de credenciales de R3, que es de los voluntarios adultos.
+**Cambio:** fuera del MVP de Serving, pero previsto como módulo **Kids** en la Fase 8 del plan integral. Hasta entonces, Serving solo gestiona a los voluntarios adultos, sus credenciales y las reglas de composición. Cuando Kids se implemente, reutilizará People/Households con permisos, check-in/out y autorizaciones específicas.
 
 ---
 
@@ -186,7 +188,7 @@ es el control de credenciales de R3, que es de los voluntarios adultos.
 | R9 · Horizonte por área | Fase 2 | Cosmético hasta que haya volumen |
 | R7 · Turnos por franja | Fase 2 | Decisión de modelado grande: decidirla antes |
 | R11 · Ratio dinámico | Fase 3 | La iglesia lo apaña con el mínimo fijo |
-| R12 · Check-in de niños | **Fuera** | Otro producto, otro riesgo |
+| R12 · Check-in de niños | **Fase 8 / módulo Kids** | Fuera del MVP inicial; previsto explícitamente con seguridad propia |
 
 ---
 

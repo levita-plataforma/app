@@ -1,200 +1,160 @@
-# Datos y seguridad
+# Datos, permisos y Row Level Security
 
-Especificación y referencia técnica del producto localizado en Documents/Levitaapp. Este checkout es la landing; las afirmaciones de implementación y pruebas de los apartados técnicos son historial, no resultados de esta revisión. Ver [índice](README.md).
+Revisión: **15 de septiembre de 2026**.
 
-Estado: **implementado y verificado**. Este documento explica el porqué; el qué
-está en `supabase/migrations/`, que es la fuente de verdad.
+Este documento define la seguridad de datos objetivo. Las referencias históricas a migraciones de `Documents/Levitaapp` deben verificarse contra ese repositorio antes de considerarlas implementadas. La ampliación integral descrita aquí **no se considera construida** por existir en documentación.
 
-## Estrategia multi-tenant
+## 1. Estrategia
 
-Una sola base de datos, `church_id` en cada fila, aislamiento en Postgres con
-RLS. Es lo correcto para cientos o miles de iglesias pequeñas: una fracción del
-coste de un schema por tenant y sin la pesadilla de migrar 800 schemas. A
-cambio exige disciplina absoluta en las políticas, de ahí la suite de
-aislamiento.
+Base compartida con `church_id` para datos tenant-aware, RLS en Postgres, grants mínimos, funciones de contexto seguras y claves compuestas que impiden relaciones cross-tenant.
 
-## Las tres capas de protección
+## 2. Reglas obligatorias
 
-Son independientes a propósito. Que fallara una no debería bastar para filtrar
-datos.
+1. Toda tabla tenant-aware declara `church_id NOT NULL`, salvo tablas globales justificadas.
+2. `ENABLE ROW LEVEL SECURITY` y `FORCE ROW LEVEL SECURITY` donde corresponda.
+3. Índices por `church_id` y claves usadas en políticas.
+4. FKs tenant-safe: `(parent_id, church_id)`.
+5. El cliente nunca decide autorización por slug/ID.
+6. Service-role solo en procesos backend controlados.
+7. Los módulos sensibles añaden capas de permiso; no relajan RLS.
 
-**1 · RLS decide qué filas.** Toda tabla con `enable` + `force`. Un test recorre
-`pg_tables` y falla si alguna se queda fuera.
+## 3. Capas
 
-**2 · Los `grant` por columna deciden qué campos.** RLS deja a Sara actualizar
-su propia asignación, pero sin
+### RLS — filas
 
-```sql
-revoke update on assignments from authenticated;
-grant update (status, response_note, responded_at) on assignments to authenticated;
-```
+Determina qué registros pueden verse/modificarse.
 
-aceptaría su turno y, en el mismo `UPDATE`, reasignaría el de otra persona. Lo
-mismo con `people`: sin el grant por columna se asciende a `owner` con un
-`UPDATE` de una línea. **Las dos cosas están probadas como controles negativos.**
+### Grants — columnas/operaciones
 
-**3 · Las claves foráneas compuestas deciden qué puede existir.**
+Ejemplo: una persona puede responder su asignación, pero no cambiar `person_id`, `event_id` o `church_id`.
 
-```sql
-foreign key (event_id, church_id) references events(id, church_id)
-```
+### Constraints — integridad
 
-Hace físicamente imposible colgar un turno del evento de otra iglesia, aunque el
-código tenga un bug. Cuesta un `unique (id, church_id)` por tabla padre y evita
-la clase de incidente que cierra una empresa.
+Impedir físicamente referencias entre tenants.
 
-## Las funciones de contexto
+### Funciones de contexto
 
-`app.church_ids_for_user()`, `app.current_person_id()`, `app.has_church_role()`,
-`app.can_manage_ministry()`, `app.can_manage_event_position()`.
+Funciones `security definer` deben:
 
-Las cinco son `security definer` y `stable`:
+- tener `search_path` fijo;
+- ser mínimas;
+- no estar expuestas innecesariamente por API;
+- ser `stable` cuando proceda;
+- tener tests.
 
-- **`security definer`** se salta RLS por diseño. Es lo que rompe la recursión
-  infinita de una política sobre `people` que necesita consultar `people`. Es el
-  error de RLS más común en Supabase.
-- **`stable`** hace que Postgres las evalúe una vez por consulta, no por fila.
-- **`set search_path`** fijado impide el secuestro de la resolución de nombres.
+## 4. Contextos de autorización
 
-El esquema `app` no está en los `schemas` expuestos de `config.toml`, así que no
-son alcanzables por API. `authenticated` sí tiene `execute` porque las políticas
-se evalúan con el rol que consulta.
+El permiso puede depender de:
 
-## El patrón de política
+- iglesia;
+- sede;
+- módulo;
+- área;
+- grupo;
+- actividad;
+- caso pastoral;
+- rol financiero;
+- relación tutor-menor.
 
-```sql
-create policy tabla_select on tabla
-for select to authenticated
-using ( church_id = any((select app.church_ids_for_user())::uuid[]) );
-```
+No intentar resolver todos los dominios con `is_admin boolean`.
 
-Tres detalles, los tres deliberados, sacados de la guía de rendimiento de
-Supabase — que documenta mejoras de 179 ms a 9 ms y de 178 s a 12 ms:
+## 5. Matriz conceptual
 
-1. `(select ...)` para que la llamada se cachee en el initPlan.
-2. `::uuid[]` porque `any((select f()))` se interpreta como subconsulta y falla
-   con `operator does not exist: uuid = uuid[]`.
-3. `to authenticated` para descartar anónimos antes de evaluar nada.
+| Acción | Miembro | Líder área | Admin iglesia | Rol especializado |
+|---|---:|---:|---:|---:|
+| Ver su perfil | Sí | Sí | Sí | Sí |
+| Editar su contacto permitido | Sí | Sí | Sí | Sí |
+| Ver directorio básico | Según política | Según política | Sí | Según política |
+| Gestionar personas | No | Limitado | Sí | People manager |
+| Programar su área | No | Sí | Sí | Coordinator |
+| Gestionar otra área | No | No | Sí | Según scope |
+| Ver casos pastorales | No | No | No por defecto | Pastoral explícito |
+| Ver donaciones | No | No | No por defecto | Finance explícito |
+| Gestionar Kids | No | Solo si scope | Sí administrativo, no todo dato | Kids explícito |
+| Exportación masiva | No | No | Solo capacidad específica | Export manager |
 
-Y toda columna que aparezca en una política va indexada.
+## 6. Entitlements
 
-## Matriz de permisos para diseño
+Una política de acceso a módulo considera:
 
-Todos los permisos pertenecen a la iglesia activa. Operación LEVITA es un
-perfil separado para altas y activación; no se incluye como administrador
-global de datos internos. Ver [Tenants](12-iglesias-y-tenants.md).
+- iglesia activa;
+- módulo habilitado;
+- pertenencia;
+- capacidad;
+- scope.
 
-| Acción | Propietario | Admin | Líder de área | Servidor |
-|---|---|---|---|---|
-| Cuota y suscripción | Sí | — | — | — |
-| Crear, editar y renombrar áreas | Sí | Sí | — | — |
-| Configurar puestos y miembros | Sí | Sí | Dentro de lo permitido en su área | — |
-| Invitar personas | Sí | Sí | Alcance de invitación por área pendiente de conciliar con el acceso actual | — |
-| Dar de baja de la iglesia | Sí | Sí | —; quitar del área no es dar de baja de la iglesia | — |
-| Crear/publicar un culto completo | Sí | Sí | Pendiente D2; no equivale a publicar solo sus turnos | — |
-| Asignar personas a puestos | Sí | Sí | Solo sus áreas | — |
-| Responder turno propio | Sí | Sí | Sí | Sí |
-| Editar bloqueos y frecuencia propia | Sí | Sí | Sí | Sí |
-| Ver teléfonos | Sí | Sí | Solo su área, si se habilita conforme al criterio documentado | — |
-| Leer credenciales | Sí | Sí | — | Solo la propia |
-| Registrar credenciales y requisitos | Sí | Sí | — | — |
-| Leer motivo de indisponibilidad | Sí | Sí | Solo si es el autor | Solo el propio |
+El módulo deshabilitado bloquea nuevas operaciones aunque el usuario conserve un rol antiguo.
 
-Un propietario de A que es servidor en B tiene permisos de servidor en B.
-Cada persona tiene una ficha por iglesia vinculada a su cuenta. La ficha y la
-suscripción de una iglesia no autorizan consultas en otras.
+## 7. People y Auth
 
-### Aplicación en la UI
+`people` no depende obligatoriamente de `auth.users`. El usuario autenticado se resuelve a su persona dentro de cada iglesia.
 
-Para un líder, una persona bloqueada por requisitos muestra «Necesita revisión
-de un administrador para este servicio», sin exponer tipo, fechas ni verificador.
-Propietario/admin y persona interesada ven su detalle permitido. No ofrecer
-subida del certificado ni adjuntos. Un bloqueo de disponibilidad muestra fechas;
-el motivo privado se oculta a quien no pueda leerlo.
+Proteger especialmente:
 
-Crear o renombrar un área opera sobre su identificador dentro del tenant y
-conserva sus relaciones. Las copias iniciales no conceden acceso a las de otras
-iglesias. Cambiar el nombre del área no permite quitar controles de credenciales.
+- cambio de `user_id`;
+- roles;
+- church memberships;
+- merges;
+- datos de contacto;
+- visibilidad.
 
-El backlog relata restricciones por columna todavía pendientes en teléfonos y
-motivos de bloqueo. La matriz expresa el comportamiento deseado, no certifica
-que esa protección esté aplicada. Se verifica en servidor y base de datos;
-ocultar columnas en la interfaz no implementa el permiso.
+## 8. Multi-campus
 
-## Tablas y columnas del bloque A0 (referencia histórica)
+Campus filtra funcionalmente, pero no reemplaza RLS por tenant. Un `campus_admin` obtiene scope de campus; no se confía en `campus_id` enviado por cliente.
 
-El análisis de áreas añade dos tablas y cinco columnas. Van **antes** que las
-pantallas: rehacer una pantalla porque faltaba una columna es lo caro. El SQL
-completo está en `docs/areas/00-indice.md`; aquí, lo que cambia en seguridad.
+## 9. Pastoral
 
-### `person_credentials` es la tabla más sensible del esquema
+Casos pastorales requieren ACL/capacidad específica. La política puede restringir a miembros asignados al caso además del tenant.
 
-Guarda que una persona tiene el certificado de delitos sexuales en vigor. Eso es
-un dato personal de categoría delicada, y su política RLS no puede ser la de
-lectura general que usan las demás tablas:
+## 10. Giving
 
-- **Leen y escriben:** solo `owner` y `admin`.
-- **Lee la suya:** la persona interesada.
-- **Nadie más.** Ni siquiera el líder del área, que solo necesita saber si puede
-  asignar a alguien — y eso lo responde la validación, no la lectura de la fila.
+Datos financieros requieren roles específicos. Un owner puede gestionar facturación de LEVITA sin que eso implique leer donaciones de personas.
 
-```sql
-create policy credentials_admin on person_credentials
-for all to authenticated
-using      ( (select app.has_church_role(church_id, array['owner','admin'])) )
-with check ( (select app.has_church_role(church_id, array['owner','admin'])) );
+## 11. Kids
 
-create policy credentials_own on person_credentials
-for select to authenticated
-using ( person_id = (select app.current_person_id(church_id)) );
-```
+El acceso se basa en:
 
-**No se guarda el documento.** Solo el tipo de credencial, las fechas y quién la
-verificó. Almacenar el PDF de un certificado de antecedentes es asumir un riesgo
-de RGPD sin ninguna ventaja operativa. Detalle en `docs/08-rgpd-y-lopivi.md`.
+- rol Kids;
+- clase/sesión;
+- relación tutor-menor cuando el acceso es familiar;
+- necesidad operativa.
 
-### La validación es una cuarta capa de protección
+## 12. Storage
 
-Las tres capas de arriba —RLS, grants por columna, claves foráneas compuestas—
-protegen el aislamiento entre iglesias. Las reglas de composición protegen otra
-cosa: a los menores, y a la iglesia frente a su propia prisa.
+Objetos privados deben organizarse con metadatos tenant-aware y políticas coherentes. No confiar exclusivamente en rutas de archivo manipulables por cliente.
 
-Un turno de niños con una sola persona propuesta o aceptada, o alguien sin
-certificado en vigor, **no puede publicarse**. Cuentan las pendientes y las
-aceptadas: en un borrador nadie ha podido aceptar todavía. Esa validación vive en `packages/core` y se
-comprueba dos veces: al asignar, para avisar pronto, y al publicar, porque entre
-las dos cosas alguien puede haber rechazado.
+## 13. Tests obligatorios
 
-Al ser una regla de negocio y no de acceso, no la puede imponer RLS sola. La del
-certificado ya está blindada en la base de datos: un trigger sobre
-`assignments` impide asignar a alguien sin credencial bloqueante en vigor el día
-del culto (`20260914000500_credenciales.sql`). Las de composición (mínimo de
-personas y autónomo) viven en `packages/core`; si se quieren blindar igual, un
-trigger `before update` sobre `events.status` es el sitio.
+Por cada nueva tabla/mutación:
 
-## Optimización pendiente
+- usuario sin iglesia;
+- usuario de tenant A intentando leer B;
+- insertar FK cross-tenant;
+- actualizar `church_id`;
+- escalar rol;
+- modificar columna no autorizada;
+- acceder con módulo deshabilitado;
+- acceder fuera de scope de área/campus/grupo;
+- service-role solo en ruta prevista.
 
-Inyectar `church_ids` y el mapa de roles en el JWT con un *Custom Access Token
-Hook* elimina hasta la consulta de las funciones `stable`. El coste es que un
-cambio de rol tarda hasta una hora en surtir efecto. **Medir antes de hacerlo**:
-con el volumen previsto no hace falta.
+## 14. Test de cobertura de RLS
 
-## Verificación
+Mantener una prueba que enumere tablas tenant-aware y falle si una tabla nueva no tiene RLS/políticas esperadas.
 
-```bash
-./scripts/verify-rls.sh                  # 35 comprobaciones
-psql -f scripts/flow-check.sql           # 17 comprobaciones
-```
+## 15. Seguridad de consultas
 
-Corren contra cualquier Postgres 16 sin Docker ni Supabase.
-`scripts/local-pg-stub.sql` crea los roles y el `auth.uid()` que Supabase ya
-trae; **no forma parte de las migraciones**.
+- paginación;
+- límites máximos;
+- evitar `select *` en endpoints sensibles;
+- filtrar/ordenar solo campos permitidos;
+- índices por patrones reales;
+- evitar N+1;
+- no exponer errores SQL al usuario.
 
-Al añadir una tabla o una política, añade su comprobación a
-`scripts/isolation-check.sql` en el mismo commit, y verifica que sabe fallar.
+## 16. Concurrencia
 
-Con el bloque A0 ya entraron las tres comprobaciones que de verdad importan de
-esa tanda: que un líder de área **no** puede leer las credenciales de nadie
-(`isolation-check.sql`), que asignar a alguien sin certificado en vigor falla
-(`flow-check.sql`), y que un turno de niños con una sola persona no se puede
-publicar (`npm test`, en `validarPublicacion()`).
+Operaciones como asignaciones, reservas, aforo y check-in pueden necesitar constraints o transacciones para evitar carreras. La UI optimista no sustituye integridad en base.
+
+## 17. Datos globales permitidos
+
+Ejemplos: catálogo de módulos, países, configuración de producto. Deben estar explícitamente marcados como globales y no contener PII tenant.

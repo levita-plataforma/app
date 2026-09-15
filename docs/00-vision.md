@@ -1,88 +1,195 @@
-# Visión y alcance
+# Visión, alcance y estrategia de producto
 
-Revisión: **15 de septiembre de 2026**. Los requisitos de esta página describen
-el producto que se quiere construir. El [índice](README.md) distingue ese
-producto de la landing que contiene este checkout.
+Revisión: **15 de septiembre de 2026 — ampliación a plataforma integral para iglesias**.
 
-## Qué es LEVITA
+LEVITA se define como una **plataforma SaaS multiiglesia, modular y multi-tenant para la gestión integral de una iglesia evangélica moderna**. El primer gran módulo funcional será la organización de servicios, voluntarios y programación, pero la arquitectura base debe permitir incorporar progresivamente personas, familias, grupos, discipulado, eventos, niños, comunicación, acompañamiento pastoral, recursos, donaciones, analítica e integraciones sin reconstruir el núcleo.
 
-**LEVITA es una plataforma SaaS multiiglesia. Cada iglesia es un tenant:** un
-espacio propio con sus personas, áreas de servicio, puestos, programación,
-permisos, ajustes y suscripción. Una misma plataforma sirve a varias iglesias
-sin mezclar sus datos ni sus decisiones.
+## 1. Qué es LEVITA
 
-El núcleo funcional inicial organiza turnos y avisos. «Personas» significa las
-personas que sirven; «comunicación», los avisos relacionados con su servicio.
-La gestión de miembros, donaciones, contabilidad, asistencia y grupos pequeños
-no se incluye por inferencia a partir de la promesa amplia de la landing.
+Cada iglesia es un tenant independiente con sus propias personas, sedes, áreas, equipos, grupos, actividades, configuración, permisos, módulos contratados y suscripción. Una misma cuenta puede pertenecer a varias iglesias, pero los datos, roles y decisiones de cada iglesia permanecen aislados.
 
-## Decisiones confirmadas por el promotor
+LEVITA debe servir tanto a una iglesia local pequeña como a una organización con varias sedes, cientos o miles de personas y equipos de servicio complejos. La arquitectura no debe asumir una única sede, una única estructura ministerial ni una única forma de organizar los cultos.
 
-El 15 de septiembre de 2026 se concreta que:
+### Principios de producto
 
-1. La plataforma puede dar de alta una iglesia desde su operación interna.
-2. La iglesia también puede registrarse por sí misma pagando una cuota.
-3. Cada iglesia recibe una base inicial de áreas de servicio editable.
-4. La iglesia puede crear más áreas, editar las existentes y cambiarles el nombre.
-5. Estos cambios pertenecen a su tenant y no afectan a otras iglesias.
-6. La UI, UX y funcionamiento común proceden de la app actual de Alabanza: perfil, acceso, push, campana, preferencias y demás comportamientos compartidos.
-7. La plataforma general y las demás áreas se construyen primero; Alabanza es la última en entrar y se incorpora dentro de la general.
+1. **Personas primero.** Una persona existe independientemente de que tenga cuenta de usuario.
+2. **Tenant explícito.** Todo dato funcional pertenece a una iglesia y, cuando aplique, a una sede.
+3. **Modularidad real.** Las iglesias activan solo los módulos que necesiten.
+4. **Permisos por contexto.** El acceso no se resuelve únicamente por un rol global; puede depender de iglesia, sede, área, grupo, módulo o caso sensible.
+5. **Configuración antes que forks.** Las diferencias entre iglesias se resuelven con configuración, no con ramas de código específicas por cliente.
+6. **Privacidad por diseño.** RLS, minimización, auditoría, segregación y cumplimiento son parte de la arquitectura.
+7. **Operación recuperable.** Altas, pagos, invitaciones, importaciones, webhooks y procesos críticos deben ser idempotentes y reanudables.
+8. **Mobile first, escritorio cuando aporta valor.** La experiencia de servidor y miembro debe funcionar especialmente bien desde móvil; la coordinación puede aprovechar escritorio.
+9. **Una sola identidad de producto.** La UI/UX común procede de la app de Alabanza existente y se reutiliza en todos los módulos.
+10. **MVP acotado, arquitectura amplia.** No se implementa todo al mismo tiempo, pero no se diseña un núcleo que impida evolucionar.
 
-El importe y la periodicidad de la cuota están por definir. La suscripción y el
-alta forman parte del lanzamiento; la antigua decisión de dejar toda la
-facturación para fase 4 queda sustituida. Ver [Facturación](06-facturacion.md)
-y [Iglesias y tenants](12-iglesias-y-tenants.md).
+## 2. Usuarios y perfiles de uso
 
-## El problema que resuelve el núcleo
+LEVITA contempla al menos estos perfiles:
 
-Una iglesia de barrio con unos 80 asistentes tiene varias áreas de servicio y
-entre 15 y 40 personas que rotan. Con WhatsApp y una hoja de cálculo cuesta
-saber quién ha confirmado, evitar conflictos y detectar los huecos del domingo.
+- propietario o administrador principal de la iglesia;
+- pastorado y liderazgo ejecutivo;
+- administrador operativo;
+- líder de área o ministerio;
+- coordinador de servicios;
+- líder de grupo o discipulado;
+- voluntario o servidor;
+- miembro de la iglesia;
+- visitante registrado;
+- padre, madre o tutor;
+- responsable de niños;
+- responsable financiero;
+- equipo pastoral con acceso restringido;
+- operador de soporte de LEVITA;
+- usuario que pertenece a varias iglesias.
 
-**El coordinador**, pastor o líder de área, prepara la programación en
-escritorio. **El servidor** responde desde el móvil y consulta cuándo llegar.
-**La persona propietaria de la iglesia** completa el alta, configura su espacio
-y gestiona la cuota. **La operación de LEVITA** tramita las altas asistidas;
-ese papel no equivale a ser administrador de todas las iglesias.
+Una misma persona puede ocupar varios roles. El modelo no debe convertir esos roles en columnas fijas dentro de `people`.
 
-Los tiempos objetivo —diez minutos para programar y treinta segundos para
-consultar o responder— se validarán con personas del piloto.
+## 3. Dominios funcionales
 
-## Entregas
+LEVITA se estructura alrededor de un núcleo común y módulos activables.
 
-| Entrega | Alcance |
+### Núcleo obligatorio
+
+- Iglesias y tenants.
+- Sedes/campus.
+- Personas y cuentas.
+- Familias/hogares.
+- Roles, permisos y pertenencias.
+- Módulos y entitlements.
+- Actividades/eventos genéricos.
+- Etiquetas y campos personalizados.
+- Archivos y documentos.
+- Notificaciones y preferencias.
+- Auditoría.
+- Importación y exportación.
+- Suscripción y facturación.
+- Configuración, branding y preferencias del tenant.
+
+### Módulos funcionales
+
+- **Serving / Servicios:** áreas, puestos, equipos, programación, disponibilidad, confirmaciones y sustituciones.
+- **Worship / Alabanza:** repertorio, canciones, atril, ensayos y programación musical.
+- **People / Personas:** directorio, perfiles, familias, segmentación e historial permitido.
+- **Groups / Grupos:** células, grupos pequeños, líderes, reuniones y asistencia.
+- **Discipleship / Formación:** cursos, itinerarios, etapas y progreso.
+- **Events / Eventos:** calendario, inscripciones, aforo, formularios y listas.
+- **Kids / Niños:** responsables, check-in/out, autorizaciones y seguridad.
+- **Communications / Comunicación:** comunicados, segmentos, email, push y futuras integraciones.
+- **Pastoral / Acompañamiento:** seguimientos, tareas y peticiones con acceso especialmente restringido.
+- **Giving / Donaciones:** fondos, aportaciones e integraciones de pago; fuera del MVP inicial.
+- **Facilities / Recursos:** salas, vehículos, equipos y reservas.
+- **Analytics / Informes:** métricas operativas y agregadas por tenant.
+
+La descripción completa está en [Módulos funcionales](18-modulos-funcionales.md).
+
+## 4. Qué se implementa primero
+
+LEVITA no intenta lanzar todos los módulos simultáneamente. El orden vigente es:
+
+1. fundación de producto y arquitectura SaaS;
+2. alta de iglesia, tenant, suscripción y configuración;
+3. personas, familias e importación base;
+4. áreas, equipos y voluntariado;
+5. actividades, cultos y programación;
+6. disponibilidad, respuestas y notificaciones;
+7. calendario, formularios e inscripciones;
+8. grupos y discipulado;
+9. Kids, comunicación y demás módulos según validación;
+10. integración final de Alabanza.
+
+El detalle y criterios de salida están en [Plan por fases](13-plan-por-fases.md).
+
+## 5. Experiencia inicial de valor
+
+La primera experiencia comercial debe permitir que una iglesia:
+
+1. se registre o complete un alta asistida;
+2. active su tenant y suscripción;
+3. configure nombre, zona horaria, sedes y módulos;
+4. importe o cree personas;
+5. adapte sus áreas de servicio;
+6. prepare un culto o actividad;
+7. asigne personas y detecte conflictos;
+8. publique y notifique;
+9. reciba confirmaciones o rechazos;
+10. detecte huecos y gestione sustituciones.
+
+Esto constituye un producto útil por sí mismo, sin impedir que posteriormente la misma base gestione toda la vida operativa de la iglesia.
+
+## 6. Alcance por etapas
+
+| Etapa | Alcance |
 |---|---|
-| Landing actual | Marca, anuncio de «Muy pronto» y maqueta ilustrativa |
-| Lanzamiento multiiglesia | Alta asistida y autoservicio, pago, activación del tenant, base editable de áreas, pertenencias y permisos |
-| Núcleo de programación | Puestos, personas, plantillas de servicio, cultos, asignaciones, disponibilidad, respuestas y avisos |
-| Integración de Alabanza | Lo anterior más canciones, repertorio y atril; migración condicionada a que funcionen C, D y R del backlog histórico |
-| Evolución posterior | Automatización avanzada, equipos asignados en bloque, varias sedes y otras funciones pendientes de priorizar |
+| Fundación SaaS | Tenant, sede, personas, auth, módulos, permisos, auditoría, privacidad, suscripción y operación |
+| MVP operacional | Serving, actividades, programación, disponibilidad, respuestas, notificaciones y calendario básico |
+| Plataforma eclesial | Eventos, formularios, grupos, discipulado, comunicación, Kids y recursos |
+| Integración de Alabanza | Canciones, repertorio, atril, ensayos y continuidad de Calserv |
+| Expansión | Pastoral, Giving, analítica avanzada, API pública e integraciones especializadas |
 
-Las dos filas de lanzamiento y núcleo forman la primera experiencia de
-producto. No basta diseñar una programación aislada de su alta y su iglesia.
-La app de Alabanza continúa funcionando mientras se construye la general. Su repertorio, atril, usuarios y datos se integran en la fase final, preservando su experiencia. Su UI/UX y las funciones comunes se reutilizan desde las primeras fases; no se posponen el perfil ni los avisos de las áreas generales hasta la incorporación de Alabanza.
+## 7. Qué no debe confundirse
 
-## La medida del éxito
+- **Persona** no es lo mismo que usuario autenticado.
+- **Miembro de una iglesia** no es lo mismo que servidor de un área.
+- **Área de servicio** no es lo mismo que grupo/célula.
+- **Actividad** no siempre es un culto.
+- **Turno** no siempre necesita un evento religioso; puede ser una franja o tarea operativa.
+- **Permiso** no es lo mismo que módulo contratado.
+- **Tenant** no es lo mismo que sede.
+- **Notificación operativa** no equivale a comunicación masiva.
+- **Datos pastorales sensibles** no deben heredar automáticamente los permisos del directorio general.
 
-La iglesia completa el alta y adapta sus áreas sin ayuda técnica. El sábado a
-las 20:00 el coordinador puede distinguir lo confirmado, lo pendiente de
-respuesta y lo vacío. Un servidor entiende su turno y responde sin explicación.
-Una persona que pertenece a dos iglesias sabe siempre en cuál está trabajando.
+## 8. Multi-sede
 
-## Marca y promesa pública
+Aunque el primer piloto pueda ser de iglesias con una sola localización, `campus` o `site` forma parte del modelo desde la fundación. Una sede puede tener:
 
-La landing habla de una «plataforma completa para iglesias». La estructura
-multiiglesia sí está confirmada; esa frase no aprueba por sí sola módulos de
-contabilidad, membresía o donaciones. Los nuevos diseños siguen el alcance de
-esta página. El texto público se revisará contra este alcance antes de abrir
-el registro; esta tarea documental no modifica la landing.
+- dirección y zona horaria si fuera necesario;
+- servicios y actividades propios;
+- áreas y líderes locales;
+- salas y recursos;
+- grupos vinculados;
+- configuración operacional.
 
-La UI y UX del producto proceden de la app de Alabanza existente (Calserv / LFY Worship), por instrucción del promotor. Ver [Referencia de UI y UX](14-referencia-uiux-alabanza.md). La identidad de la landing es una referencia comercial, y deja de ser el punto de
-partida visual de las aplicaciones.
+Los datos siguen perteneciendo al tenant de la iglesia. La sede es una partición funcional, no un nuevo tenant.
 
-## Propuesta y evidencia pendiente
+## 9. Éxito del producto
 
-Experiencia en español de España, adaptada a iglesias pequeñas y con cobro en
-euros. Las afirmaciones antiguas sobre exclusividad frente a competidores y
-sus precios quedan como hipótesis: el estudio citado no está incluido aquí y
-no hay fuentes fechadas suficientes para convertirlas en promesas comerciales.
+LEVITA será válido cuando una iglesia pueda operar sin depender de hojas de cálculo y grupos dispersos de mensajería, manteniendo al mismo tiempo claridad, control y privacidad.
+
+Indicadores de producto a validar —no asumir como resultados—:
+
+- tiempo de alta y primera configuración;
+- porcentaje de invitaciones aceptadas;
+- tiempo para preparar un servicio;
+- cobertura de puestos antes del evento;
+- tasa de respuesta;
+- adopción móvil;
+- número de tareas manuales eliminadas;
+- incidencias de permisos o aislamiento;
+- abandono en alta/pago;
+- uso por módulo.
+
+## 10. Marca y experiencia visual
+
+La landing sigue siendo una referencia comercial. La experiencia de producto debe continuar la UI/UX de Calserv / LFY Worship para mantener consistencia entre acceso, perfil, tema, avisos, navegación, móvil, feedback y componentes comunes.
+
+La incorporación funcional de Alabanza se realiza al final del roadmap inicial, pero sus patrones visuales y de interacción se reutilizan desde la primera fase.
+
+## 11. Regla de evolución
+
+Toda nueva función debe responder estas preguntas antes de desarrollarse:
+
+1. ¿A qué tenant pertenece?
+2. ¿Puede estar acotada a una sede?
+3. ¿Qué persona o cuenta la origina?
+4. ¿Qué roles pueden verla, crearla, modificarla y borrarla?
+5. ¿Contiene datos sensibles?
+6. ¿Debe quedar auditada?
+7. ¿Qué ocurre si el módulo está desactivado?
+8. ¿Cómo se importa/exporta?
+9. ¿Qué ocurre al archivar una persona o una iglesia?
+10. ¿Puede procesarse de forma idempotente?
+11. ¿Qué sucede en una cuenta que pertenece a varias iglesias?
+12. ¿Qué métricas operativas genera?
+
+Si una función no tiene respuesta clara, todavía no está lista para implementación.

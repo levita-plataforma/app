@@ -1,5 +1,7 @@
 # Backlog histórico del producto
 
+> **HISTÓRICO:** este backlog conserva decisiones y estado de trabajos anteriores. El **ROADMAP VIGENTE** es `docs/13-plan-por-fases.md`; cuando exista conflicto, prevalece la documentación integral revisada el 15/09/2026.
+
 > **Revisión del 15 de septiembre de 2026:** se conserva el historial y sus
 > casillas; no acredita implementación en este checkout. El producto se ha
 > localizado en `Documents/Levitaapp` y la app de Alabanza en `Documents/Calserv`.

@@ -1,184 +1,138 @@
-# Decisiones tomadas
+# Decisiones y cuestiones abiertas
 
-Registro corto de las decisiones estructurales, con su alternativa y su coste.
-Si vas a cambiar una, lee primero por qué está así.
+Revisión: **15 de septiembre de 2026**.
 
----
+Este documento distingue decisiones confirmadas de asuntos que deben cerrarse antes de la fase correspondiente. Las decisiones más recientes prevalecen sobre propuestas históricas del backlog.
 
-### 1 · Base de datos compartida con RLS, no schema por iglesia
+## Decisiones confirmadas
 
-**Alternativa:** un schema de Postgres por tenant.
-**Por qué no:** más aislamiento, sí, pero migrar 800 schemas es una pesadilla
-operativa y el coste por tenant se dispara. Para cientos de iglesias pequeñas,
-`church_id` + RLS es lo correcto.
-**Coste que asumimos:** disciplina absoluta en las políticas. De ahí la suite de
-aislamiento y los controles negativos.
+### D1 · LEVITA es SaaS multiiglesia
+Cada iglesia es un tenant aislado.
 
----
+### D2 · Arquitectura modular
+LEVITA se diseña como plataforma integral con módulos activables. Serving es el primer gran módulo, no el límite del producto.
 
-### 2 · `people` separada de `auth.users`, con `user_id` nullable
+### D3 · People es transversal
+Una persona puede existir sin cuenta y participa en múltiples módulos.
 
-**Alternativa:** las asignaciones apuntan directamente al usuario autenticado.
-**Por qué no:** bloquearía el alta de una iglesia hasta que los 40 servidores se
-registraran uno a uno. Planning Center funciona así por la misma razón.
-**Coste:** una tabla más y un paso de enlace al aceptar la invitación.
+### D4 · Sede no es tenant
+Multi-campus forma parte del core. Una sede vive dentro de una iglesia.
 
----
+### D5 · Activity es concepto común
+Cultos, reuniones, cursos, eventos, ensayos, tareas y turnos pueden compartir una raíz temporal/operativa sin obligarse a usar exactamente la misma tabla física.
 
-### 3 · `church_id` duplicado en todas las tablas hijas
+### D6 · Permisos y entitlements son distintos
+El plan determina capacidades disponibles para el tenant; los roles determinan quién puede usarlas.
 
-**Alternativa:** derivarlo por join desde la tabla padre.
-**Por qué no:** obligaría a cada política RLS a hacer un join, que es la causa
-principal de RLS lento — la guía de Supabase documenta casos de 178 s que bajan
-a 12 ms al evitarlo.
-**Coste:** una columna redundante por tabla, con su riesgo de desincronización,
-que se neutraliza con las claves foráneas compuestas.
+### D7 · RLS obligatorio para datos tenant-aware
+Acompañado de grants mínimos, constraints tenant-safe y tests de aislamiento.
 
----
+### D8 · UI/UX común heredada de Calserv
+No crear una segunda identidad visual para los módulos generales.
 
-### 4 · Funciones de contexto `security definer`
+### D9 · Alabanza se integra funcionalmente al final
+Sus patrones comunes se reutilizan desde el principio; sus datos y funciones específicas se incorporan tras estabilizar el core.
 
-**Alternativa:** consultar `people` directamente dentro de la política.
-**Por qué no:** recursión infinita. Una política sobre `people` que consulta
-`people` se llama a sí misma. Es el error de RLS más común en Supabase.
-**Coste:** funciones que se saltan RLS, y por tanto hay que auditarlas con
-cuidado: `search_path` fijado y `execute` revocado a `public` y `anon`.
+### D10 · Kids, Pastoral y Giving son dominios sensibles
+No usan permisos genéricos de administrador como acceso automático a todos sus datos.
 
----
+### D11 · Soporte no tiene acceso silencioso universal
+La impersonación, cuando se implemente, es temporal y auditada.
 
-### 5 · Los avisos se encolan, no se envían
+### D12 · Datos históricos se archivan
+Evitar borrado destructivo ordinario cuando existen relaciones históricas.
 
-**Alternativa:** enviar el push en el momento de crear la asignación.
-**Por qué no:** los recordatorios son diferidos por naturaleza, un fallo de red
-perdería el aviso, y no habría forma de cancelar un recordatorio cuyo turno
-cambió.
-**Coste:** una tabla de cola y un worker. A cambio: reintentos, deduplicación,
-cancelación y trazabilidad.
+### D13 · Importación/exportación forman parte del producto
+No son scripts internos improvisados.
 
----
+### D14 · Facturación pertenece al tenant
+El alta comercial forma parte del lanzamiento; precio y periodicidad aún no están definidos.
 
-### 6 · `pg_cron` en lugar del cron del hosting
+### D15 · Las áreas iniciales son copias editables por tenant
+No existe un catálogo global mutable que renombre áreas ya creadas en clientes.
 
-**Alternativa:** Vercel Cron.
-**Por qué no:** granularidad y cupos limitados por plan, y *cold start*. Un
-recordatorio del sábado a las 20:00 no puede depender de eso.
-**Coste:** una sentencia `cron.schedule` que hay que ejecutar a mano tras el
-despliegue, y que es fácil olvidar. Está documentada en tres sitios por eso.
+### D16 · Notificación persistente antes de canal externo
+Push/email son transportes, no fuente de verdad.
 
----
+## Cuestiones abiertas antes de Fase 1
 
-### 7 · PWA en lugar de app nativa
+### A1 · Pricing
+- importe;
+- periodicidad;
+- trial;
+- impuestos;
+- cupones/descuentos;
+- política de reembolso.
 
-**Alternativa:** React Native o dos apps nativas.
-**Por qué no:** dos tiendas, dos procesos de revisión, y una fricción de
-instalación mucho mayor para un usuario que solo va a pulsar «puedo servir».
-**Coste:** el grande, y hay que asumirlo con los ojos abiertos — **en iOS no hay
-push sin instalar en pantalla de inicio**. Si la tasa de instalación resulta ser
-mala en el piloto, esta decisión se revisa.
+### A2 · Impago
+- duración del grace period;
+- solo lectura o suspensión;
+- módulos afectados;
+- exportación durante suspensión.
 
----
+### A3 · Propietarios
+Definir si una iglesia puede tener varios owners y procedimiento de transferencia.
 
-### 8 · Dos aplicaciones Next.js, no una
+## Cuestiones abiertas antes de Fase 2
 
-**Alternativa:** una app con dos grupos de rutas.
-**Por qué no:** una PWA solo puede tener un `manifest` y un service worker con
-su ámbito. Mezclarlas complica las dos sin ganar nada.
-**Coste:** dos proyectos en Vercel y dos despliegues.
+### A4 · Estado de membresía
+Definir vocabulario final para visitante/conectado/miembro/inactivo sin imponer una eclesiología concreta a todos los tenants.
 
----
+### A5 · Directorio
+Qué campos son visibles por defecto y qué controles de privacidad ofrece la iglesia/persona.
 
-### 9 · Enrutado por ruta, no por subdominio
+### A6 · Merge de personas
+Nivel de reversibilidad y criterio de detección de duplicados.
 
-**Alternativa:** `betel.tuiglesia.es`.
-**Por qué no:** complica el ámbito del service worker y el almacenamiento de
-sesión, y no aporta nada hasta que un cliente lo pida.
-**Coste:** ninguno hoy. Se guarda como característica del plan superior.
+## Cuestiones abiertas antes de Fase 4
 
----
+### A7 · Implementación física de Activity
+Una tabla base con extensiones vs entidades especializadas conectadas. Debe resolverse con el esquema real y consultas esperadas.
 
-### 10 · Español en el dominio, inglés en el esquema
+### A8 · Publicación multiárea
+Definir quién puede publicar una actividad con varias áreas y si el líder puede publicar solo su parte.
 
-**Alternativa:** todo en uno de los dos.
-**Por qué así:** el dominio en español porque es el vocabulario de la iglesia y
-el que aparece en la interfaz; el esquema en inglés porque es lo que esperan las
-herramientas de Supabase y los tipos generados.
-**Coste:** una traducción mental en la capa de datos. Se documenta en la tabla
-de vocabulario de `01-modelo-dominio.md`.
+### A9 · Ventana de respuesta
+Hasta qué momento se puede aceptar/rechazar/cambiar respuesta.
 
----
+### A10 · Conflictos
+Cuáles bloquean y cuáles solo advierten. Por defecto, conflictos humanos informan; credenciales/reglas de seguridad pueden bloquear.
 
-## Revisión de producto · 15 de septiembre de 2026
+## Cuestiones abiertas antes de Fase 6
 
-Las decisiones 1–10 son arquitectura heredada, cuya implementación debe
-vincularse al repositorio de origen según el [índice](README.md). La separación
-en dos apps es una elección del proyecto; no es una imposibilidad técnica
-universal de alojar varias experiencias PWA bajo otra organización.
+### A11 · Formularios sensibles
+Qué tipos de campos requieren permisos especiales o se prohíben en formularios genéricos.
 
-### 11 · Cada iglesia es un tenant — confirmado por el promotor
+### A12 · Eventos de pago
+No implementar hasta decidir proveedor, fiscalidad y política de cancelación.
 
-LEVITA sirve a múltiples iglesias con datos, pertenencias, roles y suscripción
-independientes. La misma cuenta puede pertenecer a más de una iglesia sin
-compartir sus datos. Ver [Iglesias y tenants](12-iglesias-y-tenants.md).
+## Cuestiones abiertas antes de Fase 8
 
-### 12 · Alta asistida y registro con cuota — confirmado por el promotor
+### A13 · Kids
+- mecanismo de identificación de recogida;
+- impresión/etiquetas;
+- datos médicos mínimos;
+- política de fotografía;
+- retención de incidencias.
 
-Operación puede dar de alta la iglesia o la iglesia puede registrarse pagando.
-La suscripción y la activación entran en el lanzamiento. Sustituye el aplazamiento
-de facturación a fase 4 que todavía aparece como contexto en el backlog histórico.
-El importe y condiciones concretas no se han elegido.
+## Cuestiones abiertas antes de Fase 9
 
-### 13 · Base de áreas editable por iglesia — confirmado por el promotor
+### A14 · Comunicaciones comerciales/masivas
+Finalidades, consentimiento, opt-out y proveedores.
 
-Cada tenant recibe una base propia. Puede crear más áreas, editarlas y cambiarles
-el nombre. Un renombrado conserva identidad, vínculos e historial. No se aplican
-cambios globales a las áreas ya personalizadas por las iglesias.
+## Cuestiones abiertas antes de Fase 11
 
-## Decisiones abiertas y supuestos para avanzar en diseño
+### A15 · Migración Calserv
+Definir estrategia exacta de migración/vinculación, ventana de corte, rollback y conservación de IDs/historial.
 
-| ID | Cuestión | Criterio para la maqueta | Antes de implementar |
-|---|---|---|---|
-| D1 | Alcance de módulos más allá del servicio | Multiiglesia, alta/pago y núcleo de turnos; bloque R para integrar Alabanza | Confirmar nuevas funciones antes de añadir membresía, donaciones u otros módulos |
-| D2 | Quién publica un evento con varias áreas | Diseñar la publicación completa con propietario/admin; líder prepara su área | Resolver si hay publicación global delegada o por área; un único estado de evento no expresa «publicar solo mis turnos» |
-| D3 | Oferta, impago y cancelación | Cuota sin importe inventado; recuperación del pago; alta asistida con enlace de pago | Definir importe, periodicidad, gracia, acceso al cancelar, condiciones y cualquier excepción comercial |
-| D4 | Nuevas asignaciones en un evento publicado | Previsualizar destinatarios antes de enviar nuevas propuestas | Conciliar el momento de envío con los triggers; no asumir a la vez envío inmediato y envío al republicar |
-| D5 | Respuestas y cambios del servicio | Respuesta reversible en turno vigente; cancelado/retirado sin acciones; error sin perder datos | Definir límites temporales, reconfirmación al cambiar hora y contrato de respuesta; verificar capacidades de notificación en dispositivos reales |
-| D6 | Soporte de plataforma y conflictos entre iglesias | Operación ve altas y pagos; cada iglesia ve solo sus conflictos internos | Definir acceso de soporte y si habrá disponibilidad privada entre tenants, sin filtrar datos de otra iglesia |
-| D7 | Versión de referencia y marca de plataforma/iglesia | Heredar UI/UX de Calserv; Negro + Escenario como arranque observado | Confirmar versión usada por el equipo, dominios y encaje de LEVITA sin imponer identidad LFY a todas las iglesias |
-| D8 | Integración con Alabanza | Conservar UI/UX y funcionamiento común: acceso actual, perfil, push y campana; módulo de Alabanza al final | Resolver conexión de cuentas, roles, datos y bandeja/cola por tenant, conservando el comportamiento actual y evitando cuentas o envíos duplicados |
+## Cuestiones abiertas antes de Fase 12
 
-Ninguna fila abierta revoca los requisitos confirmados 11–16. Los supuestos
-permiten evaluar pantallas y se anotan en el material de diseño, no en la
-interfaz final de la iglesia.
+### A16 · Pastoral
+Modelo de retención, visibilidad y requisitos legales/organizativos.
 
-### 14 · La UI y UX son las de la app de Alabanza — confirmado por el promotor
+### A17 · Giving
+Proveedor, recibos, tratamiento fiscal, conciliación y exportación contable.
 
-La app existente se integrará con LEVITA. Toda pantalla nueva amplía esa misma
-experiencia. Sustituye la propuesta de tomar colores, tipografías y navegación
-de la landing para el producto. La referencia localizada es Calserv / LFY
-Worship: [inventario y evidencia](14-referencia-uiux-alabanza.md).
+## Regla
 
-La integración visual y de interacción comienza en fase 0; el traspaso o
-integración de datos se realiza cuando estén validados los contratos técnicos.
-No se presupone una reescritura ni que la interfaz de Alabanza deba sustituirse.
-
-### 15 · Alabanza es la última en incorporarse — confirmado por el promotor
-
-Se construye y valida primero la plataforma general y sus demás áreas.
-Alabanza continúa en la app actual y se incorpora al final dentro de LEVITA,
-con usuarios, funciones y datos según el contrato de integración. Se hereda su
-UI/UX desde fase 0; su integración funcional ocurre en fase 6. El plan anterior
-que la trataba como un módulo a añadir antes de consolidar la general queda
-sustituido por [este orden](13-plan-por-fases.md).
-
-### 16 · Se hereda también el funcionamiento común — confirmado por el promotor
-
-La continuidad incluye push, bandeja de avisos, perfil, acceso, preferencias y
-los demás comportamientos comunes de la app existente. Se reutiliza y adapta
-esa base para las áreas generales durante las primeras fases. Se conserva el
-acceso actual; la propuesta antigua de cambiarlo por enlaces mágicos no es la
-instrucción vigente.
-
-La incorporación final sigue reservada al equipo de Alabanza, sus funciones
-específicas y sus datos. No se posponen hasta entonces el perfil ni los avisos
-de la general. El [inventario funcional](14-referencia-uiux-alabanza.md) y los
-recorridos de paridad determinan qué se conserva y qué requiere adaptación.
+Una cuestión abierta no debe resolverse “por comodidad del código” si afecta a producto, legal, billing o permisos. Documentar la decisión y actualizar su documento responsable.

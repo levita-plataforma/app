@@ -1,167 +1,225 @@
-# Modelo de dominio
+# Modelo de dominio integral
 
-Especificación revisada el 15 de septiembre de 2026. Las referencias a código y pruebas proceden del producto localizado en Documents/Levitaapp; no se han ejecutado en esta revisión. Ver [índice](README.md) y [tenants](12-iglesias-y-tenants.md).
+Revisión: **15 de septiembre de 2026**.
 
-## Vocabulario
+LEVITA utiliza un modelo de dominio compartido por todos los módulos. Serving es el primer dominio profundo, pero no gobierna el resto de la plataforma.
 
-Este es el vocabulario de la interfaz. Úsalo tal cual: es como habla la iglesia.
+## 1. Jerarquía principal
 
-| En la interfaz | Tabla | Qué es |
+```text
+Plataforma LEVITA
+└── Iglesia / tenant
+    ├── Sedes
+    ├── Personas y familias
+    ├── Roles y permisos
+    ├── Módulos y entitlements
+    ├── Áreas de servicio y equipos
+    ├── Grupos y recorridos
+    ├── Actividades / eventos
+    ├── Formularios e inscripciones
+    ├── Comunicaciones
+    ├── Recursos
+    └── Datos especializados por módulo
+```
+
+## 2. Vocabulario transversal
+
+| Concepto UI | Entidad conceptual | Definición |
 |---|---|---|
-| Área de servicio | `ministries` | Alabanza, Sonido, Multimedia, Bienvenida, Niños. Tiene líderes propios |
-| Puesto | `positions` | Rol dentro del área: voz líder, batería, cámara 1, proyección, ujier |
-| Tipo de servicio | `service_types` | Plantilla recurrente: «Culto domingo 11h» con los puestos habituales |
-| Evento | `events` | La instancia con fecha: el culto del 4 de octubre, el ensayo del sábado |
-| Turno | `event_positions` | «En este evento hacen falta 2 de cámara». Es el hueco, no la persona |
-| Asignación | `assignments` | Persona propuesta para un turno + su respuesta |
-| Bloqueo | `blockouts` | «Del 1 al 20 de agosto no estoy» |
+| Iglesia | `churches` | Tenant contractual y de seguridad |
+| Sede | `campuses` | Localización/estructura dentro de una iglesia |
+| Persona | `people` | Ser humano conocido por la iglesia, tenga o no cuenta |
+| Cuenta | `auth.users` | Identidad digital global de acceso |
+| Familia/Hogar | `households` | Agrupación de personas relacionadas |
+| Módulo | `modules` | Capacidad funcional del producto |
+| Módulo de iglesia | `church_modules` | Módulo habilitado para un tenant |
+| Actividad | `activities` | Hecho con fecha/hora o tarea operativa común |
+| Evento | especialización | Actividad de calendario con participantes/inscripciones |
+| Grupo | `groups` | Comunidad recurrente con líderes y participantes |
+| Área de servicio | `ministries` | Sonido, Multimedia, Bienvenida, Niños, etc. |
+| Puesto | `positions` | Rol operativo dentro de un área |
+| Equipo | `teams` | Conjunto habitual de personas para servir juntas |
+| Turno | `event_positions` o equivalente | Necesidad de una posición en una actividad |
+| Asignación | `assignments` | Persona propuesta para cubrir una plaza |
+| Bloqueo | `blockouts` | Periodo en el que una persona no puede servir |
+| Formulario | `forms` | Estructura configurable para recopilar información |
+| Inscripción | `registrations` | Participación solicitada/confirmada en evento/curso |
+| Recurso | `resources` | Sala, vehículo, equipo u otro activo reservable |
 
-## Las dos decisiones que condicionan todo
+## 3. La persona no es el usuario
 
-### 1 · La persona no es el usuario
+`people.user_id` o su relación equivalente es nullable. La iglesia debe poder registrar, programar, agrupar o acompañar a una persona sin exigir que cree una cuenta.
 
-`people.user_id` es **nullable**. El coordinador tiene que poder programar a
-Marta *antes* de que Marta se registre. Si las asignaciones apuntaran a
-`auth.users`, el alta de una iglesia se bloquearía hasta que los 40 servidores
-se dieran de alta uno a uno, y ahí se pierde la adopción.
+La cuenta sirve para autenticarse; la persona pertenece al dominio eclesial. Al aceptar una invitación se enlazan ambas identidades sin perder historial.
 
-Cuando la persona acepta la invitación se enlaza su cuenta y hereda todo el
-historial que ya tenía.
+### Persona y pertenencia
 
-### 2 · El área de servicio es la unidad de gobierno
+No todas las personas registradas son miembros formales. La relación con la iglesia debe permitir estados como:
 
-El líder de alabanza no debe poder tocar la programación de niños. El permiso
-real no es de iglesia, es de área: `ministry_members.is_leader`, resuelto por
-`app.can_manage_ministry()`.
+- visitante;
+- conectado;
+- miembro;
+- servidor;
+- líder;
+- externo;
+- inactivo/archivado.
 
-Jerarquía: plataforma → iglesia (tenant) → área de servicio → puesto → turno. Una sede futura vive dentro de la iglesia. La suscripción pertenece al tenant. Cada área tiene identidad estable: crear o renombrar un área afecta solo a su iglesia y conserva sus relaciones. La base inicial es una copia editable por tenant, no un catálogo global mutable.
+Estos estados no sustituyen a roles de autorización.
 
-## Por qué turno y asignación son cosas distintas
+## 4. Familias
 
-Porque el hueco existe aunque no lo cubra nadie. Un turno con 2 plazas y 1
-aceptada es el dato que alimenta el panel de huecos, la alerta del viernes y el
-motor de sustituciones. Si la asignación fuera la única fila, un rechazo
-borraría la necesidad.
+Los hogares permiten relacionar adultos, menores, tutores y convivientes, pero las autorizaciones sensibles se modelan explícitamente. Compartir hogar no concede automáticamente permiso para recoger a un menor ni acceso a información restringida.
 
-## Estados y cobertura
+## 5. Actividad como raíz temporal
 
-**Evento:** borrador → publicado → cancelado. En borrador no se avisa; al
-publicar se preparan los avisos. Publicación por líder de un evento de varias
-áreas sigue pendiente en D2 de [Decisiones](07-decisiones.md).
+No toda actividad es un culto. El modelo debe cubrir:
 
-**Asignación:** pendiente → aceptada o rechazada; aceptada y rechazada pueden
-intercambiarse mientras siga vigente. Retirada es una acción de gestión y no
-una respuesta del servidor. No ofrecer respuesta en culto cancelado o turno
-retirado; concretar contrato y límites temporales en D5.
+- culto;
+- ensayo;
+- reunión de grupo;
+- curso;
+- conferencia;
+- retiro;
+- reunión de liderazgo;
+- turno de limpieza;
+- tarea de mantenimiento;
+- reserva de sala;
+- actividad infantil.
 
-Pendiente en borrador se presenta como **Propuesto**. Pendiente después de
-avisar se presenta como **Pendiente de respuesta**. No asignar antigüedad de
-respuesta a una propuesta que aún no se envió.
+Una actividad puede ser puntual o recurrente, pública o interna, tenant-wide o de sede, y puede enlazar recursos, equipos, formularios y comunicaciones.
 
-**Turno** es el puesto de un evento; **plaza** es cada persona necesaria. Un
-turno de Puerta puede requerir tres plazas. Confirmadas cuenta aceptadas;
-propuestas/pendientes cuentan asignaciones vigentes sin respuesta; vacías son
-las plazas sin propuesta ni aceptación. Rechazadas y retiradas no cubren.
+## 6. Serving: vocabulario específico
 
-Para un turno, vacías = máximo(0, necesarias − aceptadas − pendientes).
-Faltan confirmaciones = máximo(0, necesarias − aceptadas). No sumar «faltan
-confirmaciones» como otra categoría: ya incluye pendientes y vacías. Si se
-sobreasigna un turno, mostrarlo y no forzar la suma al número necesario.
-
-### Publicación: ejemplos normativos de la decisión heredada
-
-Las reglas de composición cuentan **pendientes y aceptadas**. Las credenciales
-se evalúan para el día del evento. No confundir aptitud para publicar con
-confirmación del equipo.
-
-| Situación | Publicación | Presentación |
+| Interfaz | Entidad | Qué es |
 |---|---|---|
-| Niños, mínimo 2, sin ninguna asignación vigente | Permitida por la excepción de turno vacío | Dos plazas vacías; no afirmar que está listo |
-| Niños, una persona propuesta o aceptada | Bloqueada | Falta otra persona para cumplir el mínimo |
-| Niños, dos propuestas con requisitos vigentes | Permitida | Dos propuestas; cero confirmaciones |
-| Sonido con requisito de autónomo, solo un aprendiz | Bloqueada | Añadir una persona autónoma |
-| Sonido con aprendiz y autónomo propuestos | Permitida | No implica dos confirmaciones |
-| Cualquier asignación sin requisito obligatorio vigente en la fecha | Bloqueada al asignar y revalidada al publicar | Explicación según permisos; corregir el requisito |
+| Área de servicio | `ministries` | Unidad organizativa de voluntariado |
+| Puesto | `positions` | Capacidad/rol dentro del área |
+| Tipo de servicio | `service_types` | Plantilla recurrente de culto/servicio |
+| Turno | `event_positions` | Necesidad concreta de un puesto |
+| Asignación | `assignments` | Persona propuesta/asignada a una plaza |
+| Bloqueo | `blockouts` | Indisponibilidad |
 
-Procedencia: A0.2, A0.4 y A0.5 del backlog. La composición se comprueba al
-publicar; al preparar una asignación puede señalarse el problema sin impedir
-completar el equipo. La credencial bloqueante sí impide crear la asignación.
-No se permite ignorar esas credenciales como un conflicto ordinario.
+## 7. Turno y asignación son distintos
 
-## Lo que añade el análisis de áreas
+El hueco existe aunque no tenga persona. Un turno con tres plazas sigue existiendo con cero, una o tres asignaciones. Esto permite medir cobertura y gestionar rechazos sin perder la necesidad original.
 
-Las doce fichas de `docs/areas/` obligan a ampliar el modelo por cinco sitios.
-El detalle y el SQL están en `docs/areas/00-indice.md`; aquí queda cómo cambia
-el vocabulario del dominio.
+## 8. Estados de actividad
 
-**El puesto lleva su hora de llegada.** Sonido entra 90 minutos antes del culto,
-el ujier 30. `positions.call_offset_min`, con override por evento. Los
-recordatorios se calculan sobre la hora de llegada, nunca sobre `starts_at`.
+Estados base recomendados:
 
-**Cubrir un puesto tiene niveles.** `member_positions.level` con `aprendiz`,
-`autonomo` y `forma_a_otros`. En alabanza da igual; en sonido decide si esa
-persona puede quedarse sola en la mesa.
+- `draft`;
+- `published`;
+- `cancelled`;
+- `completed`;
+- `archived` cuando aplique.
 
-**El puesto tiene criticidad.** `positions.criticality` con `critica`,
-`importante` y `flexible`. No es metadato: dirige cuándo se avisa de un hueco y
-qué se pinta en rojo. Sin ella, un hueco de ujier alarma igual que uno de
-sonido, el líder aprende a ignorar las alertas, y el sistema de avisos deja de
-significar nada.
+Los módulos pueden extender estados, pero deben mapearse a una semántica transversal.
 
-**Un turno se cubre cumpliendo una regla, no llegando a un número.**
-`positions.min_personas` y `positions.requiere_autonomo`. Niños necesita dos
-adultos siempre aunque sobre gente; el conteo de la ofrenda, dos personas por
-control interno; sonido, al menos un autónomo si va un aprendiz.
+## 9. Estados de asignación
 
-**Servir en un área puede exigir credenciales en vigor.**
-`ministry_requirements` y `person_credentials`. En niños y jóvenes es la Ley
-Orgánica 8/2021: sin certificado vigente **la asignación se impide**. Ver
-`docs/areas/06-ninos.md` y `docs/08-rgpd-y-lopivi.md`.
+- `proposed` mientras no se notifica;
+- `pending` tras notificación;
+- `accepted`;
+- `declined`;
+- `withdrawn` por gestión;
+- `replaced` cuando quede historial de sustitución.
 
-Y una sexta que no cambia el esquema sino el peso del producto: **la frecuencia
-deseada de servicio**. La versión simple guarda un máximo deseado de servicios al mes. El backlog refiere que `ordenarPorRotacion()` lo respeta: al alcanzarlo, la persona pasa al final sin desaparecer. Reducir sobrecarga es una hipótesis de valor a validar, no una causa de abandono medida aquí.
+No borrar rechazos para “limpiar” la programación. Son historial operativo.
 
-## Reglas referidas en la implementación del producto
+## 10. Cobertura
 
-Referencia: `packages/core` del producto. Los conteos antiguos de pruebas no se usan como resultado actual de esta revisión:
+Para un turno:
 
-- `detectarConflictos()` — bloqueo de disponibilidad, solape con otro evento,
-  duplicado en el mismo evento, ya asignada. Devuelve **todos** los conflictos,
-  no el primero: el coordinador quiere verlos todos.
-- `calcularHuecos()` — distingue `faltanEnFirme` (contando pendientes) de
-  `faltanConfirmadas` (solo aceptadas). El sábado importa la segunda.
-- `ordenarPorRotacion()` — menos veces servido primero; a igualdad, quien lleva
-  más sin hacerlo; a igualdad total, orden estable.
-- `proximaOcurrencia()` — próxima ocurrencia semanal respetando el cambio de
-  hora.
+```text
+vacías = max(0, necesarias - aceptadas - pendientes)
+faltan_confirmaciones = max(0, necesarias - aceptadas)
+```
 
-El backlog también refiere las reglas del bloque A0:
+Las rechazadas y retiradas no cubren. La sobreasignación debe mostrarse, no esconderse.
 
-- `horaDeLlegada()` y `envioRecordatorio2h()` — el recordatorio cuenta desde la
-  hora de llegada del puesto.
-- `validarPublicacion()` — lo que impide publicar: menos gente que el mínimo,
-  solo aprendices donde hace falta un autónomo, o alguien sin credencial en
-  vigor. Devuelve todos los problemas, no el primero.
-- `escaladoDeHueco()` y `avisarAlLiderAlRechazar()` — cuándo avisa un hueco
-  según la criticidad del puesto.
-- `credencialEnVigor()` y `credencialesQueFaltan()` — el certificado tiene que
-  valer el día del culto.
-- `ordenarPorRotacion()` respeta la frecuencia deseada, y
-  `semanasSeguidasSirviendo()` detecta a quien se puede quemar.
+## 11. Reglas de composición
 
-## Pendiente de modelar
+Las áreas pueden definir reglas como:
 
-- `availability_rules` en su versión completa: disponibilidad recurrente («sirvo
-  dos domingos al mes», «cada dos domingos»). El MVP solo guarda el máximo al mes.
-- **Turnos por franja horaria sin evento asociado.** Vigilias por tramos,
-  limpieza por semanas, «comprar el café antes del viernes». Tres áreas no
-  encajan en `evento → turno`. Es la decisión de modelado grande que queda
-  pendiente; la recomendación y las dos opciones están en
-  `docs/areas/08-intercesion.md`.
-- `teams` dentro del área, para asignar la Banda B de una vez en lugar de siete
-  personas sueltas.
-- `campuses`: varias sedes. La tabla está prevista en el diseño pero no creada.
-- Canciones, repertorio del culto y atril: **adelantados al bloque R** de
-  `docs/TAREAS.md`, porque Alabanza ya los usa en Calserv y Turnos no puede
-  sustituirla sin ellos.
-- `plan_items`: el orden del culto con bloques y tiempos sigue en fase 3.
+- mínimo de personas;
+- necesidad de una persona autónoma;
+- credencial vigente;
+- mezcla de perfiles;
+- incompatibilidades;
+- ratio adulto/niño;
+- mínimo por idioma;
+- límite de frecuencia.
+
+Las reglas se evalúan para la fecha de la actividad y deben explicar por qué bloquean una publicación.
+
+## 12. Equipos
+
+`teams` es entidad de primera clase, no una lista guardada en una nota. Puede representar:
+
+- banda de Alabanza;
+- equipo A/B de Limpieza;
+- equipo de bienvenida;
+- pareja de traducción;
+- equipo técnico.
+
+Un equipo puede tener miembros, roles internos, vigencia, sede y áreas asociadas. Asignar un equipo genera o propone asignaciones individuales para conservar trazabilidad.
+
+## 13. Grupos no son áreas
+
+Un grupo/célula tiene líderes, participantes, reuniones y asistencia. No comparte automáticamente el modelo de puestos de Serving.
+
+## 14. Formularios
+
+Los formularios deben ser reutilizables y tipados. Ejemplos:
+
+- inscripción a evento;
+- alta de visitante;
+- solicitud de bautismo;
+- interés en grupo;
+- voluntariado;
+- petición de oración.
+
+Una respuesta pertenece al tenant y hereda la clasificación de privacidad del formulario.
+
+## 15. Directorio
+
+El directorio es una vista de People condicionada por privacidad. Cada persona puede tener campos visibles, ocultos o restringidos según política del tenant y consentimiento aplicable.
+
+## 16. Datos pastorales
+
+Los casos pastorales no son “notas de persona”. Deben existir en un módulo separado con ACL/capacidades específicas, auditoría y retención propia.
+
+## 17. Datos financieros
+
+Giving mantiene aportaciones y fondos fuera de la tabla de People. El acceso financiero se concede explícitamente y no se deriva de ser administrador general.
+
+## 18. Recursos
+
+Salas, equipos y vehículos pueden reservarse. Las reservas se relacionan con actividades o existen independientemente. Los conflictos deben detectarse igual que los conflictos humanos.
+
+## 19. Etiquetas y campos personalizados
+
+Las etiquetas son tenant-scoped y sirven para segmentación. Los campos personalizados amplían entidades sin modificar el esquema para cada iglesia.
+
+No usar custom fields para datos cuya seguridad necesita semántica fuerte, por ejemplo historial financiero o notas pastorales.
+
+## 20. Archivado
+
+Las entidades con historial se archivan. El borrado físico queda reservado a flujos definidos de limpieza, privacidad o administración.
+
+## 21. Invariantes
+
+1. Ningún dato tenant-aware referencia otro tenant.
+2. Una cuenta no obtiene acceso por conocer un ID.
+3. Una persona puede existir sin cuenta.
+4. Un módulo desactivado no elimina datos automáticamente.
+5. Una sede no es un tenant.
+6. Un rol no sustituye al entitlement.
+7. Una notificación no es la fuente de verdad del estado; el estado vive en dominio.
+8. Los módulos sensibles usan permisos más estrictos que los generales.
+9. Toda fecha se almacena de forma segura y se interpreta en zona horaria de contexto.
+10. Los cambios administrativos relevantes son auditables.
+
+## 22. Áreas de servicio
+
+Las necesidades específicas de Alabanza, Sonido, Multimedia, Dirección/Predicación, Bienvenida, Niños, Jóvenes, Intercesión, Diaconía, Hospitalidad, Limpieza/Mantenimiento y Traducción/Accesibilidad continúan en `docs/areas/`.

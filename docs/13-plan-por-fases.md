@@ -1,187 +1,437 @@
-# Plan de producto por fases
+# Plan por fases vigente
 
-Revisión: **15 de septiembre de 2026**. Plan vigente tras las aclaraciones del
-promotor. El [backlog](TAREAS.md) conserva contexto histórico; este documento
-marca el orden actual.
+Revisión: **15 de septiembre de 2026 — roadmap integral**.
 
-## Idea confirmada
+Este plan sustituye el orden anterior de siete fases. La arquitectura se prepara para una plataforma integral, pero la implementación sigue siendo incremental. **No significa construir todos los módulos antes del MVP.**
 
-LEVITA será la plataforma general multiiglesia. Cada iglesia tendrá su propio
-espacio: podemos darla de alta nosotros o puede registrarse pagando su cuota.
-Recibe una base de áreas de servicio que puede editar, renombrar y ampliar.
-Personas, programación, permisos y suscripción quedan dentro de su iglesia.
+## Regla general
 
-**La UI, la UX y el funcionamiento común proceden de la app actual de Alabanza:** push, campana, perfil, acceso, preferencias y demás recorridos compartidos.
-**Alabanza será la última en incorporarse a la plataforma general.** Hasta esa
-fase, su app y sus usuarios continúan trabajando como ahora. Se reutilizan
-sus patrones y comportamientos comunes en las fases de la general. Lo que se incorpora al final es el equipo de Alabanza con sus funciones específicas y datos, no el sistema común de perfil o avisos.
+Cada fase termina cuando cumple sus criterios de salida y pruebas, no cuando existe una maqueta. Cada fase debe incluir seguridad, RLS, auditoría y experiencia móvil/escritorio aplicables.
 
-## Fase 0 · UI/UX y funcionamiento común del producto general
+---
 
-**Resultado:** diseñar la plataforma general como continuación de la experiencia
-existente, con un contrato de integración preparado para el final.
+## Fase 0 · Fundación de producto y arquitectura SaaS
 
-- Revisar la versión de Alabanza utilizada por el equipo: pantallas, componentes,
-  navegación, temas, diálogos, feedback y funcionamiento móvil.
-- Reutilizar esa UI/UX y los módulos comunes de acceso, perfil, tema, push y campana; documentar paridad de comportamiento y adaptaciones por tenant.
-- Inventariar lo disponible en Calserv y en el monorepo de turnos; decidir dónde
-  se implementa y qué componentes compartidos o adaptados se utilizarán.
-- Definir pertenencias, roles y separación de datos de la plataforma general.
-- Preparar correspondencias de cuentas, datos y avisos para integrar Alabanza
-  al final, sin migrar usuarios ni cambiar su app durante esta fase.
+**Resultado:** núcleo estable sobre el que puedan crecer todos los módulos.
 
-**Mejoras incluidas:** contexto de iglesia visible, accesibilidad y recuperación
-de errores sobre componentes compartidos; ningún rediseño visual independiente.
+### Alcance
 
-**Criterio de salida:** prototipo de alta y áreas reconocible como la misma
-experiencia de Alabanza, componentes inventariados y decisiones técnicas de
-integración identificadas. Ver [Referencia UI/UX](14-referencia-uiux-alabanza.md).
+- Confirmar repositorios, código reutilizable y UI/UX de Calserv.
+- Definir tenant `church` y `campus`.
+- Definir People separado de Auth.
+- Definir pertenencias, households y relaciones.
+- Definir roles/capacidades y scopes.
+- Definir catálogo de módulos y `church_modules`.
+- Definir entitlements y feature flags.
+- Definir raíz de Activity.
+- Definir auditoría.
+- Definir estrategia de archivos.
+- Definir soft delete/archivado.
+- Definir import/export.
+- Definir observabilidad, jobs y webhooks.
+- Definir backup y restauración.
+- Definir soporte/impersonación.
+- Consolidar RLS, grants y constraints tenant-safe.
+- Reutilizar sistema visual, navegación, perfil, tema, campana y comportamiento común de Calserv.
 
-## Fase 1 · Alta, cuota y espacio de cada iglesia
+### No incluye todavía
 
-**Resultado:** una iglesia se registra o completa un alta asistida, paga y llega
-a su espacio activo con una base editable de áreas.
+CRUD completo de todos los módulos ni migración de Alabanza.
 
-- Registro de iglesia y cuenta propietaria sobre el funcionamiento de acceso existente.
-- Perfil común operativo: foto, Tema/Avisos/Contraseña y cierre de sesión, con alcance correcto de preferencias.
-- Base común de suscripción push por dispositivo y bandeja interna. La fase 3 conecta esta base a los eventos y recordatorios de servicio.
-- Alta asistida desde la operación de LEVITA con enlace para completarla.
-- Cuota ligada a la iglesia, confirmación de pago y activación recuperable.
-- Base inicial de áreas generales: crear, editar, renombrar y ordenar.
-- Selector de iglesia cuando la misma cuenta pertenezca a varias.
-- Gestión de suscripción por el propietario y separación del acceso operativo.
+### Criterio de salida
 
-**Mejoras incluidas:** retomar altas interrumpidas; no duplicar tenants ni áreas
-al reintentar; renombrar conserva personas, puestos e historial; los cambios
-no se propagan a otras iglesias. Proponer archivo cuando haya historial vinculado.
+Existe esquema/ADR aprobado para todas las entidades core, pruebas de aislamiento base y una shell de aplicación reconocible como continuación de Calserv.
 
-**Criterio de salida:** dos iglesias completan altas por caminos diferentes.
-Una cambia Bienvenida a Acogida y añade Hospitalidad; la otra conserva su base.
-Los cobros y permisos no se comparten entre ellas. Acceso, perfil y controles de avisos conservan su funcionamiento en los dispositivos de referencia.
+---
 
-**Por definir antes de implementar el pago:** importe, periodicidad, condiciones
-de cancelación y acceso ante impago. No se inventa un precio ni un plan gratuito.
+## Fase 1 · Alta, tenant, sedes, suscripción y onboarding
 
-## Fase 2 · Equipo y programación de las áreas generales
+**Resultado:** una iglesia puede entrar en LEVITA de forma segura y recuperable.
 
-**Resultado:** la iglesia prepara su primer culto con Sonido, Multimedia,
-Bienvenida/Acogida, Niños y las otras áreas generales que configure.
+### Alcance
 
-- Personas e invitaciones, con asignaciones posibles antes de activar la cuenta.
-- Puestos por área, miembros, líderes y permisos acotados.
-- Plantillas de servicio, necesidades de personal y eventos con fecha.
-- Programación por áreas con candidatos y conflictos visibles.
-- Hora de llegada por puesto, cualificación, criticidad y requisitos aplicables.
-- Publicación con resumen de destinatarios y plazas confirmadas/pendientes/vacías.
+- alta autoservicio;
+- alta asistida;
+- cuenta propietaria;
+- tenant;
+- sede principal;
+- selector multiiglesia;
+- módulos base;
+- configuración regional;
+- branding básico;
+- suscripción/pago;
+- provisioning idempotente;
+- reanudación de alta;
+- gestión inicial de administradores;
+- perfil común;
+- preferencias y push por dispositivo.
 
-**Mejoras incluidas:** sugerencia por rotación, explicación de bloqueos,
-visibilidad de todos los conflictos y prevención de sobrecarga. Los requisitos
-de composición y credenciales se incorporan al modelo antes del uso real.
+### Criterio de salida
 
-**Criterio de salida:** el coordinador prepara y publica un servicio; un líder
-no administra áreas ajenas y los contadores cuadran con sus asignaciones.
-Los avisos y respuestas de uso real se completan en fase 3. No se incorporan
-todavía las cuentas, canciones ni programación de la app actual de Alabanza.
+Dos iglesias creadas por flujos diferentes quedan aisladas, con billing y configuración propios, sin duplicados tras reintentos.
 
-## Fase 3 · Servidores, disponibilidad y avisos
+---
 
-**Resultado:** cerrar el ciclo de las áreas generales desde la propuesta hasta
-la respuesta del servidor.
+## Fase 2 · Personas, familias, directorio e importación
 
-- Turnos propios y detalle dentro de la navegación heredada de Alabanza.
-- Puedo servir / No puedo, cambio de respuesta y nota opcional.
-- Bloqueos por fechas y máximo mensual deseado.
-- Reutilizar los avisos, bandeja interna y lógica de push/correo de Calserv, adaptados a la iglesia y con una sola vía de emisión.
-- Activar/desactivar push desde Perfil y campana con estado coherente por dispositivo; correo según los canales habilitados, también cuando haya push.
-- Recordatorios según llegada, horas de silencio y escalado por criticidad.
-- Rechazo posterior, propuesta de sustituto, cambios de hora y cancelación.
+**Resultado:** People se convierte en el núcleo real de la iglesia.
 
-**Mejoras incluidas:** feedback inmediato con recuperación si falla, motivos
-privados, fusión de fechas solapadas y ausencia de avisos duplicados. Añadir al
-calendario y copiar para WhatsApp son complementos acotados; no requieren una
-integración comercial de WhatsApp para terminar esta fase.
+### Alcance
 
-**Criterio de salida:** una propuesta llega, la persona responde y el panel se
-actualiza. Un rechazo crítico se atiende y un fallo de push conserva otra vía.
-Comprobar el recorrido en dispositivos reales y entre iglesias distintas, además de la paridad con la app existente: foto, tema, contraseña, sesión, push y campana.
+- CRUD/archivo de personas;
+- invitaciones;
+- enlace persona-cuenta;
+- estados de relación;
+- hogares/familias;
+- contactos;
+- campus principal opcional;
+- etiquetas;
+- campos personalizados;
+- privacidad del directorio;
+- búsqueda y filtros;
+- importación CSV/Excel;
+- deduplicación asistida;
+- exportación administrativa;
+- auditoría.
 
-## Fase 4 · Piloto de la plataforma general
+### Criterio de salida
 
-**Resultado:** validar el producto con iglesias y áreas generales antes de
-incorporar Alabanza.
+La iglesia puede importar su base de personas, corregir duplicados, crear hogares e invitar cuentas sin perder historial.
 
-- Propuesta: 2–3 iglesias con equipos y hábitos distintos.
-- Observar alta, pago, edición de áreas, programación y respuestas.
-- Probar aislamiento, cambios de rol, invitaciones caducadas, pago incompleto,
-  reintentos, sustituciones, cambios de fecha y cancelaciones.
-- Completar textos y condiciones, baja/exportación, retención, recuperación de
-  datos y procedimientos operativos de soporte.
-- Revisar accesibilidad, entrega de avisos, política de impago y cancelación.
-- Alinear landing y registro con las funciones disponibles.
+---
 
-**Mejoras guiadas por uso:** reducir pasos abandonados, aclarar nombres y
-permisos, ajustar avisos y resolver tareas repetidas. Registrar métricas mínimas
-sin mezclar información personal entre iglesias.
+## Fase 3 · Áreas, puestos, equipos y capacidades
 
-**Criterio de salida:** las iglesias del piloto completan el recorrido y no
-quedan fallos críticos de aislamiento, cobro o pérdida de respuestas. Revisar
-objetivos de tiempo y adopción sin inventar resultados o porcentajes.
+**Resultado:** estructura de voluntariado configurable por tenant.
 
-## Fase 5 · Consolidar la general y preparar la incorporación final
+### Alcance
 
-**Resultado:** cerrar las mejoras necesarias del piloto y dejar la plataforma
-lista para recibir el área de Alabanza y sus usuarios existentes.
+- áreas iniciales editables;
+- áreas nuevas;
+- puestos;
+- miembros de área;
+- líderes;
+- equipos;
+- capacidades/cualificaciones;
+- credenciales;
+- reglas de composición;
+- criticidad;
+- horarios de llegada por puesto;
+- permisos scoped por área.
 
-- Resolver los problemas observados y comprobar los componentes compartidos.
-- Revisar reparto de carga; añadir un informe sencillo de participación si el
-  piloto demuestra su necesidad.
-- Confirmar continuidad de cuentas, roles, historial y preferencias de la app
-  de Alabanza dentro de la plataforma general.
-- Ensayar la integración con datos ficticios y una simulación de traspaso.
-- Preparar validación, copia de seguridad y posibilidad de volver al estado
-  anterior; no realizar todavía el corte de la app de Alabanza.
+### Criterio de salida
 
-**Mejoras incluidas:** una única experiencia de acceso y avisos, sin duplicar
-personas ni repetir notificaciones al incorporar el área existente.
+Un líder administra solo sus áreas; una iglesia puede adaptar la estructura sin afectar a otra; las reglas sensibles están modeladas.
 
-**Criterio de salida:** la general funciona por sí misma, los contratos de
-integración están resueltos y el ensayo identifica qué se conserva, transforma
-o necesita revisión. Ninguna mejora opcional indefinida debe bloquear este cierre.
+---
 
-## Fase 6 · Alabanza entra en la plataforma general — incorporación final
+## Fase 4 · Actividades, cultos, plantillas y programación
 
-**Resultado:** el equipo de Alabanza utiliza LEVITA como un área más de su iglesia,
-con sus funciones específicas y la misma UI/UX que ya conoce.
+**Resultado:** programar servicios y otras actividades sin encerrar el producto en “cultos”.
 
-- Integrar la app o su módulo existente: equipo, programación, catálogo,
-  repertorio y atril, preservando funciones y modos de lectura actuales.
-- Vincular cuentas y roles con la iglesia correcta; proteger canciones y datos
-  por tenant antes de habilitar acceso general.
-- Trasladar o vincular los datos según la estrategia acordada; comprobar estados,
-  fechas, historial y pertenencias. No decidirlo por copiar tablas sin revisar.
-- Coordinar avisos de repertorio con Sonido y Multimedia en el sistema general.
-- Validar con el equipo de Alabanza y efectuar la incorporación cuando todo el
-  recorrido esté comprobado, con recuperación prevista si algo falla.
+### Alcance
 
-**Criterio de salida:** el equipo entra en su iglesia dentro de LEVITA, conserva
-sus funciones y datos acordados y comparte el contexto de servicio con las demás
-áreas. No queda obligado a operar dos planificaciones o responder en dos sistemas.
-El futuro de la app anterior se decide al completar el corte, no antes.
+- Activity;
+- tipos/plantillas;
+- cultos recurrentes;
+- actividades puntuales;
+- tareas/turnos sin culto;
+- puestos necesarios;
+- asignaciones;
+- duplicar programación;
+- recurrencia DST-safe;
+- conflicto de persona;
+- conflicto de recurso cuando aplique;
+- cobertura;
+- borrador/publicación/cancelación;
+- resumen previo a publicación.
 
-## Mejoras posteriores, fuera de estas incorporaciones
+### Criterio de salida
 
-Priorizar después por uso: equipos en bloque, intercambios con aprobación,
-disponibilidad recurrente, turnos por franjas, auto-programación con revisión,
-plantillas de áreas por tipo de iglesia y varias sedes. Membresía, donaciones
-o contabilidad requieren una decisión propia de alcance.
+El coordinador prepara y publica una actividad con varias áreas y el sistema calcula correctamente huecos, conflictos y composición.
 
-## Dependencias y documentación
+---
 
-Las fases se validan por sus criterios de salida, no por tener maquetas bonitas.
-D2–D5 y D8 de [Decisiones](07-decisiones.md) se cierran antes del trabajo que
-condicionan. El precio y los plazos no están aprobados; estimar después de
-verificar código reutilizable y decisiones pendientes.
+## Fase 5 · Disponibilidad, respuestas, sustituciones y notificaciones
 
-El [brief](10-brief-diseno.md), [escenarios](11-escenarios-diseno.md) y
-[prompt de Claude Design](PROMPT-CLAUDE-DESIGN.md) siguen este orden: general
-con UI/UX y funciones comunes de Alabanza desde las primeras fases; incorporación de su equipo, módulo específico y datos al final.
+**Resultado:** cerrar el ciclo desde propuesta hasta confirmación.
+
+### Alcance
+
+- mis turnos;
+- aceptar/rechazar;
+- notas privadas de respuesta;
+- blockouts;
+- frecuencia deseada;
+- recordatorios;
+- bandeja interna;
+- push;
+- email;
+- preferencias por dispositivo/canal;
+- horas de silencio;
+- cambios de hora;
+- cancelación;
+- sustituciones;
+- propuesta de reemplazo;
+- escalado por criticidad;
+- idempotencia y deduplicación de mensajes.
+
+### Criterio de salida
+
+Una propuesta llega, se responde y actualiza cobertura sin duplicar avisos ni perder estado cuando falla un canal.
+
+---
+
+## Fase 6 · Calendario, eventos, formularios e inscripciones
+
+**Resultado:** LEVITA deja de ser solo un scheduler y empieza a ser plataforma de iglesia.
+
+### Alcance
+
+- calendario unificado;
+- eventos internos/públicos;
+- formularios configurables;
+- inscripciones;
+- aforo;
+- lista de espera;
+- consentimiento;
+- asistentes;
+- exportación;
+- comunicaciones del evento;
+- ICS.
+
+### Criterio de salida
+
+La iglesia publica un evento, recibe inscripciones mediante formulario y gestiona asistentes dentro del mismo tenant.
+
+---
+
+## Fase 7 · Grupos y discipulado
+
+**Resultado:** gestionar vida comunitaria y formación.
+
+### Alcance
+
+- grupos/células;
+- tipos;
+- líderes;
+- participantes;
+- sede/ubicación;
+- solicitudes de ingreso;
+- reuniones;
+- asistencia;
+- comunicación de grupo;
+- cursos;
+- cohortes;
+- sesiones;
+- itinerarios;
+- progreso.
+
+### Criterio de salida
+
+Una persona puede pertenecer a grupos y recorridos sin duplicarse, y los líderes solo acceden a la información necesaria.
+
+---
+
+## Fase 8 · Kids y protección de menores
+
+**Resultado:** check-in infantil seguro e integrado con People.
+
+### Alcance
+
+- perfiles infantiles;
+- responsables;
+- autorizaciones explícitas;
+- clases/salas;
+- ratios;
+- check-in/out;
+- recogida;
+- incidencias;
+- credenciales de voluntarios;
+- controles LOPIVI;
+- políticas de datos sensibles.
+
+### Criterio de salida
+
+Un menor entra y sale con trazabilidad y autorización correcta, sin exponer datos a usuarios no autorizados.
+
+---
+
+## Fase 9 · Comunicación segmentada
+
+**Resultado:** comunicación institucional más allá de avisos operativos.
+
+### Alcance
+
+- segmentos por tags, grupos, áreas y criterios permitidos;
+- comunicados;
+- email;
+- push;
+- plantillas;
+- programación;
+- métricas de entrega;
+- preferencias/opt-out según canal y finalidad;
+- límites y prevención de abuso.
+
+### Criterio de salida
+
+Un administrador autorizado envía una comunicación a un segmento definido sin exportar manualmente listas.
+
+---
+
+## Fase 10 · Recursos, salas y mantenimiento
+
+**Resultado:** coordinar recursos físicos de la iglesia.
+
+### Alcance
+
+- salas;
+- equipos;
+- vehículos;
+- reservas;
+- conflictos;
+- responsables;
+- mantenimiento;
+- tareas recurrentes;
+- relación con actividades.
+
+### Criterio de salida
+
+Una actividad reserva recursos sin dobles reservas y deja trazabilidad.
+
+---
+
+## Fase 11 · Integración final de Alabanza
+
+**Resultado:** Calserv se incorpora a LEVITA sin perder funciones.
+
+### Alcance
+
+- usuarios/cuentas;
+- equipo;
+- programación;
+- canciones;
+- tonalidades;
+- repertorios;
+- atril;
+- ensayos;
+- archivos;
+- coordinación con Sonido/Multimedia;
+- migración/compatibilidad;
+- validación con usuarios reales;
+- rollback de corte.
+
+### Criterio de salida
+
+Alabanza funciona dentro de la misma iglesia y experiencia, sin doble programación ni pérdida de datos acordados.
+
+---
+
+## Fase 12 · Pastoral, Giving y módulos avanzados
+
+**Resultado:** ampliar LEVITA a dominios de mayor sensibilidad una vez maduro el core.
+
+### Pastoral
+
+- casos;
+- responsables;
+- notas restringidas;
+- tareas;
+- peticiones;
+- retención específica;
+- auditoría.
+
+### Giving
+
+- fondos;
+- aportaciones;
+- campañas;
+- recurrencia;
+- integración de pago;
+- exportación contable;
+- permisos financieros.
+
+### Analítica avanzada
+
+- dashboards por módulo;
+- métricas agregadas;
+- tendencias;
+- exportaciones.
+
+Estas capacidades no bloquean el MVP.
+
+---
+
+## Fase 13 · Hardening, piloto ampliado y escala
+
+**Resultado:** convertir el producto funcional en servicio SaaS operable profesionalmente.
+
+### Alcance
+
+- pruebas de aislamiento por todos los módulos;
+- pentest/revisión de seguridad según madurez;
+- observabilidad;
+- alertas;
+- rate limits;
+- backup/restore probado;
+- runbooks;
+- procesos de soporte;
+- impersonación auditada;
+- pruebas de billing;
+- cancelación/retención;
+- performance;
+- accesibilidad;
+- pruebas multi-dispositivo;
+- pruebas con varias sedes;
+- importaciones grandes;
+- resiliencia de proveedores;
+- métricas de adopción;
+- documentación operativa.
+
+### Criterio de salida
+
+No quedan fallos críticos de aislamiento, pérdida de datos, permisos, cobro o recuperación; la operación puede diagnosticar y asistir sin acceso indiscriminado.
+
+---
+
+# Prioridad comercial recomendada
+
+## MVP vendible
+
+Fases **0–5**.
+
+Ofrece un producto sólido de iglesia + personas + voluntariado + programación.
+
+## Plataforma eclesial inicial
+
+Fases **6–9**, priorizadas con pilotos.
+
+## Expansión
+
+Fases **10–12**.
+
+## Hardening
+
+La Fase 13 no debe interpretarse como “seguridad al final”: sus prácticas aplicables se implementan desde la Fase 0. La fase agrupa la validación de escala y operación antes de crecimiento comercial fuerte.
+
+# Dependencias críticas
+
+- People antes de Groups/Kids/Pastoral/Giving.
+- Activity antes de Events/Serving/Facilities.
+- Communications core antes de campañas masivas.
+- Entitlements antes de monetizar módulos.
+- Auditoría antes de soporte con impersonación.
+- Households antes de Kids.
+- Permisos sensibles antes de Pastoral/Giving.
+- API pública después de estabilizar contratos internos.
+
+# Lo que NO debe hacerse
+
+- construir cada módulo con su propia tabla de usuarios;
+- usar `church_id` solo en frontend;
+- convertir cada diferencia de iglesia en código específico;
+- migrar Alabanza prematuramente;
+- implementar Kids/Pastoral/Giving con permisos genéricos;
+- usar plan de pago como rol;
+- ocultar rutas como único control de acceso;
+- lanzar comunicación masiva sin preferencias, límites y auditoría.
