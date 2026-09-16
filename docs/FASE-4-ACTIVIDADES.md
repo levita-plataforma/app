@@ -12,7 +12,7 @@ NADA DE ESTE DOCUMENTO SE HA APLICADO EN NINGÚN ENTORNO REMOTO
 - Decisión de arquitectura: [ADR 0017](adr/0017-actividades-planificacion-fase-4.md) (Propuesto).
 - Fuente de verdad: migraciones `20260920000100` a `20260920000800` (contrato) y `20260920000900` (lecturas para la UI). Este documento solo describe lo que hace ese SQL.
 - La interfaz está en desarrollo en esta rama; este documento no describe pantallas.
-- Pruebas: suites `supabase/tests/fase4_actividades_test.sql` (121 aserciones), `fase4_permisos_test.sql` (65) y `fase4_recurrencia_test.sql` (53). Según el responsable de la rama, pasan en local (409/409 junto con las suites anteriores) con un arnés PostgreSQL 17 **sin Docker** que emula los roles y `auth` de Supabase. **No es una ejecución de `supabase test db`** (Docker no disponible en esa máquina); debe confirmarlo el CI de la PR.
+- Pruebas: suites `supabase/tests/fase4_actividades_test.sql` (135 aserciones), `fase4_permisos_test.sql` (71) y `fase4_recurrencia_test.sql` (74). Según el responsable de la rama, pasan en local (450/450 junto con las suites anteriores) con un arnés PostgreSQL 17 **sin Docker** que emula los roles y `auth` de Supabase. **No es una ejecución de `supabase test db`** (Docker no disponible en esa máquina); debe confirmarlo el CI de la PR.
 
 ---
 
@@ -585,7 +585,7 @@ alter table activities add constraint activities_visibility_check
 | Filas heredadas que incumplan `CHECK NOT VALID` | No admiten `UPDATE` hasta corregirlas. | Consultas §7.1 c |
 | Fechas aproximadas en la normalización | `archived_at`/`cancelled_at` rellenados usan el `updated_at` original (última modificación), no la fecha real. | Aceptado; consultas §7.1 d |
 | Cambio de regla y `activity.cancel` | Cancelar ocurrencias publicadas exige `activity.cancel` además de `activity.manage`; sin ella falla toda la operación. | Documentado |
-| Pruebas | Suites `fase4_actividades` (121), `fase4_permisos` (65) y `fase4_recurrencia` (53) pasan según el responsable con un arnés PostgreSQL 17 sin Docker; no se ejecutó `supabase test db`. | Confirmar en CI de la PR |
+| Pruebas | Suites `fase4_actividades` (135), `fase4_permisos` (71) y `fase4_recurrencia` (74) pasan según el responsable con un arnés PostgreSQL 17 sin Docker; no se ejecutó `supabase test db`. | Confirmar en CI de la PR |
 | Tipos TypeScript | `src/lib/supabase/database.types.ts` no está regenerado. | **Pendiente** |
 | UI e i18n | En desarrollo en esta rama; límites desconocidos para este documento. | Pendiente |
 | Rendimiento de creación recurrente | Hasta 200 ocurrencias con copia de estructura por ocurrencia en una transacción. | Medir en local |

@@ -40,7 +40,29 @@ function issueText(issue: StructureIssue, areas: ActivityArea[]): string {
   return label;
 }
 
-export function IssuesSummary({ issues, areas }: { issues: StructureIssue[]; areas: ActivityArea[] }) {
+/** Aviso cuando la validación de la estructura falló: no equivale a "sin incidencias". */
+export function IssuesUnavailable() {
+  return (
+    <section className="est-issues is-blocking" role="alert" aria-label="Incidencias de la estructura">
+      <h3>
+        <AlertTriangle size={15} aria-hidden />
+        No se pudo validar la estructura
+      </h3>
+      <p className="est-muted">Las incidencias no están disponibles ahora mismo. Recarga la página para intentarlo de nuevo.</p>
+    </section>
+  );
+}
+
+export function IssuesSummary({
+  issues,
+  areas,
+  issuesError = false,
+}: {
+  issues: StructureIssue[];
+  areas: ActivityArea[];
+  issuesError?: boolean;
+}) {
+  if (issuesError) return <IssuesUnavailable />;
   if (issues.length === 0) return null;
   const blocking = issues.filter((i) => i.severity === "blocking");
   const warnings = issues.filter((i) => i.severity !== "blocking");
@@ -89,7 +111,7 @@ export function AreasTab({ activity, capabilities, data }: StructureTabsProps) {
 
   return (
     <div className="est-stack">
-      <IssuesSummary issues={data.issues} areas={areas} />
+      <IssuesSummary issues={data.issues} areas={areas} issuesError={data.issuesError} />
 
       {!capabilities.servingEnabled ? (
         <div className="shell-card est-card">

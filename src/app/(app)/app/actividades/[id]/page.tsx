@@ -7,9 +7,11 @@ import {
   getActivityHistory,
   type ActivityCapabilities,
 } from "@/server/activities/activities-service";
+import { toDomainError } from "@/server/activities/rpc";
 import { TEMPLATE_SKIP_REASON_LABELS } from "@/lib/activities/constants";
+import { isUuid } from "../../calendario/calendar-utils";
 import { loadStructureTabs } from "./_estructura/load";
-import ActivityFicha, { type SkipNotice } from "./_ficha/ActivityFicha";
+import ActivityFicha, { type CampusOption, type HistoryData, type SkipNotice } from "./_ficha/ActivityFicha";
 import "../actividades.css";
 
 type SearchParams = { omitidos?: string; omitidosTotal?: string; creadas?: string };
@@ -26,12 +28,13 @@ const NO_CAPABILITIES: ActivityCapabilities = {
   managePositionsByArea: {},
 };
 
-type PersonRow = {
-  people:
-    | { id: string; first_name: string; last_name: string | null; preferred_name: string | null }
-    | { id: string; first_name: string; last_name: string | null; preferred_name: string | null }[]
-    | null;
-};
+const PEOPLE_LIMIT = 300;
+
+type PersonRow = { id: string; first_name: string; last_name: string | null; preferred_name: string | null };
+
+function personName(p: PersonRow): string {
+  return [p.preferred_name || p.first_name, p.last_name].filter(Boolean).join(" ").trim();
+}
 
 /** Aviso de elementos de plantilla omitidos (viene en la URL tras crear). */
 function parseSkipNotice(params: SearchParams): SkipNotice | null {
@@ -64,40 +67,88 @@ export default async function ActividadDetallePage({
 }) {
   const [{ id }, query] = await Promise.all([params, searchParams]);
   const tenant = await requireTenantContext();
+  // Un id que no es UUID no existe: evita que PostgREST responda con un error de tipo.
+  if (!isUuid(id)) notFound();
 
   const activity = await getActivity(tenant.churchId, id);
   if (!activity) notFound();
 
   const supabase = await createSupabaseServerClient();
-  const [capabilities, data, history, { data: campusRows }, { data: church }] = await Promise.all([
+  const [capabilities, data, history, campusRes, currentCampusRes, { data: church }] = await Promise.all([
     getActivityCapabilities(activity.id).catch(() => null),
     loadStructureTabs(tenant.churchId, activity),
-    getActivityHistory(tenant.churchId, activity),
+    // El historial es secundario: si falla, la pestaña lo indica sin tumbar la ficha.
+    getActivityHistory(tenant.churchId, activity).catch(
+      (): HistoryData => ({ canRead: true, entries: [], error: true }),
+    ),
     supabase
       .from("campuses")
       .select("id, name, timezone")
       .eq("church_id", tenant.churchId)
       .is("archived_at", null)
       .order("name"),
+    // La sede actual se incluye aunque esté archivada, para no perderla al editar.
+    activity.campusId
+      ? supabase
+          .from("campuses")
+          .select("id, name, timezone, archived_at")
+          .eq("church_id", tenant.churchId)
+          .eq("id", activity.campusId)
+          .maybeSingle()
+      : Promise.resolve({ data: null, error: null }),
     supabase.from("churches").select("timezone").eq("id", tenant.churchId).maybeSingle(),
   ]);
+  if (campusRes.error) throw toDomainError(campusRes.error, "No se pudieron cargar las sedes.");
+  if (currentCampusRes.error) throw toDomainError(currentCampusRes.error, "No se pudo cargar la sede de la actividad.");
   const caps = capabilities ?? NO_CAPABILITIES;
+
+  const campuses: CampusOption[] = ((campusRes.data ?? []) as { id: string; name: string; timezone: string | null }[]).map(
+    (c) => ({ ...c, archived: false }),
+  );
+  const currentCampus = currentCampusRes.data as
+    | { id: string; name: string; timezone: string | null; archived_at: string | null }
+    | null;
+  if (activity.campusId && !campuses.some((c) => c.id === activity.campusId)) {
+    campuses.push({
+      id: activity.campusId,
+      name: currentCampus?.name ?? activity.campusName ?? "Sede actual",
+      timezone: currentCampus?.timezone ?? null,
+      archived: Boolean(currentCampus?.archived_at),
+    });
+  }
 
   let people: { id: string; name: string }[] = [];
   if (caps.manage) {
-    const { data: peopleRows } = await supabase
-      .from("church_people")
-      .select("people!inner(id, first_name, last_name, preferred_name)")
-      .eq("church_id", tenant.churchId)
-      .is("archived_at", null)
-      .limit(300);
-    people = ((peopleRows ?? []) as PersonRow[])
-      .map((row) => (Array.isArray(row.people) ? row.people[0] : row.people))
-      .filter((p): p is NonNullable<typeof p> => Boolean(p))
-      .map((p) => ({ id: p.id, name: [p.preferred_name || p.first_name, p.last_name].filter(Boolean).join(" ") }))
+    // Orden por nombre en la consulta: el límite se aplica sobre la lista ya ordenada.
+    const [peopleRes, organizerRes] = await Promise.all([
+      supabase
+        .from("people")
+        .select("id, first_name, last_name, preferred_name, church_people!inner(church_id, archived_at)")
+        .eq("church_people.church_id", tenant.churchId)
+        .is("church_people.archived_at", null)
+        .order("first_name")
+        .order("last_name")
+        .limit(PEOPLE_LIMIT),
+      activity.organizerPersonId
+        ? supabase
+            .from("people")
+            .select("id, first_name, last_name, preferred_name")
+            .eq("id", activity.organizerPersonId)
+            .maybeSingle()
+        : Promise.resolve({ data: null, error: null }),
+    ]);
+    if (peopleRes.error) throw toDomainError(peopleRes.error, "No se pudieron cargar las personas.");
+    if (organizerRes.error) throw toDomainError(organizerRes.error, "No se pudo cargar el responsable.");
+    people = ((peopleRes.data ?? []) as PersonRow[])
+      .map((p) => ({ id: p.id, name: personName(p) }))
       .sort((a, b) => a.name.localeCompare(b.name, "es"));
-    if (activity.organizerPersonId && activity.organizerName && !people.some((p) => p.id === activity.organizerPersonId)) {
-      people.unshift({ id: activity.organizerPersonId, name: activity.organizerName });
+    // El responsable actual siempre debe aparecer, aunque quede fuera del límite.
+    if (activity.organizerPersonId && !people.some((p) => p.id === activity.organizerPersonId)) {
+      const organizer = organizerRes.data as PersonRow | null;
+      people.unshift({
+        id: activity.organizerPersonId,
+        name: organizer ? personName(organizer) : (activity.organizerName ?? "Responsable actual (no visible)"),
+      });
     }
   }
 
@@ -109,7 +160,7 @@ export default async function ActividadDetallePage({
       capabilities={caps}
       data={data}
       history={history}
-      campuses={(campusRows ?? []) as { id: string; name: string; timezone: string | null }[]}
+      campuses={campuses}
       churchTimezone={(church?.timezone as string | null) ?? "UTC"}
       people={people}
       skipNotice={parseSkipNotice(query)}

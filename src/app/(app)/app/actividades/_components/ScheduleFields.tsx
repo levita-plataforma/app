@@ -185,7 +185,7 @@ export default function ScheduleFields({ idPrefix, value, onChange, flexibleAllo
                 className="act-input"
                 type="number"
                 min={1}
-                step={5}
+                step={1}
                 name="durationMinutes"
                 required
                 value={value.durationMinutes}

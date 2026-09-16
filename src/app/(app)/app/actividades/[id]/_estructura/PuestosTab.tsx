@@ -24,6 +24,7 @@ import {
   updatePositionAction,
 } from "./actions";
 import type { CatalogPositionOption, NamedOption } from "./load";
+import { IssuesUnavailable } from "./AreasTab";
 import { Chip, ConfirmButton, ErrorText, NoticeText, parseIntInput, plural, useRunner } from "./shared";
 import type { StructureTabsProps } from "./types";
 
@@ -45,6 +46,8 @@ export function PuestosTab({ activity, capabilities, data }: StructureTabsProps)
 
   return (
     <div className="est-stack">
+      {data.issuesError ? <IssuesUnavailable /> : null}
+
       {!capabilities.servingEnabled ? (
         <div className="shell-card est-card">
           <p className="est-muted">

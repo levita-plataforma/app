@@ -3,7 +3,6 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { requireTenantContext } from "@/server/tenant/tenant-context";
-import { createSupabaseServerClient } from "@/server/supabase/server-client";
 import { DomainError } from "@/server/errors/domain-error";
 import {
   createActivity,
@@ -30,24 +29,6 @@ function revalidateActivities() {
 function readVisibility(formData: FormData): ActivityVisibility | undefined {
   const value = String(formData.get("visibility") ?? "");
   return (ACTIVITY_VISIBILITIES as readonly string[]).includes(value) ? (value as ActivityVisibility) : undefined;
-}
-
-/** Zona que usará la base de datos: indicada → sede → iglesia (solo para mostrar). */
-async function resolveDisplayTimezone(churchId: string, campusId: string | null, override: string | null): Promise<string> {
-  if (override) return override;
-  const supabase = await createSupabaseServerClient();
-  if (campusId) {
-    const { data } = await supabase
-      .from("campuses")
-      .select("timezone")
-      .eq("church_id", churchId)
-      .eq("id", campusId)
-      .maybeSingle();
-    const tz = (data?.timezone as string | null)?.trim();
-    if (tz) return tz;
-  }
-  const { data } = await supabase.from("churches").select("timezone").eq("id", churchId).maybeSingle();
-  return (data?.timezone as string | null) ?? "UTC";
 }
 
 export async function createActivityAction(_prev: CreateActivityState, formData: FormData): Promise<CreateActivityState> {
@@ -103,6 +84,12 @@ export async function createActivityAction(_prev: CreateActivityState, formData:
 /**
  * Vista previa de repetición. Recibe el FormData del formulario (alta o
  * cambio de repetición) y devuelve instantes + la zona para mostrarlos.
+ *
+ * La zona NO se resuelve aquí: se pasan a SQL la sede y la zona explícita
+ * (solo si el usuario la indicó) y la base de datos decide. Para mostrar las
+ * filas se usa la zona que devuelva la RPC o, si no la devuelve, la que el
+ * formulario ya resolvió (campo oculto "displayTimezone"). Nunca se convierte
+ * hora local a UTC en TS.
  */
 export async function previewRecurrenceAction(formData: FormData): Promise<PreviewState> {
   const tenant = await requireTenantContext();
@@ -113,17 +100,16 @@ export async function previewRecurrenceAction(formData: FormData): Promise<Previ
   const timezone = optionalText(formData, "timezone");
 
   try {
-    const [items, displayTz] = await Promise.all([
-      previewRecurrence(tenant.churchId, {
-        campusId,
-        timezone,
-        localStart: schedule.localStart,
-        localEnd: schedule.localEnd,
-        durationMinutes: schedule.durationMinutes,
-        recurrence,
-      }),
-      resolveDisplayTimezone(tenant.churchId, campusId, timezone),
-    ]);
+    const rows = await previewRecurrence(tenant.churchId, {
+      campusId,
+      timezone,
+      localStart: schedule.localStart,
+      localEnd: schedule.localEnd,
+      durationMinutes: schedule.durationMinutes,
+      recurrence,
+    });
+    const displayTz = rows[0]?.timezone ?? timezone ?? optionalText(formData, "displayTimezone") ?? "UTC";
+    const items = rows.map(({ occurrenceDate, startsAt, endsAt }) => ({ occurrenceDate, startsAt, endsAt }));
     return { status: "ok", timezone: displayTz, items };
   } catch (err) {
     if (err instanceof DomainError) return { status: "error", error: err.message };

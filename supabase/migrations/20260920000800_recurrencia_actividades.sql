@@ -208,6 +208,26 @@ begin
     end if;
   end if;
 
+  -- Mismos límites que los CHECK de activity_series, para que la vista previa
+  -- no acepte reglas que el alta rechazaría.
+  if v.interval_count < 1 or (v.frequency = 'weekly' and v.interval_count > 52)
+     or (v.frequency = 'monthly' and v.interval_count > 12) then
+    raise exception 'El intervalo debe estar entre 1 y % %.',
+      case when v.frequency = 'weekly' then 52 else 12 end,
+      case when v.frequency = 'weekly' then 'semanas' else 'meses' end
+      using errcode = '22023';
+  end if;
+  if v.frequency = 'weekly' and exists (select 1 from unnest(v.weekdays) w where w not between 1 and 7) then
+    raise exception 'Los días de la semana deben estar entre 1 (lunes) y 7 (domingo).' using errcode = '22023';
+  end if;
+  if v.frequency = 'monthly' and (
+    (v.month_day is not null and v.month_day not between 1 and 31)
+    or (v.week_of_month is not null and v.week_of_month not in (1, 2, 3, 4, 5, -1))
+    or (v.month_weekday is not null and v.month_weekday not between 1 and 7)
+  ) then
+    raise exception 'La regla mensual tiene valores fuera de rango.' using errcode = '22023';
+  end if;
+
   if p_rule ? 'month_day_fallback' then
     v.month_day_fallback := coalesce(nullif(p_rule ->> 'month_day_fallback', ''), 'skip');
   end if;
@@ -382,10 +402,13 @@ begin
   v_new.creation_request_id := null;
   v_new.created_by := auth.uid();
   if v_old.occurrence_count is not null then
-    v_new.occurrence_count := greatest(v_old.occurrence_count - v_before, 1);
+    -- Las fechas restantes de la regla original (ya acotadas por su horizonte).
+    select greatest(count(*), 1) into v_new.occurrence_count
+    from app.series_dates(v_old) d where d >= p_from_date;
   end if;
-  if v_new.until_date is not null and v_new.until_date > p_from_date + 731 then
-    v_new.until_date := p_from_date + 731;
+  -- Nunca se amplía el horizonte original de la serie.
+  if v_new.until_date is not null and v_new.until_date > v_old.starts_on + 731 then
+    v_new.until_date := v_old.starts_on + 731;
   end if;
   v_new.rrule := app.series_rrule(v_new);
 
@@ -583,6 +606,24 @@ begin
   end if;
   perform app.require_activity_cap(v_activity, 'activity.manage');
 
+  -- La reconciliación puede re-horarizar, cancelar o eliminar cualquier
+  -- ocurrencia desde esta fecha: se exige gestionarlas todas (pueden estar en
+  -- otra sede) y poder crear actividades en la sede de origen.
+  for v_target in
+    select * from activities a
+    where a.series_id = v_activity.series_id and a.occurrence_date >= v_activity.occurrence_date
+    for update
+  loop
+    if not app.activity_cap(v_target.church_id, v_target.campus_id, v_target.id, 'activity.manage') then
+      raise exception 'No tienes permiso para gestionar todas las ocurrencias afectadas.' using errcode = '42501';
+    end if;
+  end loop;
+  if not ((v_activity.campus_id is null and app.has_capability(v_activity.church_id, 'activity.create'))
+          or (v_activity.campus_id is not null
+              and app.has_capability(v_activity.church_id, 'activity.create', 'campus', v_activity.campus_id))) then
+    raise exception 'No tienes permiso para crear las nuevas ocurrencias de la serie.' using errcode = '42501';
+  end if;
+
   v_series_id := app.split_activity_series(v_activity.series_id, v_activity.occurrence_date);
   select * into v_series from activity_series where id = v_series_id for update;
 
@@ -643,6 +684,10 @@ begin
           update activities set recurrence_rule = v_series.rrule where id = v_target.id;
         end if;
       end if;
+    elsif v_target.id = v_activity.id then
+      -- La ocurrencia desde la que se edita no se elimina ni se cancela aunque
+      -- la nueva regla no incluya su fecha: queda como excepción de la serie.
+      update activities set series_modified = true where id = v_target.id;
     elsif v_target.series_modified or v_target.series_structure_modified
           or v_target.status not in ('draft', 'planned', 'published')
           or v_target.starts_at < now() then

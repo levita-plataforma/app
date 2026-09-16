@@ -103,7 +103,10 @@ export default function EditActivityForm({
     <form action={formAction} className="shell-card act-form-section" aria-label="Editar actividad">
       <h2>Editar actividad</h2>
       <input type="hidden" name="scheduleDirty" value={!seriesScope && scheduleDirty ? "1" : "0"} />
+      {/* Sede, responsable y notas solo se envían si cambian (ver updateActivityAction). */}
       <input type="hidden" name="originalCampusId" value={activity.campusId ?? ""} />
+      <input type="hidden" name="originalOrganizerPersonId" value={activity.organizerPersonId ?? ""} />
+      <input type="hidden" name="adminNotesDirty" value={fields.adminNotes !== (activity.adminNotes ?? "") ? "1" : "0"} />
       <input
         type="hidden"
         name="timeDirty"
@@ -162,7 +165,7 @@ export default function EditActivityForm({
             <option value="">Toda la iglesia</option>
             {campuses.map((c) => (
               <option key={c.id} value={c.id}>
-                {c.name}
+                {c.archived ? `${c.name} (archivada)` : c.name}
               </option>
             ))}
           </select>

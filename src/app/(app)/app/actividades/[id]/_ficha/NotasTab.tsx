@@ -38,6 +38,8 @@ export default function NotasTab({
       <p className="act-hint">No visibles para miembros ni para la audiencia de la actividad.</p>
       {canEdit ? (
         <form action={formAction} className="act-form" style={{ gap: 10 }}>
+          {/* Solo se guardan si cambiaron respecto a lo leído (ver saveAdminNotesAction). */}
+          <input type="hidden" name="adminNotesDirty" value={notes !== (activity.adminNotes ?? "") ? "1" : "0"} />
           <div className="act-field">
             <label className="act-label" htmlFor="notes-admin">
               Notas administrativas (no visibles para miembros)

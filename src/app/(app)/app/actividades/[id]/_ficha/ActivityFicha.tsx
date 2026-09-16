@@ -20,13 +20,17 @@ export type SkipNotice = {
   total: number;
 };
 
-export type CampusOption = { id: string; name: string; timezone: string | null };
+/** archived: sede archivada que se muestra solo porque es la actual de la actividad. */
+export type CampusOption = { id: string; name: string; timezone: string | null; archived?: boolean };
+
+/** error: el historial no se pudo cargar (no equivale a "sin registros"). */
+export type HistoryData = { canRead: boolean; entries: ActivityHistoryEntry[]; error?: boolean };
 
 type Props = {
   activity: ActivityDetail;
   capabilities: ActivityCapabilities;
   data: StructureTabsData;
-  history: { canRead: boolean; entries: ActivityHistoryEntry[] };
+  history: HistoryData;
   campuses: CampusOption[];
   churchTimezone: string;
   people: { id: string; name: string }[];

@@ -5,11 +5,12 @@ import { createSupabaseServerClient } from "@/server/supabase/server-client";
 import {
   canCreateAnywhere,
   getCreationScopes,
-  listActivities,
   listFlexibleTasks,
   type ActivitySummary,
   type CreationScopes,
 } from "@/server/activities/activities-service";
+import { LOCAL_DAY_FETCH_CAP, listActivitiesByLocalDays } from "@/server/activities/activities-local-days";
+import { toDomainError } from "@/server/activities/rpc";
 import { listServiceAreas } from "@/server/serving/service-areas-service";
 import {
   ACTIVITY_STATUSES,
@@ -68,7 +69,7 @@ export default async function CalendarioPage({ searchParams }: { searchParams: P
   const tenant = await requireTenantContext();
   const supabase = await createSupabaseServerClient();
 
-  const [{ data: church }, { data: campusRows }, scopes] = await Promise.all([
+  const [{ data: church }, campusRes, scopes] = await Promise.all([
     supabase.from("churches").select("timezone").eq("id", tenant.churchId).maybeSingle(),
     supabase
       .from("campuses")
@@ -79,6 +80,8 @@ export default async function CalendarioPage({ searchParams }: { searchParams: P
     getCreationScopes(tenant.churchId).catch((): CreationScopes | null => null),
   ]);
 
+  if (campusRes.error) throw toDomainError(campusRes.error, "No se pudieron cargar las sedes.");
+  const campusRows = campusRes.data;
   const churchTimezone = (church?.timezone as string | undefined) ?? "UTC";
   const todayKey = localDateKey(new Date().toISOString(), churchTimezone);
   const servingEnabled = Boolean(scopes?.servingEnabled);
@@ -127,26 +130,24 @@ export default async function CalendarioPage({ searchParams }: { searchParams: P
   const { from, to } = rangeInstants(visibleKeys[0], visibleKeys[visibleKeys.length - 1]);
   const flexibleExcluded = Boolean(type && type !== "task");
 
-  const [{ items, total }, flexibleTasks] = await Promise.all([
-    listActivities(tenant.churchId, {
-      from,
-      to,
-      campusId,
-      type,
-      status,
-      serviceAreaId,
-      includeArchived,
-      page,
-      pageSize: PAGE_SIZE,
-    }),
+  // El margen de ±14 h trae actividades de días no visibles: se filtran por día
+  // local ANTES de contar y paginar (máx. LOCAL_DAY_FETCH_CAP filas), para que
+  // ni el total ni las páginas incluyan filas que luego no se muestran.
+  const [{ items, total, page: currentPage, capped }, flexibleTasks] = await Promise.all([
+    listActivitiesByLocalDays(
+      tenant.churchId,
+      { campusId, type, status, serviceAreaId, includeArchived },
+      { firstKey: visibleKeys[0], lastKey: visibleKeys[visibleKeys.length - 1] },
+      // Mes y semana muestran todo lo filtrado; la lista pagina.
+      view === "lista" ? { page, pageSize: PAGE_SIZE } : { page: 1, pageSize: LOCAL_DAY_FETCH_CAP },
+    ),
     flexibleExcluded
       ? Promise.resolve([] as ActivitySummary[])
       : listFlexibleTasks(tenant.churchId, { from, to, campusId, status, serviceAreaId, includeArchived }),
   ]);
 
   const byDay = groupByDay(items, visibleKeys);
-  const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
-  const hasMore = total > PAGE_SIZE;
+  const totalPages = view === "lista" ? Math.max(1, Math.ceil(total / PAGE_SIZE)) : 1;
 
   const filterParams: Record<string, string | undefined> = {
     sede: campusId,
@@ -285,10 +286,10 @@ export default async function CalendarioPage({ searchParams }: { searchParams: P
         </div>
       </form>
 
-      {hasMore && view !== "lista" ? (
+      {capped ? (
         <p className="cal-notice" role="status">
-          Hay más actividades en este periodo; usa filtros o la{" "}
-          <Link href={href({ vista: "lista", page: undefined })}>vista lista</Link>.
+          Hay más de {LOCAL_DAY_FETCH_CAP} actividades en este periodo y solo se muestran las primeras{" "}
+          {LOCAL_DAY_FETCH_CAP}. Usa los filtros para acotar el resultado.
         </p>
       ) : null}
 
@@ -310,16 +311,16 @@ export default async function CalendarioPage({ searchParams }: { searchParams: P
           {view === "lista" && totalPages > 1 ? (
             <nav className="cal-pager" aria-label="Paginación">
               <span>
-                {total} actividades · página {page} de {totalPages}
+                {capped ? `Al menos ${total}` : total} actividad{total === 1 ? "" : "es"} · página {currentPage} de {totalPages}
               </span>
               <div className="cal-pager-links">
-                {page > 1 ? (
-                  <Link href={href({ page: String(page - 1) })} className="cal-icon-button" aria-label="Página anterior">
+                {currentPage > 1 ? (
+                  <Link href={href({ page: String(currentPage - 1) })} className="cal-icon-button" aria-label="Página anterior">
                     <ChevronLeft size={16} aria-hidden="true" />
                   </Link>
                 ) : null}
-                {page < totalPages ? (
-                  <Link href={href({ page: String(page + 1) })} className="cal-icon-button" aria-label="Página siguiente">
+                {currentPage < totalPages ? (
+                  <Link href={href({ page: String(currentPage + 1) })} className="cal-icon-button" aria-label="Página siguiente">
                     <ChevronRight size={16} aria-hidden="true" />
                   </Link>
                 ) : null}

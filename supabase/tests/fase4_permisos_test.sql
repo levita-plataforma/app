@@ -4,7 +4,7 @@
 -- permisos efectivos para la UI. Ver docs/adr/0013 y docs/adr/0017.
 
 begin;
-select plan(69);
+select plan(71);
 
 create or replace function test_set_auth_uid(p_uid uuid) returns void as $$
 begin
@@ -242,7 +242,38 @@ select throws_ok(
 -- ============================================================
 -- 5. Scope campus
 -- ============================================================
+-- Plantillas por sede (creadas por el propietario).
+select test_set_auth_uid('b4000000-0000-0000-0000-000000000001');
+select t_set('tpl_global', (select id::text from activity_templates where church_id = t_id('church_a') and name = 'P4P plantilla'));
+select t_set('tpl_c1', public.save_activity_template(t_id('church_a'), null, jsonb_build_object(
+  'name', 'P4P plantilla C1', 'type', 'service', 'campus_id', t_id('campus_c1'),
+  'areas', jsonb_build_array(jsonb_build_object('service_area_id', 'b4000000-0000-0000-0000-0000000a0001',
+    'positions', jsonb_build_array(jsonb_build_object('service_position_id', 'b4000000-0000-0000-0000-0000000b0001')))),
+  'plan_items', jsonb_build_array(jsonb_build_object('title', 'Bienvenida C1'))))::text);
+select t_set('tpl_c2', public.save_activity_template(t_id('church_a'), null, jsonb_build_object(
+  'name', 'P4P plantilla C2', 'type', 'service', 'campus_id', 'b4000000-0000-0000-0000-0000000c0002',
+  'areas', jsonb_build_array(jsonb_build_object('service_area_id', 'b4000000-0000-0000-0000-0000000a0002',
+    'positions', jsonb_build_array(jsonb_build_object('service_position_id', 'b4000000-0000-0000-0000-0000000b0002')))),
+  'plan_items', jsonb_build_array(jsonb_build_object('title', 'Bienvenida C2'))))::text);
+
 select test_set_auth_uid('b4000000-0000-0000-0000-000000000005');
+
+select ok(
+  (select count(*) = 0 from activity_templates where id = t_id('tpl_c1'))
+  and (select count(*) = 0 from activity_template_areas where template_id = t_id('tpl_c1'))
+  and (select count(*) = 0 from activity_template_positions where template_id = t_id('tpl_c1'))
+  and (select count(*) = 0 from activity_template_plan_items where template_id = t_id('tpl_c1')),
+  'Admin de sede no lee la plantilla de otra sede ni sus áreas, puestos o plan'
+);
+
+select ok(
+  (select count(*) = 1 from activity_templates where id = t_id('tpl_global'))
+  and (select count(*) = 1 from activity_templates where id = t_id('tpl_c2'))
+  and (select count(*) = 1 from activity_template_areas where template_id = t_id('tpl_c2'))
+  and (select count(*) = 1 from activity_template_positions where template_id = t_id('tpl_c2'))
+  and (select count(*) = 1 from activity_template_plan_items where template_id = t_id('tpl_c2')),
+  'Admin de sede lee las plantillas globales y las de su sede con su contenido'
+);
 
 select is((select count(*)::int from activities where id = t_id('camp2_act')), 1,
   'Admin de sede ve los borradores de su sede');

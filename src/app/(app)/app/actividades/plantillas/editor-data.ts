@@ -1,6 +1,7 @@
 import "server-only";
 import { createSupabaseServerClient } from "@/server/supabase/server-client";
 import type { CreationScopes } from "@/server/activities/activities-service";
+import { toDomainError } from "@/server/activities/rpc";
 
 /** Datos de apoyo del editor de plantillas (sedes y catálogo de Servicios). */
 
@@ -29,12 +30,13 @@ export type TemplateEditorData = {
 
 export async function loadTemplateEditorData(churchId: string, scopes: CreationScopes): Promise<TemplateEditorData> {
   const supabase = await createSupabaseServerClient();
-  const { data: campusRows } = await supabase
+  const { data: campusRows, error: campusError } = await supabase
     .from("campuses")
     .select("id, name")
     .eq("church_id", churchId)
     .is("archived_at", null)
     .order("name");
+  if (campusError) throw toDomainError(campusError, "No se pudieron cargar las sedes.");
 
   const allCampuses = (campusRows ?? []) as EditorCampusOption[];
   const campuses = scopes.templatesChurch
@@ -45,7 +47,7 @@ export async function loadTemplateEditorData(churchId: string, scopes: CreationS
   let positions: EditorCatalogPosition[] = [];
 
   if (scopes.servingEnabled) {
-    const [{ data: areaRows }, { data: positionRows }] = await Promise.all([
+    const [{ data: areaRows, error: areaError }, { data: positionRows, error: positionError }] = await Promise.all([
       supabase
         .from("service_areas")
         .select("id, name, campus_id")
@@ -63,6 +65,8 @@ export async function loadTemplateEditorData(churchId: string, scopes: CreationS
         .order("sort_order")
         .order("name"),
     ]);
+    const catalogError = areaError ?? positionError;
+    if (catalogError) throw toDomainError(catalogError, "No se pudo cargar el catálogo de servicio.");
     areas = (areaRows ?? []).map((a) => ({ id: a.id, name: a.name, campusId: a.campus_id }));
     positions = (positionRows ?? []).map((p) => ({
       id: p.id,

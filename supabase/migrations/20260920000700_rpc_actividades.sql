@@ -316,6 +316,11 @@ begin
           v_skipped := v_skipped || jsonb_build_object('kind', 'position', 'name', v_catalog_position.name, 'reason', 'inactive');
           continue;
         end if;
+        -- El puesto pudo cambiar de área en el catálogo después de guardar la plantilla.
+        if v_catalog_position.service_area_id <> v_ta.service_area_id then
+          v_skipped := v_skipped || jsonb_build_object('kind', 'position', 'name', v_catalog_position.name, 'reason', 'area_mismatch');
+          continue;
+        end if;
         if v_activity.campus_id is not null and v_catalog_position.campus_id is not null
            and v_catalog_position.campus_id <> v_activity.campus_id then
           v_skipped := v_skipped || jsonb_build_object('kind', 'position', 'name', v_catalog_position.name, 'reason', 'campus_mismatch');
@@ -485,8 +490,13 @@ declare
   v_duration integer := coalesce(nullif(p_input ->> 'duration_minutes', '')::integer, p_default_duration);
 begin
   if p_kind = 'timed' then
-    if v_local_start is null then
+    -- Con horario hace falta fecha y hora: una fecha sola no se interpreta
+    -- como medianoche (la plantilla añade su hora por defecto antes de llegar).
+    if v_local_start is null or char_length(btrim(p_input ->> 'local_start')) <= 10 then
       raise exception 'Indica la fecha y hora de inicio.' using errcode = '22023';
+    end if;
+    if v_local_end is not null and char_length(btrim(p_input ->> 'local_end')) <= 10 then
+      raise exception 'Indica también la hora de fin.' using errcode = '22023';
     end if;
     o_starts_at := app.local_to_instant(v_local_start, p_timezone);
     if v_local_end is not null then
@@ -724,7 +734,9 @@ as $$
       )
     union all
     select jsonb_build_object('kind', 'position', 'name', sp.name,
-      'reason', case when sp.archived_at is not null or not sp.active then 'inactive' else 'campus_mismatch' end)
+      'reason', case when sp.archived_at is not null or not sp.active then 'inactive'
+                     when sp.service_area_id <> ta.service_area_id then 'area_mismatch'
+                     else 'campus_mismatch' end)
     from activity_template_positions tp
     join activity_template_areas ta on ta.id = tp.template_area_id
     join service_areas sa on sa.id = ta.service_area_id
@@ -735,6 +747,7 @@ as $$
       and (p_campus_id is null or sa.campus_id is null or sa.campus_id = p_campus_id)
       and (
         sp.archived_at is not null or not sp.active
+        or sp.service_area_id <> ta.service_area_id
         or (p_campus_id is not null and sp.campus_id is not null and sp.campus_id <> p_campus_id)
       )
   ) s;
@@ -1495,6 +1508,29 @@ $$;
 -- ===========================================================================
 -- Plantillas
 -- ===========================================================================
+-- Marca (para esta transacción) las áreas y puestos de catálogo que ya estaban
+-- en una plantilla, para que reguardarla o duplicarla no falle si el catálogo
+-- los desactivó después. Los guards de plantilla solo admiten inactivos de
+-- esta lista; añadir elementos inactivos nuevos sigue prohibido.
+create or replace function app.set_template_previous_items(p_template_id uuid)
+returns void
+language plpgsql
+security definer
+set search_path = pg_catalog, public
+as $$
+begin
+  perform set_config('app.template_prev_areas', coalesce((
+    select string_agg(ta.service_area_id::text, ',') from activity_template_areas ta where ta.template_id = p_template_id
+  ), ''), true);
+  perform set_config('app.template_prev_positions', coalesce((
+    select string_agg(tp.service_position_id::text, ',') from activity_template_positions tp
+    where tp.template_id = p_template_id and tp.service_position_id is not null
+  ), ''), true);
+end;
+$$;
+
+revoke all on function app.set_template_previous_items(uuid) from public, anon, authenticated;
+
 create or replace function app.require_template_cap(p_church_id uuid, p_campus_id uuid)
 returns void
 language plpgsql
@@ -1543,6 +1579,9 @@ declare
 begin
   perform app.assert_church_member(p_church_id);
   perform app.require_template_cap(p_church_id, v_campus_id);
+  -- Nunca heredar la lista de elementos previos de otra llamada en la misma
+  -- transacción: para plantillas nuevas queda vacía.
+  perform app.set_template_previous_items(null);
 
   if v_campus_id is not null and not exists (
     select 1 from campuses c where c.id = v_campus_id and c.church_id = p_church_id and c.archived_at is null
@@ -1562,6 +1601,10 @@ begin
       raise exception 'La plantilla no existe.' using errcode = 'P0002';
     end if;
     perform app.require_template_cap(p_church_id, v_existing.campus_id);
+
+    -- Elementos que ya estaban en la plantilla: se admiten aunque el catálogo
+    -- los haya desactivado (los guards consultan estos indicadores).
+    perform app.set_template_previous_items(p_template_id);
 
     -- Primero se retiran las filas hijas: así un cambio de sede no choca con
     -- las áreas antiguas que se van a reemplazar.
@@ -1662,6 +1705,7 @@ begin
     jsonb_build_object('areas', v_area_index, 'positions', v_positions, 'plan_items', v_item_index)
   );
 
+  perform app.set_template_previous_items(null);
   return v_id;
 end;
 $$;
@@ -1683,6 +1727,7 @@ begin
     raise exception 'La plantilla no existe.' using errcode = 'P0002';
   end if;
   perform app.require_template_cap(v_template.church_id, v_template.campus_id);
+  perform app.set_template_previous_items(p_template_id);
 
   insert into activity_templates (
     church_id, name, type, campus_id, default_title, schedule_kind, default_local_start_time,
@@ -1721,6 +1766,7 @@ begin
     v_template.church_id, 'activity_template.created', 'activity_templates', v_new_id,
     jsonb_build_object('duplicated_from', p_template_id)
   );
+  perform app.set_template_previous_items(null);
   return v_new_id;
 end;
 $$;

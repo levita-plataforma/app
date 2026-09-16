@@ -1,6 +1,6 @@
 import "server-only";
 import { createSupabaseServerClient } from "@/server/supabase/server-client";
-import { callActivityRpc } from "@/server/activities/rpc";
+import { callActivityRpc, toDomainError } from "@/server/activities/rpc";
 import { ACTIVITY_SUMMARY_COLUMNS, mapActivitySummary, type ActivitySummary } from "@/server/activities/activities-service";
 
 /**
@@ -52,8 +52,10 @@ export async function getActivitiesDashboard(churchId: string): Promise<Activiti
       .limit(5),
   ]);
 
-  const map = (result: { data: unknown }) =>
-    ((result.data as Parameters<typeof mapActivitySummary>[0][] | null) ?? []).map(mapActivitySummary);
+  const map = (result: { data: unknown; error: { code?: string; message: string } | null }) => {
+    if (result.error) throw toDomainError(result.error, "No se pudo cargar el resumen de actividades.");
+    return ((result.data as Parameters<typeof mapActivitySummary>[0][] | null) ?? []).map(mapActivitySummary);
+  };
 
   return {
     timezone: (counts?.timezone as string) ?? "UTC",

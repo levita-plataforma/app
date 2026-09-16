@@ -219,7 +219,11 @@ export default function ResumenTab({ activity, capabilities, data, campuses, chu
           Personas asignadas: 0 — las asignaciones llegan en la Fase 5.
         </p>
 
-        {data.issues.length > 0 ? (
+        {data.issuesError ? (
+          <p role="alert" className="act-error" style={{ marginTop: 10 }}>
+            No se pudo validar la estructura: las incidencias no están disponibles ahora mismo.
+          </p>
+        ) : data.issues.length > 0 ? (
           <div style={{ marginTop: 14 }}>
             <h3 style={{ fontSize: 13, fontWeight: 600, marginBottom: 6 }}>Incidencias de estructura</h3>
             <ul className="act-list">

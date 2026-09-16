@@ -4,7 +4,7 @@
 -- Ver docs/adr/0017.
 
 begin;
-select plan(122);
+select plan(135);
 
 create or replace function test_set_auth_uid(p_uid uuid) returns void as $$
 begin
@@ -881,6 +881,121 @@ select ok(
   'La plantilla archivada queda inactiva'
 );
 
+-- Fecha sin hora: solo válida si la plantilla aporta la hora por defecto.
+select throws_ok(
+  $$ select public.create_activity(t_id('church_a'), '{"type":"service","title":"Solo fecha","local_start":"2030-05-05","duration_minutes":60}'::jsonb) $$,
+  '22023', null,
+  'Una actividad con horario sin plantilla y con solo fecha (sin hora) se rechaza'
+);
+
+select t_set('tpl_hora', public.save_activity_template(t_id('church_a'), null,
+  '{"name":"Culto con hora","type":"service","default_local_start_time":"11:00","default_duration_minutes":90}'::jsonb)::text);
+
+select lives_ok(
+  $$ select t_set('act_hora', public.create_activity(t_id('church_a'), jsonb_build_object(
+       'template_id', t_id('tpl_hora'), 'local_start', '2030-05-12')) ->> 'activity_id') $$,
+  'Con plantilla con hora por defecto, indicar solo la fecha funciona'
+);
+
+select ok(
+  (select starts_at = '2030-05-12 09:00+00' and ends_at = '2030-05-12 10:30+00' from activities where id = t_id('act_hora')),
+  'La actividad usa la hora por defecto de la plantilla (11:00 Europe/Madrid)'
+);
+
+-- Puesto de catálogo que cambia de área después de guardarlo en la plantilla.
+reset role;
+insert into service_positions (id, church_id, service_area_id, name, min_people)
+values ('a4000000-0000-0000-0000-0000000b0008', t_id('church_a'), 'a4000000-0000-0000-0000-0000000a0002', 'Grafismo', 1);
+select test_set_auth_uid('a4000000-0000-0000-0000-000000000001');
+
+select t_set('tpl_mismatch', public.save_activity_template(t_id('church_a'), null, '{
+  "name":"Plantilla puesto movido","type":"service","default_duration_minutes":60,
+  "areas":[{"service_area_id":"a4000000-0000-0000-0000-0000000a0002","requirement":"optional",
+            "positions":[{"service_position_id":"a4000000-0000-0000-0000-0000000b0008"}]}]
+}'::jsonb)::text);
+
+reset role;
+update service_positions set service_area_id = 'a4000000-0000-0000-0000-0000000a0001'
+where id = 'a4000000-0000-0000-0000-0000000b0008';
+select test_set_auth_uid('a4000000-0000-0000-0000-000000000001');
+
+select lives_ok(
+  $$ select t_set('res_mismatch', public.create_activity(t_id('church_a'), jsonb_build_object(
+       'template_id', t_id('tpl_mismatch'), 'local_start', '2030-05-19T11:00'))::text) $$,
+  'Usar una plantilla cuyo puesto cambió de área en el catálogo no falla'
+);
+
+select ok(
+  (current_setting('t4a.res_mismatch')::jsonb -> 'skipped') @> '[{"kind":"position","name":"Grafismo","reason":"area_mismatch"}]'::jsonb
+  and (select count(*) = 1 from activity_service_areas
+       where activity_id = (current_setting('t4a.res_mismatch')::jsonb ->> 'activity_id')::uuid)
+  and (select count(*) = 0 from activity_positions
+       where activity_id = (current_setting('t4a.res_mismatch')::jsonb ->> 'activity_id')::uuid),
+  'El puesto movido se omite con reason area_mismatch y el área se copia sin él'
+);
+
+-- Área y puesto de la plantilla archivados después en el catálogo.
+reset role;
+insert into service_areas (id, church_id, name, slug)
+values ('a4000000-0000-0000-0000-0000000a0007', t_id('church_a'), 'Temporal plantilla', 'temporal-plantilla');
+insert into service_positions (id, church_id, service_area_id, name, min_people)
+values ('a4000000-0000-0000-0000-0000000b0007', t_id('church_a'), 'a4000000-0000-0000-0000-0000000a0007', 'Luz temporal', 1);
+select test_set_auth_uid('a4000000-0000-0000-0000-000000000001');
+
+select t_set('tpl_arch', public.save_activity_template(t_id('church_a'), null, '{
+  "name":"Plantilla con archivados","type":"service",
+  "areas":[{"service_area_id":"a4000000-0000-0000-0000-0000000a0007",
+            "positions":[{"service_position_id":"a4000000-0000-0000-0000-0000000b0007"}]}]
+}'::jsonb)::text);
+
+reset role;
+update service_areas set archived_at = now(), active = false where id = 'a4000000-0000-0000-0000-0000000a0007';
+update service_positions set archived_at = now(), active = false where id = 'a4000000-0000-0000-0000-0000000b0007';
+select test_set_auth_uid('a4000000-0000-0000-0000-000000000001');
+
+select throws_ok(
+  $$ select public.save_activity_template(t_id('church_a'), null,
+       '{"name":"Nueva con archivada (antes)","type":"service","areas":[{"service_area_id":"a4000000-0000-0000-0000-0000000a0007"}]}'::jsonb) $$,
+  '22023', null,
+  'Añadir un área archivada a una plantilla nueva falla con 22023'
+);
+
+select lives_ok(
+  $$ select public.save_activity_template(t_id('church_a'), t_id('tpl_arch'), '{
+       "name":"Plantilla con archivados","type":"service",
+       "areas":[{"service_area_id":"a4000000-0000-0000-0000-0000000a0007",
+                 "positions":[{"service_position_id":"a4000000-0000-0000-0000-0000000b0007"}]}]
+     }'::jsonb) $$,
+  'Volver a guardar una plantilla con área y puesto archivados en el catálogo funciona'
+);
+
+select lives_ok(
+  $$ select t_set('tpl_arch_copy', public.duplicate_activity_template(t_id('tpl_arch'), null)::text) $$,
+  'Duplicar una plantilla con área y puesto archivados en el catálogo funciona'
+);
+
+select ok(
+  (select count(*) = 1 from activity_template_areas where template_id = t_id('tpl_arch'))
+  and (select count(*) = 1 from activity_template_positions where template_id = t_id('tpl_arch'))
+  and (select count(*) = 1 from activity_template_areas where template_id = t_id('tpl_arch_copy'))
+  and (select count(*) = 1 from activity_template_positions where template_id = t_id('tpl_arch_copy')),
+  'La plantilla reguardada y su copia conservan el área y el puesto archivados'
+);
+
+select throws_ok(
+  $$ select public.save_activity_template(t_id('church_a'), t_id('tpl_hora'),
+       '{"name":"Culto con hora","type":"service","default_local_start_time":"11:00","default_duration_minutes":90,"areas":[{"service_area_id":"a4000000-0000-0000-0000-0000000a0007"}]}'::jsonb) $$,
+  '22023', null,
+  'Añadir un área archivada a otra plantilla existente sigue fallando con 22023'
+);
+
+select throws_ok(
+  $$ select public.save_activity_template(t_id('church_a'), null,
+       '{"name":"Nueva con archivada (después)","type":"service","areas":[{"service_area_id":"a4000000-0000-0000-0000-0000000a0007"}]}'::jsonb) $$,
+  '22023', null,
+  'Añadir un área archivada a una plantilla nueva sigue fallando tras reguardar/duplicar otra en la misma transacción'
+);
+
 -- ============================================================
 -- 11. Duplicación
 -- ============================================================
@@ -951,6 +1066,37 @@ select lives_ok(
        where activity_id = t_id('act4_dup') and service_area_id = 'a4000000-0000-0000-0000-0000000a0002')) $$,
   'Retirar un área con sus puestos funciona'
 );
+
+-- Borrado físico de una sede referenciada solo por el snapshot area_campus_id
+-- de una actividad cerrada (FK on delete set null).
+reset role;
+insert into campuses (id, church_id, name, slug)
+values ('a4000000-0000-0000-0000-0000000c0009', t_id('church_a'), 'Sede Temporal', 'temporal');
+insert into service_areas (id, church_id, name, slug, campus_id)
+values ('a4000000-0000-0000-0000-0000000a0009', t_id('church_a'), 'Temporal sede', 'temporal-sede', 'a4000000-0000-0000-0000-0000000c0009');
+select test_set_auth_uid('a4000000-0000-0000-0000-000000000001');
+
+select t_set('act_campdel', public.create_activity(t_id('church_a'),
+  '{"type":"meeting","title":"Sede que se borra","local_start":"2030-08-04T19:00","duration_minutes":60}'::jsonb) ->> 'activity_id');
+select public.add_activity_area(t_id('act_campdel'), 'a4000000-0000-0000-0000-0000000a0009', 'optional', null, false);
+select public.transition_activity_status(t_id('act_campdel'), 'cancelled', 'Sede cerrada');
+
+reset role;
+-- El catálogo deja de apuntar a la sede: solo queda la referencia del snapshot.
+update service_areas set campus_id = null where id = 'a4000000-0000-0000-0000-0000000a0009';
+
+select lives_ok(
+  $$ delete from campuses where id = 'a4000000-0000-0000-0000-0000000c0009' $$,
+  'Borrar una sede referenciada solo por el snapshot de un área de una actividad cancelada funciona'
+);
+
+select ok(
+  (select area_campus_id is null and area_name = 'Temporal sede' and service_area_id = 'a4000000-0000-0000-0000-0000000a0009'
+   from activity_service_areas where activity_id = t_id('act_campdel')),
+  'El snapshot pierde la referencia a la sede pero conserva el área y su nombre'
+);
+
+select test_set_auth_uid('a4000000-0000-0000-0000-000000000001');
 
 -- ============================================================
 -- 13. Atomicidad de operaciones compuestas

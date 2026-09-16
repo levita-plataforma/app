@@ -115,18 +115,20 @@ create policy activity_series_select on activity_series
   );
 
 -- Plantillas: quien las gestiona o puede crear actividades ----------------------
+-- (las de una sede, solo con permiso en esa sede; las hijas heredan la
+-- visibilidad de su plantilla mediante la RLS de activity_templates)
 create policy activity_templates_select on activity_templates
   for select to authenticated
-  using ( (select app.can_read_activity_templates(church_id)) );
+  using ( app.can_read_activity_template(church_id, campus_id) );
 
 create policy activity_template_areas_select on activity_template_areas
   for select to authenticated
-  using ( (select app.can_read_activity_templates(church_id)) );
+  using ( exists (select 1 from activity_templates t where t.id = template_id) );
 
 create policy activity_template_positions_select on activity_template_positions
   for select to authenticated
-  using ( (select app.can_read_activity_templates(church_id)) );
+  using ( exists (select 1 from activity_templates t where t.id = template_id) );
 
 create policy activity_template_plan_items_select on activity_template_plan_items
   for select to authenticated
-  using ( (select app.can_read_activity_templates(church_id)) );
+  using ( exists (select 1 from activity_templates t where t.id = template_id) );

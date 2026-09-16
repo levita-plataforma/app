@@ -2,6 +2,7 @@ import { notFound } from "next/navigation";
 import { requireTenantContext } from "@/server/tenant/tenant-context";
 import { getCreationScopes } from "@/server/activities/activities-service";
 import { getActivityTemplate } from "@/server/activities/activity-templates-service";
+import { isUuid } from "../../../calendario/calendar-utils";
 import { loadTemplateEditorData } from "../editor-data";
 import PlantillaEditor from "../PlantillaEditor";
 import "../plantillas.css";
@@ -9,6 +10,8 @@ import "../plantillas.css";
 export default async function PlantillaPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   const tenant = await requireTenantContext();
+  // Un id que no es UUID no existe: evita que PostgREST responda con un error de tipo.
+  if (!isUuid(id)) notFound();
   const [scopes, template] = await Promise.all([
     getCreationScopes(tenant.churchId),
     getActivityTemplate(tenant.churchId, id),

@@ -4,6 +4,7 @@ import { requireTenantContext } from "@/server/tenant/tenant-context";
 import { createSupabaseServerClient } from "@/server/supabase/server-client";
 import { canCreateAnywhere, getCreationScopes } from "@/server/activities/activities-service";
 import { listActivityTemplates } from "@/server/activities/activity-templates-service";
+import { toDomainError } from "@/server/activities/rpc";
 import { isActivityType, type ActivityVisibility } from "@/lib/activities/constants";
 import { localDateKey } from "@/lib/activities/time";
 import NuevaActividadForm, { type TemplateOption } from "./NuevaActividadForm";
@@ -11,12 +12,7 @@ import "../actividades.css";
 
 type SearchParams = { plantilla?: string; tipo?: string };
 
-type PersonRow = {
-  people:
-    | { id: string; first_name: string; last_name: string | null; preferred_name: string | null }
-    | { id: string; first_name: string; last_name: string | null; preferred_name: string | null }[]
-    | null;
-};
+type PersonRow = { id: string; first_name: string; last_name: string | null; preferred_name: string | null };
 
 export default async function NuevaActividadPage({ searchParams }: { searchParams: Promise<SearchParams> }) {
   const params = await searchParams;
@@ -41,7 +37,7 @@ export default async function NuevaActividadPage({ searchParams }: { searchParam
   }
 
   const supabase = await createSupabaseServerClient();
-  const [{ data: church }, { data: campusRows }, templates, { data: templateRows }, { data: peopleRows }] =
+  const [{ data: church }, campusRes, templates, templateRes, peopleRes] =
     await Promise.all([
       supabase.from("churches").select("timezone").eq("id", tenant.churchId).maybeSingle(),
       supabase
@@ -57,13 +53,22 @@ export default async function NuevaActividadPage({ searchParams }: { searchParam
         .eq("church_id", tenant.churchId)
         .is("archived_at", null)
         .eq("active", true),
+      // Orden por nombre en la consulta: el límite se aplica sobre la lista ya ordenada.
       supabase
-        .from("church_people")
-        .select("people!inner(id, first_name, last_name, preferred_name)")
-        .eq("church_id", tenant.churchId)
-        .is("archived_at", null)
+        .from("people")
+        .select("id, first_name, last_name, preferred_name, church_people!inner(church_id, archived_at)")
+        .eq("church_people.church_id", tenant.churchId)
+        .is("church_people.archived_at", null)
+        .order("first_name")
+        .order("last_name")
         .limit(300),
     ]);
+  if (campusRes.error) throw toDomainError(campusRes.error, "No se pudieron cargar las sedes.");
+  if (templateRes.error) throw toDomainError(templateRes.error, "No se pudieron cargar las plantillas.");
+  if (peopleRes.error) throw toDomainError(peopleRes.error, "No se pudieron cargar las personas.");
+  const campusRows = campusRes.data;
+  const templateRows = templateRes.data;
+  const peopleRows = peopleRes.data;
 
   const churchTimezone = (church?.timezone as string | null) ?? "UTC";
   const createCampusIds = new Set(scopes.createCampusIds);
@@ -106,8 +111,6 @@ export default async function NuevaActividadPage({ searchParams }: { searchParam
     });
 
   const people = ((peopleRows ?? []) as PersonRow[])
-    .map((row) => (Array.isArray(row.people) ? row.people[0] : row.people))
-    .filter((p): p is NonNullable<typeof p> => Boolean(p))
     .map((p) => ({ id: p.id, name: [p.preferred_name || p.first_name, p.last_name].filter(Boolean).join(" ") }))
     .sort((a, b) => a.name.localeCompare(b.name, "es"));
 

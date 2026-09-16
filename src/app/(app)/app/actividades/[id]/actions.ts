@@ -54,14 +54,20 @@ export async function updateActivityAction(
   const scope = String(formData.get("scope") ?? "this");
   const type = String(formData.get("type") ?? "");
   const campusRaw = String(formData.get("campusId") ?? "");
+  const organizerRaw = String(formData.get("organizerPersonId") ?? "").trim();
+  // Sede y responsable solo se envían si cambiaron: la sede actual puede estar
+  // archivada o el responsable fuera de la lista, y reenviarlos (o perderlos)
+  // alteraría la actividad o la serie sin que el usuario lo pida.
+  const campusChanged = campusRaw !== String(formData.get("originalCampusId") ?? "");
+  const organizerChanged = organizerRaw !== String(formData.get("originalOrganizerPersonId") ?? "");
   const common = {
     title: String(formData.get("title") ?? "").trim(),
     description: optionalText(formData, "description"),
     type: isActivityType(type) ? type : undefined,
     visibility: readVisibility(formData),
     locationText: optionalText(formData, "locationText"),
-    organizerPersonId: optionalText(formData, "organizerPersonId"),
-    campusId: campusRaw === "" ? null : campusRaw,
+    organizerPersonId: organizerChanged ? organizerRaw || null : undefined,
+    campusId: campusChanged ? (campusRaw === "" ? null : campusRaw) : undefined,
   };
 
   try {
@@ -94,9 +100,12 @@ export async function updateActivityAction(
       input.durationMinutes = schedule.durationMinutes;
       const tz = optionalText(formData, "timezone");
       if (tz) input.timezone = tz;
-      else if (campusRaw !== String(formData.get("originalCampusId") ?? "")) input.timezone = null;
+      else if (campusChanged) input.timezone = null;
     }
-    if (formData.has("adminNotes")) input.adminNotes = optionalText(formData, "adminNotes");
+    // Solo si el usuario las cambió: evita sobrescribirlas con un valor desfasado.
+    if (formData.has("adminNotes") && formData.get("adminNotesDirty") === "1") {
+      input.adminNotes = optionalText(formData, "adminNotes");
+    }
     await updateActivity(activityId, input);
   } catch (err) {
     return fail(err);
@@ -111,6 +120,7 @@ export async function saveAdminNotesAction(
   formData: FormData,
 ): Promise<FichaActionState> {
   await requireTenantContext();
+  if (formData.get("adminNotesDirty") !== "1") return { error: null, message: "No hay cambios en las notas." };
   try {
     await updateActivity(activityId, { adminNotes: optionalText(formData, "adminNotes") });
   } catch (err) {
@@ -153,7 +163,16 @@ export async function changeSeriesRuleAction(
   }
   revalidateActivities();
 
-  const stillExists = await getActivity(tenant.churchId, activityId);
+  let stillExists: boolean;
+  try {
+    stillExists = Boolean(await getActivity(tenant.churchId, activityId));
+  } catch (err) {
+    // La regla ya se aplicó; si no se puede comprobar la ocurrencia, se informa sin redirigir.
+    if (err instanceof DomainError) {
+      return { error: null, message: "Repetición actualizada. Recarga la página para ver el resultado." };
+    }
+    throw err;
+  }
   if (!stillExists) {
     redirect(result.firstActivityId ? `/app/actividades/${result.firstActivityId}` : "/app/actividades");
   }

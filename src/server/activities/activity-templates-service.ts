@@ -1,6 +1,6 @@
 import "server-only";
 import { createSupabaseServerClient } from "@/server/supabase/server-client";
-import { callActivityRpc, one } from "@/server/activities/rpc";
+import { callActivityRpc, one, toDomainError } from "@/server/activities/rpc";
 import type {
   ActivityType,
   ActivityVisibility,
@@ -102,9 +102,9 @@ export async function listActivityTemplates(
   if (options.onlyActive) query = query.eq("active", true);
 
   const { data, error } = await query.order("sort_order").order("name");
-  if (error || !data) return [];
+  if (error) throw toDomainError(error, "No se pudieron cargar las plantillas.");
 
-  return (data as Record<string, unknown>[]).map((row) => {
+  return ((data ?? []) as Record<string, unknown>[]).map((row) => {
     const areas = (row.activity_template_areas as { id: string; service_areas: { name: string } | { name: string }[] | null }[]) ?? [];
     return {
       id: row.id as string,
@@ -140,7 +140,9 @@ export async function getActivityTemplate(churchId: string, templateId: string):
     .eq("church_id", churchId)
     .eq("id", templateId)
     .maybeSingle();
-  if (error || !data) return null;
+  if (error) throw toDomainError(error, "No se pudo cargar la plantilla.");
+  // maybeSingle sin error y sin datos: no existe o la RLS no la deja ver.
+  if (!data) return null;
 
   const row = data as Record<string, unknown>;
   type AreaRow = {

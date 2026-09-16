@@ -6,7 +6,9 @@ import { canCreateAnywhere, getCreationScopes } from "@/server/activities/activi
 import { listActivityTemplates } from "@/server/activities/activity-templates-service";
 import { ACTIVITY_TYPES, ACTIVITY_TYPE_INFO, isActivityType } from "@/lib/activities/constants";
 import { authInputStyle, authLabelStyle } from "@/components/shell/AuthCard";
+import { toDomainError } from "@/server/activities/rpc";
 import { primaryButtonStyle, secondaryButtonStyle } from "../../servicios/ui";
+import { isUuid } from "../../calendario/calendar-utils";
 import PlantillasList, { type TemplateCardData } from "./PlantillasList";
 import "./plantillas.css";
 
@@ -64,10 +66,11 @@ export default async function PlantillasPage({ searchParams }: { searchParams: P
 
   const includeArchived = canManageSomewhere && params.archived === "true";
   const typeFilter = params.type && isActivityType(params.type) ? params.type : "";
-  const campusFilter = params.campus ?? "";
+  // Solo "iglesia" o un UUID; cualquier otro valor se ignora.
+  const campusFilter = params.campus === CHURCH_SCOPE || isUuid(params.campus) ? params.campus : "";
 
   const supabase = await createSupabaseServerClient();
-  const [templates, { data: campusRows }] = await Promise.all([
+  const [templates, { data: campusRows, error: campusError }] = await Promise.all([
     listActivityTemplates(tenant.churchId, { includeArchived, onlyActive: !canManageSomewhere }),
     supabase
       .from("campuses")
@@ -76,6 +79,7 @@ export default async function PlantillasPage({ searchParams }: { searchParams: P
       .is("archived_at", null)
       .order("name"),
   ]);
+  if (campusError) throw toDomainError(campusError, "No se pudieron cargar las sedes.");
   const campuses = (campusRows ?? []) as { id: string; name: string }[];
 
   const filtered = templates.filter((t) => {

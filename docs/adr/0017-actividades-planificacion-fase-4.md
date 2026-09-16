@@ -300,4 +300,4 @@ Los metadatos registran campos cambiados, no contenido: el motivo de cancelació
 - Elegibilidad por fecha de actividad y overrides pendiente para Fase 5.
 - Riesgo previo de invitaciones con scope `church`.
 - `planned` no se puede retirar con una simple reversión.
-- Pruebas: existen las suites `supabase/tests/fase4_actividades_test.sql` (121), `fase4_permisos_test.sql` (65) y `fase4_recurrencia_test.sql` (53). Según el responsable de la rama, pasan en local (409/409 con las suites anteriores) con un arnés PostgreSQL 17 sin Docker que emula los roles y `auth` de Supabase. **No se ejecutó `supabase test db`** (Docker no disponible); debe confirmarlo el CI de la PR.
+- Pruebas: existen las suites `supabase/tests/fase4_actividades_test.sql` (135), `fase4_permisos_test.sql` (71) y `fase4_recurrencia_test.sql` (74). Según el responsable de la rama, pasan en local (450/450 con las suites anteriores) con un arnés PostgreSQL 17 sin Docker que emula los roles y `auth` de Supabase. **No se ejecutó `supabase test db`** (Docker no disponible); debe confirmarlo el CI de la PR.

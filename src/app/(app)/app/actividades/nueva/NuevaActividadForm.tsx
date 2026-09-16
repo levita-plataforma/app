@@ -348,6 +348,8 @@ export default function NuevaActividadForm(props: Props) {
       {isTimed ? (
         <section className="shell-card act-form-section">
           <h2>Repetición</h2>
+          {/* Zona ya resuelta por el formulario, solo para mostrar la vista previa. */}
+          <input type="hidden" name="displayTimezone" value={values.tzOverride.trim() || resolvedTz} />
           <RecurrenceFields
             idPrefix="new"
             value={values.recurrence}

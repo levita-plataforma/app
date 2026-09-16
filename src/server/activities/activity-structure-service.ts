@@ -1,6 +1,6 @@
 import "server-only";
 import { createSupabaseServerClient } from "@/server/supabase/server-client";
-import { callActivityRpc, one } from "@/server/activities/rpc";
+import { callActivityRpc, one, toDomainError } from "@/server/activities/rpc";
 import { coverageStatus, type CoverageStatusValue } from "@/lib/activities/planning";
 import type { AreaRequirement, PlanItemType } from "@/lib/activities/constants";
 
@@ -92,7 +92,7 @@ const REQUIREMENT_COMPARE_KEYS = ["strictness", "min_level", "min_operational_le
 export async function getActivityStructure(activityId: string): Promise<{ areas: ActivityArea[]; summary: StructureSummary }> {
   const supabase = await createSupabaseServerClient();
 
-  const [{ data: areaRows }, { data: positionRows }, { data: requirementRows }] = await Promise.all([
+  const [areasRes, positionsRes, requirementsRes] = await Promise.all([
     supabase
       .from("activity_service_areas")
       .select("id, service_area_id, area_name, area_campus_id, requirement, notes, sort_order")
@@ -115,6 +115,11 @@ export async function getActivityStructure(activityId: string): Promise<{ areas:
       .eq("activity_id", activityId)
       .order("created_at"),
   ]);
+  const failed = areasRes.error ?? positionsRes.error ?? requirementsRes.error;
+  if (failed) throw toDomainError(failed, "No se pudo cargar la estructura de la actividad.");
+  const areaRows = areasRes.data;
+  const positionRows = positionsRes.data;
+  const requirementRows = requirementsRes.data;
 
   const requirementsByPosition = new Map<string, ActivityPositionRequirement[]>();
   for (const r of (requirementRows ?? []) as Record<string, unknown>[]) {
@@ -210,9 +215,9 @@ export async function getActivityPlan(activityId: string): Promise<ActivityPlanI
     )
     .eq("activity_id", activityId)
     .order("sort_order");
-  if (error || !data) return [];
+  if (error) throw toDomainError(error, "No se pudo cargar el orden del servicio.");
 
-  return (data as Record<string, unknown>[]).map((row) => {
+  return ((data ?? []) as Record<string, unknown>[]).map((row) => {
     const person = one(row.people as { first_name: string; last_name: string | null; preferred_name: string | null } | null);
     return {
       id: row.id as string,

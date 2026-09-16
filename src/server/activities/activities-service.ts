@@ -1,7 +1,7 @@
 import "server-only";
 import { createSupabaseServerClient } from "@/server/supabase/server-client";
 import { hasCapability } from "@/server/tenant/authorize";
-import { callActivityRpc, one } from "@/server/activities/rpc";
+import { callActivityRpc, one, toDomainError } from "@/server/activities/rpc";
 import type {
   ActivityStatus,
   ActivityType,
@@ -116,6 +116,9 @@ export type ActivityHistoryEntry = {
   id: string;
   action: string;
   createdAt: string;
+  /** null = acción del sistema (sin persona autora). */
+  actorPersonId: string | null;
+  /** null si no hay autor o si la RLS no deja ver a la persona. */
   actorName: string | null;
   metadata: Record<string, unknown>;
 };
@@ -200,9 +203,16 @@ export type ActivityListFilters = {
   serviceAreaId?: string;
   search?: string;
   includeArchived?: boolean;
+  /** Orden por inicio: "asc" (por defecto) o "desc" (más reciente primero). */
+  order?: "asc" | "desc";
   page?: number;
   pageSize?: number;
 };
+
+/** Escapa los comodines de LIKE (`\`, `%`, `_`) para buscar el texto literal. */
+export function escapeLikePattern(value: string): string {
+  return value.replace(/[\\%_]/g, (char) => `\\${char}`);
+}
 
 // ---------------------------------------------------------------------------
 // Mapeo
@@ -299,7 +309,7 @@ export async function listActivities(
   if (filters.type) query = query.eq("type", filters.type);
   if (filters.status) query = query.eq("status", filters.status);
   else if (!filters.includeArchived) query = query.neq("status", "archived");
-  if (filters.search?.trim()) query = query.ilike("title", `%${filters.search.trim().replace(/[%_]/g, "")}%`);
+  if (filters.search?.trim()) query = query.ilike("title", `%${escapeLikePattern(filters.search.trim())}%`);
   if (filters.from || filters.to) {
     query = query.eq("schedule_kind", "timed");
     if (filters.to) query = query.lt("starts_at", filters.to);
@@ -310,19 +320,20 @@ export async function listActivities(
     }
   }
 
+  const ascending = filters.order !== "desc";
   const { data, count, error } = await query
-    .order("starts_at", { ascending: true, nullsFirst: false })
+    .order("starts_at", { ascending, nullsFirst: false })
     .order("title")
     .range((page - 1) * pageSize, page * pageSize - 1);
 
-  if (error || !data) return { items: [], total: 0, page, pageSize };
-  return { items: (data as unknown as SummaryRow[]).map(mapActivitySummary), total: count ?? 0, page, pageSize };
+  if (error) throw toDomainError(error, "No se pudieron cargar las actividades.");
+  return { items: ((data ?? []) as unknown as SummaryRow[]).map(mapActivitySummary), total: count ?? 0, page, pageSize };
 }
 
 /** Tareas sin hora fija cuya ventana (si la tienen) toca el rango. */
 export async function listFlexibleTasks(
   churchId: string,
-  filters: Pick<ActivityListFilters, "from" | "to" | "campusId" | "status" | "serviceAreaId" | "includeArchived"> = {},
+  filters: Pick<ActivityListFilters, "from" | "to" | "campusId" | "status" | "serviceAreaId" | "includeArchived" | "search"> = {},
   limit = 50,
 ): Promise<ActivitySummary[]> {
   const supabase = await createSupabaseServerClient();
@@ -337,10 +348,12 @@ export async function listFlexibleTasks(
   else if (!filters.includeArchived) query = query.not("status", "in", "(archived,completed,cancelled)");
   if (filters.from) query = query.or(`ends_at.is.null,ends_at.gte.${filters.from}`);
   if (filters.to) query = query.or(`starts_at.is.null,starts_at.lt.${filters.to}`);
+  // Búsqueda en SQL (antes del límite), con los comodines escapados.
+  if (filters.search?.trim()) query = query.ilike("title", `%${escapeLikePattern(filters.search.trim())}%`);
 
   const { data, error } = await query.order("ends_at", { ascending: true, nullsFirst: false }).limit(limit);
-  if (error || !data) return [];
-  return (data as unknown as SummaryRow[]).map(mapActivitySummary);
+  if (error) throw toDomainError(error, "No se pudieron cargar las tareas sin hora fija.");
+  return ((data ?? []) as unknown as SummaryRow[]).map(mapActivitySummary);
 }
 
 export async function getActivity(churchId: string, activityId: string): Promise<ActivityDetail | null> {
@@ -359,7 +372,9 @@ export async function getActivity(churchId: string, activityId: string): Promise
     .eq("id", activityId)
     .maybeSingle();
 
-  if (error || !data) return null;
+  if (error) throw toDomainError(error, "No se pudo cargar la actividad.");
+  // maybeSingle sin error y sin datos: no existe o la RLS no la deja ver.
+  if (!data) return null;
 
   const row = data as unknown as SummaryRow & {
     church_id: string;
@@ -401,11 +416,15 @@ export async function getActivity(churchId: string, activityId: string): Promise
   const organizer = one(row.people);
   const series = one(row.activity_series);
 
-  const { data: notes } = await supabase
+  // Si la lectura de notas falla se lanza: devolver null haría creer que no
+  // hay notas y un guardado posterior podría borrarlas. (Sin permiso, la RLS
+  // no devuelve filas: eso no es un error.)
+  const { data: notes, error: notesError } = await supabase
     .from("activity_admin_notes")
     .select("notes")
     .eq("activity_id", activityId)
     .maybeSingle();
+  if (notesError) throw toDomainError(notesError, "No se pudieron cargar las notas administrativas.");
 
   return {
     ...mapActivitySummary(row),
@@ -520,12 +539,16 @@ export async function getActivityHistory(
     .in("entity_id", ids)
     .order("created_at", { ascending: false })
     .limit(100);
-  if (error || !data) return { canRead, entries: [] };
+  if (error) throw toDomainError(error, "No se pudo cargar el historial.");
 
   const actorIds = [...new Set(data.map((r) => r.actor_person_id as string | null).filter(Boolean))] as string[];
   const names = new Map<string, string>();
   if (actorIds.length > 0) {
-    const { data: people } = await supabase.from("people").select("id, first_name, last_name").in("id", actorIds);
+    const { data: people, error: peopleError } = await supabase
+      .from("people")
+      .select("id, first_name, last_name")
+      .in("id", actorIds);
+    if (peopleError) throw toDomainError(peopleError, "No se pudo cargar el historial.");
     for (const p of people ?? []) {
       names.set(p.id as string, [p.first_name, p.last_name].filter(Boolean).join(" "));
     }
@@ -537,6 +560,7 @@ export async function getActivityHistory(
       id: r.id as string,
       action: r.action as string,
       createdAt: r.created_at as string,
+      actorPersonId: (r.actor_person_id as string | null) ?? null,
       actorName: r.actor_person_id ? names.get(r.actor_person_id as string) ?? null : null,
       metadata: (r.metadata as Record<string, unknown>) ?? {},
     })),
@@ -548,13 +572,18 @@ export async function previewRecurrence(
   input: Pick<CreateActivityInput, "campusId" | "timezone" | "localStart" | "localEnd" | "durationMinutes"> & {
     recurrence: RecurrenceInput;
   },
-): Promise<{ occurrenceDate: string; startsAt: string; endsAt: string }[]> {
-  const data = await callActivityRpc<{ occurrence_date: string; starts_at: string; ends_at: string }[]>(
-    "preview_activity_recurrence",
-    { p_church_id: churchId, p_input: toRpcInput(input) },
-    "No se pudo calcular la repetición.",
-  );
-  return (data ?? []).map((r) => ({ occurrenceDate: r.occurrence_date, startsAt: r.starts_at, endsAt: r.ends_at }));
+): Promise<{ occurrenceDate: string; startsAt: string; endsAt: string; timezone: string | null }[]> {
+  // La zona la resuelve SQL (indicada → sede → iglesia). Si la RPC devuelve la
+  // zona usada en cada fila, se expone para mostrar; si no, timezone = null.
+  const data = await callActivityRpc<
+    { occurrence_date: string; starts_at: string; ends_at: string; timezone?: string | null }[]
+  >("preview_activity_recurrence", { p_church_id: churchId, p_input: toRpcInput(input) }, "No se pudo calcular la repetición.");
+  return (data ?? []).map((r) => ({
+    occurrenceDate: r.occurrence_date,
+    startsAt: r.starts_at,
+    endsAt: r.ends_at,
+    timezone: r.timezone ?? null,
+  }));
 }
 
 // ---------------------------------------------------------------------------

@@ -268,6 +268,27 @@ as $$
     );
 $$;
 
+-- Lectura de una plantilla concreta: las globales (sin sede) para quien crea
+-- actividades o gestiona plantillas en cualquier ámbito; las de una sede solo
+-- con scope de iglesia o de esa sede.
+create or replace function app.can_read_activity_template(p_church_id uuid, p_campus_id uuid)
+returns boolean
+language sql
+stable
+security definer
+set search_path = pg_catalog, public
+as $$
+  select p_church_id = any (app.church_ids_for_user())
+    and case
+      when p_campus_id is null then app.can_read_activity_templates(p_church_id)
+      else app.has_capability(p_church_id, 'activity_template.manage', 'campus', p_campus_id)
+        or app.has_capability(p_church_id, 'activity.create', 'campus', p_campus_id)
+    end;
+$$;
+
+revoke all on function app.can_read_activity_template(uuid, uuid) from public, anon;
+grant execute on function app.can_read_activity_template(uuid, uuid) to authenticated;
+
 revoke all on function app.activity_cap(uuid, uuid, uuid, text) from public, anon;
 revoke all on function app.activity_area_positions_cap(uuid, uuid, uuid, uuid) from public, anon;
 revoke all on function app.has_capability_any_scope(uuid, text) from public, anon;
@@ -815,11 +836,16 @@ begin
   end if;
 
   if tg_op = 'UPDATE' then
-    -- El catálogo borrado anula la referencia (FK set null): se permite.
-    if new.service_area_id is null and old.service_area_id is not null
-       and new.activity_id = old.activity_id
+    -- El catálogo o la sede borrados anulan la referencia (FK set null): se permite.
+    if new.activity_id = old.activity_id
        and new.area_name = old.area_name
-       and new.area_campus_id is not distinct from old.area_campus_id then
+       and (new.service_area_id is not distinct from old.service_area_id
+            or (new.service_area_id is null and old.service_area_id is not null))
+       and (new.area_campus_id is not distinct from old.area_campus_id
+            or (new.area_campus_id is null and old.area_campus_id is not null))
+       and (new.service_area_id is distinct from old.service_area_id
+            or new.area_campus_id is distinct from old.area_campus_id)
+       and row(new.requirement, new.notes, new.sort_order) is not distinct from row(old.requirement, old.notes, old.sort_order) then
       return new;
     end if;
     if new.activity_id <> old.activity_id
@@ -1096,7 +1122,10 @@ begin
   if not found then
     raise exception 'El área no pertenece a esta iglesia.' using errcode = '22023';
   end if;
-  if tg_op = 'INSERT' and (v_area.archived_at is not null or not v_area.active) then
+  -- Un área inactiva solo se admite si ya estaba en la plantilla (reguardado o
+  -- duplicado, que reinsertan las filas); al usar la plantilla se omite.
+  if tg_op = 'INSERT' and (v_area.archived_at is not null or not v_area.active)
+     and not (new.service_area_id::text = any (string_to_array(coalesce(current_setting('app.template_prev_areas', true), ''), ','))) then
     raise exception 'El área "%" no está activa.', v_area.name using errcode = '22023';
   end if;
   select t.campus_id into v_template_campus from activity_templates t where t.id = new.template_id;
@@ -1137,7 +1166,8 @@ begin
     if v_position.service_area_id <> v_template_area.service_area_id then
       raise exception 'El puesto "%" no pertenece a esa área.', v_position.name using errcode = '22023';
     end if;
-    if tg_op = 'INSERT' and (v_position.archived_at is not null or not v_position.active) then
+    if tg_op = 'INSERT' and (v_position.archived_at is not null or not v_position.active)
+       and not (new.service_position_id::text = any (string_to_array(coalesce(current_setting('app.template_prev_positions', true), ''), ','))) then
       raise exception 'El puesto "%" no está activo.', v_position.name using errcode = '22023';
     end if;
     select t.campus_id into v_template_campus from activity_templates t where t.id = new.template_id;

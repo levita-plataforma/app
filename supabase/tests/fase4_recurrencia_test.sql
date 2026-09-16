@@ -4,7 +4,7 @@
 -- estructura a la serie. Ver docs/adr/0017.
 
 begin;
-select plan(60);
+select plan(74);
 
 create or replace function test_set_auth_uid(p_uid uuid) returns void as $$
 begin
@@ -40,7 +40,7 @@ insert into auth.users (id, email) values
   ('c4000000-0000-0000-0000-000000000001', 'owner.p4r@example.test');
 
 select test_set_auth_uid('c4000000-0000-0000-0000-000000000001');
-select t_set('church', out_church_id::text)
+select t_set('church', out_church_id::text), t_set('campus_a', out_campus_id::text)
 from app.provision_church(
   'Church P4R', 'church-a-p4rec', 'es-ES', 'Europe/Madrid', 'EUR', 'España',
   'Owner', 'A4R', 'owner.p4r@example.test', null, 'Sede R', null, null, null, null,
@@ -57,6 +57,28 @@ insert into qualifications (id, church_id, name)
 values ('c4000000-0000-0000-0000-0000000d0001', t_id('church'), 'Mesa');
 insert into position_requirements (church_id, service_position_id, requirement_type, qualification_id, min_level)
 values (t_id('church'), 'c4000000-0000-0000-0000-0000000b0001', 'qualification', 'c4000000-0000-0000-0000-0000000d0001', 'basic');
+
+-- Segunda sede y usuarios con permisos parciales:
+--   02 activity.manage solo en scope activity · 03 campus_admin de la sede A
+insert into campuses (id, church_id, name, slug)
+values ('c4000000-0000-0000-0000-0000000c0002', t_id('church'), 'Sede B', 'sede-b');
+
+insert into auth.users (id, email) values
+  ('c4000000-0000-0000-0000-000000000002', 'gestor.actividad.p4r@example.test'),
+  ('c4000000-0000-0000-0000-000000000003', 'admin.sede.p4r@example.test');
+insert into people (id, user_id, first_name, source) values
+  ('c4000000-0000-0000-0000-0000000e0002', 'c4000000-0000-0000-0000-000000000002', 'Gestor', 'manual'),
+  ('c4000000-0000-0000-0000-0000000e0003', 'c4000000-0000-0000-0000-000000000003', 'AdminSede', 'manual');
+insert into church_people (id, church_id, person_id, relationship, source) values
+  ('c4000000-0000-0000-0000-0000000f0002', t_id('church'), 'c4000000-0000-0000-0000-0000000e0002', 'member', 'manual'),
+  ('c4000000-0000-0000-0000-0000000f0003', t_id('church'), 'c4000000-0000-0000-0000-0000000e0003', 'member', 'manual');
+insert into roles (key, name) values ('test_p4r_activity_manager', 'Gestor de una actividad (test)');
+insert into role_capabilities (role_key, capability_key) values
+  ('test_p4r_activity_manager', 'activity.read'),
+  ('test_p4r_activity_manager', 'activity.manage'),
+  ('test_p4r_activity_manager', 'activity.create');
+insert into church_people_roles (church_id, church_people_id, role_key, scope_type, scope_id)
+values (t_id('church'), 'c4000000-0000-0000-0000-0000000f0003', 'campus_admin', 'campus', t_id('campus_a'));
 
 select test_set_auth_uid('c4000000-0000-0000-0000-000000000001');
 
@@ -165,6 +187,48 @@ select throws_ok(
   $$ select public.create_activity(t_id('church'), '{"type":"task","title":"Tarea repetida","schedule_kind":"flexible","recurrence":{"frequency":"weekly","count":3}}'::jsonb) $$,
   '22023', null,
   'Una actividad flexible no puede repetirse'
+);
+
+select throws_ok(
+  $$ select * from public.preview_activity_recurrence(t_id('church'),
+       '{"local_start":"2030-01-06T10:00","duration_minutes":60,"recurrence":{"frequency":"weekly","weekdays":[0],"count":2}}'::jsonb) $$,
+  '22023', null,
+  'La vista previa rechaza un día de la semana 0 (fuera de 1-7)'
+);
+
+select throws_ok(
+  $$ select public.create_activity(t_id('church'),
+       '{"type":"service","title":"Día 9","local_start":"2030-01-06T10:00","duration_minutes":60,"recurrence":{"frequency":"weekly","weekdays":[9],"count":2}}'::jsonb) $$,
+  '22023', null,
+  'El alta rechaza un día de la semana 9 (fuera de 1-7)'
+);
+
+select throws_ok(
+  $$ select * from public.preview_activity_recurrence(t_id('church'),
+       '{"local_start":"2030-01-06T10:00","duration_minutes":60,"recurrence":{"frequency":"weekly","interval":53,"count":2}}'::jsonb) $$,
+  '22023', null,
+  'La vista previa rechaza un intervalo semanal mayor de 52'
+);
+
+select throws_ok(
+  $$ select public.create_activity(t_id('church'),
+       '{"type":"service","title":"Intervalo 53","local_start":"2030-01-06T10:00","duration_minutes":60,"recurrence":{"frequency":"weekly","interval":53,"count":2}}'::jsonb) $$,
+  '22023', null,
+  'El alta rechaza un intervalo semanal mayor de 52'
+);
+
+select throws_ok(
+  $$ select * from public.preview_activity_recurrence(t_id('church'),
+       '{"local_start":"2030-01-15T10:00","duration_minutes":60,"recurrence":{"frequency":"monthly","interval":13,"count":2}}'::jsonb) $$,
+  '22023', null,
+  'La vista previa rechaza un intervalo mensual mayor de 12'
+);
+
+select throws_ok(
+  $$ select public.create_activity(t_id('church'),
+       '{"type":"meeting","title":"Intervalo 13","local_start":"2030-01-15T10:00","duration_minutes":60,"recurrence":{"frequency":"monthly","interval":13,"count":2}}'::jsonb) $$,
+  '22023', null,
+  'El alta rechaza un intervalo mensual mayor de 12'
 );
 
 select is(
@@ -334,6 +398,19 @@ select ok(
   and (select bool_and(location_text is null) from activities where series_id = t_id('f_series'))
   and (select bool_and(location_text = 'Salón') from activities where series_id = t_id('f_new_series')),
   'Solo las ocurrencias desde la elegida pasan a la nueva serie y reciben el cambio'
+);
+
+-- División de una serie por número de ocurrencias acotada por el horizonte de
+-- 2 años: 150 mensuales desde 2030-01-10 generan solo 25 fechas.
+select t_set('c_series', public.create_activity(t_id('church'),
+  '{"type":"meeting","title":"Mensual larga","local_start":"2030-01-10T19:00","duration_minutes":60,"recurrence":{"frequency":"monthly","count":150}}'::jsonb) ->> 'series_id');
+select t_set('c_new_series', public.update_activity_series(t_occ(t_id('c_series'), 3), '{"location_text":"Aula"}'::jsonb, 'future') ->> 'series_id');
+
+select ok(
+  (select count(*) = 2 from activities where series_id = t_id('c_series'))
+  and (select count(*) = 23 from activities where series_id = t_id('c_new_series'))
+  and (select occurrence_count = 23 from activity_series where id = t_id('c_new_series')),
+  'Al dividir una serie por número de ocurrencias, la nueva guarda las fechas restantes de la regla original (23)'
 );
 
 -- ============================================================
@@ -536,6 +613,86 @@ select ok(
   and (select count(*) = 3 from activities where title = 'Pasada'),
   'Cambiar la regla no elimina ni cancela ocurrencias pasadas'
 );
+
+-- ============================================================
+-- 10b. Cambio de regla: ocurrencia de origen y permisos
+-- ============================================================
+select t_set('o_series', public.create_activity(t_id('church'),
+  '{"type":"service","title":"Origen fuera","local_start":"2030-07-07T11:00","duration_minutes":60,"recurrence":{"frequency":"weekly","count":3}}'::jsonb) ->> 'series_id');
+select t_set('o_occ1', t_occ(t_id('o_series'), 1)::text);
+
+select lives_ok(
+  $$ select public.update_activity_series_rule(t_id('o_occ1'), '{"frequency":"weekly","weekdays":[3],"count":2}'::jsonb) $$,
+  'Cambiar la regla a otros días desde una ocurrencia funciona'
+);
+
+select ok(
+  (select status = 'draft' and series_modified and series_id = t_id('o_series') from activities where id = t_id('o_occ1'))
+  and t_dates(t_id('o_series')) = '2030-07-07,2030-07-10,2030-07-17',
+  'Si la nueva regla no incluye la fecha de origen, esa ocurrencia no se borra ni se cancela y queda como excepción'
+);
+
+-- (a) activity.manage solo en scope activity sobre una ocurrencia.
+select t_set('pa_series', public.create_activity(t_id('church'),
+  '{"type":"service","title":"Permiso regla actividad","local_start":"2030-06-02T11:00","duration_minutes":60,"recurrence":{"frequency":"weekly","count":3}}'::jsonb) ->> 'series_id');
+select t_set('pa_occ1', t_occ(t_id('pa_series'), 1)::text);
+
+reset role;
+insert into church_people_roles (church_id, church_people_id, role_key, scope_type, scope_id)
+values (t_id('church'), 'c4000000-0000-0000-0000-0000000f0002', 'test_p4r_activity_manager', 'activity', t_id('pa_occ1'));
+select test_set_auth_uid('c4000000-0000-0000-0000-000000000002');
+
+select throws_ok(
+  $$ select public.update_activity_series_rule(t_id('pa_occ1'), '{"frequency":"weekly","interval":2,"count":2}'::jsonb) $$,
+  '42501', null,
+  'Con activity.manage solo sobre una ocurrencia no se puede cambiar la regla de la serie'
+);
+
+reset role;
+select ok(
+  (select rrule = 'FREQ=WEEKLY;INTERVAL=1;BYDAY=SU;COUNT=3' from activity_series where id = t_id('pa_series'))
+  and t_dates(t_id('pa_series')) = '2030-06-02,2030-06-09,2030-06-16',
+  'La serie no cambia tras el cambio de regla denegado'
+);
+
+-- (b) Ocurrencias posteriores en otra sede: el admin de la sede A no puede.
+select test_set_auth_uid('c4000000-0000-0000-0000-000000000001');
+select t_set('pb_series', public.create_activity(t_id('church'), jsonb_build_object(
+  'type', 'service', 'title', 'Permiso regla sedes', 'campus_id', t_id('campus_a'),
+  'local_start', '2030-06-09T11:00', 'duration_minutes', 60,
+  'recurrence', jsonb_build_object('frequency', 'weekly', 'count', 3))) ->> 'series_id');
+select t_set('pb_occ1', t_occ(t_id('pb_series'), 1)::text);
+-- Se mueven a la sede B como ediciones individuales para que sigan en la misma
+-- serie ('future' crearía una serie nueva y la original quedaría toda en A).
+select public.update_activity(t_occ(t_id('pb_series'), 2), '{"campus_id":"c4000000-0000-0000-0000-0000000c0002"}'::jsonb);
+select public.update_activity(t_occ(t_id('pb_series'), 3), '{"campus_id":"c4000000-0000-0000-0000-0000000c0002"}'::jsonb);
+
+select t_set('pc_series', public.create_activity(t_id('church'), jsonb_build_object(
+  'type', 'service', 'title', 'Permiso regla sede A', 'campus_id', t_id('campus_a'),
+  'local_start', '2030-06-10T19:00', 'duration_minutes', 60,
+  'recurrence', jsonb_build_object('frequency', 'weekly', 'count', 3))) ->> 'series_id');
+
+select test_set_auth_uid('c4000000-0000-0000-0000-000000000003');
+
+select throws_ok(
+  $$ select public.update_activity_series_rule(t_id('pb_occ1'), '{"frequency":"weekly","interval":2,"count":2}'::jsonb) $$,
+  '42501', null,
+  'El admin de la sede A no puede cambiar la regla si hay ocurrencias posteriores en la sede B'
+);
+
+select lives_ok(
+  $$ select public.update_activity_series_rule(t_occ(t_id('pc_series'), 1), '{"frequency":"weekly","interval":2,"count":2}'::jsonb) $$,
+  'El admin de la sede A sí cambia la regla de una serie con todas las ocurrencias en su sede'
+);
+
+reset role;
+select ok(
+  (select rrule = 'FREQ=WEEKLY;INTERVAL=1;BYDAY=SU;COUNT=3' from activity_series where id = t_id('pb_series'))
+  and t_dates(t_id('pb_series')) = '2030-06-09,2030-06-16,2030-06-23'
+  and (select count(*) = 2 from activities where series_id = t_id('pb_series') and campus_id = 'c4000000-0000-0000-0000-0000000c0002'),
+  'La serie con ocurrencias en otra sede no cambia tras la denegación'
+);
+select test_set_auth_uid('c4000000-0000-0000-0000-000000000001');
 
 -- ============================================================
 -- 11. Serie desde plantilla

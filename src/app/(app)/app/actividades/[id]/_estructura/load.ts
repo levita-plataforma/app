@@ -1,6 +1,7 @@
 import "server-only";
 import { createSupabaseServerClient } from "@/server/supabase/server-client";
 import { isModuleEnabled } from "@/server/tenant/authorize";
+import { toDomainError } from "@/server/activities/rpc";
 import { getStructureIssues, type ActivityDetail, type StructureIssue } from "@/server/activities/activities-service";
 import {
   getActivityPlan,
@@ -32,6 +33,11 @@ export type StructureTabsData = {
   structure: { areas: ActivityArea[]; summary: StructureSummary };
   plan: ActivityPlanItem[];
   issues: StructureIssue[];
+  /**
+   * true si no se pudo validar la estructura: `issues` va vacío pero NO
+   * significa "sin incidencias". Opcional para no romper el contrato.
+   */
+  issuesError?: boolean;
   catalog: {
     areas: CatalogAreaOption[];
     positions: CatalogPositionOption[];
@@ -87,6 +93,8 @@ async function loadCatalog(churchId: string, activityCampusId: string | null): P
       .is("archived_at", null)
       .order("name"),
   ]);
+  const failed = areasRes.error ?? positionsRes.error ?? qualificationsRes.error ?? credentialsRes.error;
+  if (failed) throw toDomainError(failed, "No se pudo cargar el catálogo de servicio.");
 
   const areas: CatalogAreaOption[] = ((areasRes.data ?? []) as Record<string, unknown>[])
     .map((row) => ({ id: row.id as string, name: row.name as string, campusId: (row.campus_id as string | null) ?? null }))
@@ -127,9 +135,9 @@ async function loadPeople(churchId: string): Promise<NamedOption[]> {
     .order("first_name")
     .order("last_name")
     .limit(PEOPLE_LIMIT);
-  if (error || !data) return [];
+  if (error) throw toDomainError(error, "No se pudieron cargar las personas.");
 
-  return (data as Record<string, unknown>[])
+  return ((data ?? []) as Record<string, unknown>[])
     .map((row) => ({
       id: row.id as string,
       name: [(row.preferred_name as string | null) || (row.first_name as string | null), row.last_name as string | null]
@@ -141,14 +149,18 @@ async function loadPeople(churchId: string): Promise<NamedOption[]> {
 }
 
 export async function loadStructureTabs(churchId: string, activity: ActivityDetail): Promise<StructureTabsData> {
-  const [structure, plan, issues, catalog, people] = await Promise.all([
+  const [structure, plan, issuesResult, catalog, people] = await Promise.all([
     getActivityStructure(activity.id),
     getActivityPlan(activity.id),
-    // Las incidencias son informativas: si la validación falla, la ficha sigue cargando.
-    getStructureIssues(activity.id).catch((): StructureIssue[] => []),
+    // Si la validación falla, la ficha sigue cargando pero se indica con
+    // issuesError: una lista vacía no debe leerse como "sin incidencias".
+    getStructureIssues(activity.id).then(
+      (issues) => ({ issues, issuesError: false }),
+      () => ({ issues: [] as StructureIssue[], issuesError: true }),
+    ),
     loadCatalog(churchId, activity.campusId),
     loadPeople(churchId),
   ]);
 
-  return { structure, plan, issues, catalog, people };
+  return { structure, plan, issues: issuesResult.issues, issuesError: issuesResult.issuesError, catalog, people };
 }

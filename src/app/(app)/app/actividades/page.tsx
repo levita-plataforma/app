@@ -10,6 +10,13 @@ import {
   type ActivitySummary,
 } from "@/server/activities/activities-service";
 import { getStructureStatusFor } from "@/server/activities/activities-dashboard-service";
+import {
+  LOCAL_DAY_FETCH_CAP,
+  listActivitiesByLocalDays,
+  marginInstants,
+  overlapsLocalDays,
+} from "@/server/activities/activities-local-days";
+import { toDomainError } from "@/server/activities/rpc";
 import { listServiceAreas } from "@/server/serving/service-areas-service";
 import {
   ACTIVITY_STATUSES,
@@ -19,10 +26,10 @@ import {
   isActivityStatus,
   isActivityType,
 } from "@/lib/activities/constants";
-import { addDaysToKey } from "@/lib/activities/time";
 import { primaryButtonStyle, secondaryButtonStyle } from "@/app/(app)/app/servicios/ui";
 import ActivitiesTable from "./_components/ActivitiesTable";
 import ListPager from "./_components/ListPager";
+import { isUuid, isValidKey } from "../calendario/calendar-utils";
 import "./actividades.css";
 
 type SearchParams = {
@@ -39,7 +46,6 @@ type SearchParams = {
 };
 
 const PAGE_SIZE = 25;
-const DATE_KEY = /^\d{4}-\d{2}-\d{2}$/;
 const PERIODS = { proximas: "Próximas", pasadas: "Pasadas", todas: "Todas" } as const;
 type Period = keyof typeof PERIODS;
 
@@ -51,25 +57,27 @@ export default async function ActividadesPage({ searchParams }: { searchParams: 
   const type = params.tipo && isActivityType(params.tipo) ? params.tipo : undefined;
   const status = params.estado && isActivityStatus(params.estado) ? params.estado : undefined;
   const period: Period = params.periodo === "pasadas" || params.periodo === "todas" ? params.periodo : "proximas";
-  const desde = params.desde && DATE_KEY.test(params.desde) ? params.desde : undefined;
-  const hasta = params.hasta && DATE_KEY.test(params.hasta) ? params.hasta : undefined;
+  const desde = isValidKey(params.desde) ? params.desde : undefined;
+  const hasta = isValidKey(params.hasta) ? params.hasta : undefined;
   const includeArchived = params.archivadas === "1";
   const page = Math.max(1, Number(params.pagina) || 1);
   const search = params.q?.trim() || undefined;
 
   const scopes = await getCreationScopes(tenant.churchId);
-  const campusId = params.sede || undefined;
-  const serviceAreaId = scopes.servingEnabled ? params.area || undefined : undefined;
+  // Parámetros UUID inválidos se ignoran: nunca llegan a la consulta.
+  const campusId = isUuid(params.sede) ? params.sede : undefined;
+  const serviceAreaId = scopes.servingEnabled && isUuid(params.area) ? params.area : undefined;
 
-  // Rango: las fechas explícitas sustituyen al periodo. Los límites de día se
-  // toman en UTC (aproximación de filtro; las fechas se muestran en la zona
-  // de cada actividad).
+  // Rango: las fechas explícitas sustituyen al periodo y se interpretan como
+  // días civiles en la zona de CADA actividad (no en UTC). Ver
+  // listActivitiesByLocalDays: se consulta con margen ±14 h, se filtra por
+  // localDateKey en servidor y se pagina después de filtrar (máx. 200 filas).
   const nowIso = new Date().toISOString();
+  const byLocalDays = Boolean(desde || hasta);
   let from: string | undefined;
   let to: string | undefined;
-  if (desde || hasta) {
-    from = desde ? `${desde}T00:00:00Z` : undefined;
-    to = hasta ? `${addDaysToKey(hasta, 1)}T00:00:00Z` : undefined;
+  if (byLocalDays) {
+    ({ from, to } = marginInstants(desde, hasta));
   } else if (period === "proximas") {
     from = nowIso;
   } else if (period === "pasadas") {
@@ -77,32 +85,38 @@ export default async function ActividadesPage({ searchParams }: { searchParams: 
   }
   const hasRange = Boolean(from || to);
   const showFlexible = (!type || type === "task") && hasRange;
+  const baseFilters = { campusId, type, status, serviceAreaId, search, includeArchived };
 
-  const [list, flexibleRaw, { data: campuses }, areas] = await Promise.all([
-    listActivities(tenant.churchId, {
-      from,
-      to,
-      campusId,
-      type,
-      status,
-      serviceAreaId,
-      search,
-      includeArchived,
-      page,
-      pageSize: PAGE_SIZE,
-    }),
+  const [list, flexibleRaw, campusRes, areas] = await Promise.all([
+    byLocalDays
+      ? listActivitiesByLocalDays(
+          tenant.churchId,
+          baseFilters,
+          { firstKey: desde, lastKey: hasta },
+          { page, pageSize: PAGE_SIZE },
+        )
+      : listActivities(tenant.churchId, {
+          ...baseFilters,
+          from,
+          to,
+          // "Pasadas": de la más reciente a la más antigua.
+          order: period === "pasadas" ? "desc" : "asc",
+          page,
+          pageSize: PAGE_SIZE,
+        }).then((r) => ({ ...r, capped: false })),
     showFlexible
-      ? listFlexibleTasks(tenant.churchId, { from, to, campusId, status, serviceAreaId, includeArchived })
+      ? listFlexibleTasks(tenant.churchId, { from, to, campusId, status, serviceAreaId, includeArchived, search })
       : Promise.resolve([] as ActivitySummary[]),
     supabase.from("campuses").select("id, name").eq("church_id", tenant.churchId).is("archived_at", null).order("name"),
     scopes.servingEnabled
       ? listServiceAreas(tenant.churchId, { pageSize: 100 }).then((r) => r.items)
       : Promise.resolve([]),
   ]);
+  if (campusRes.error) throw toDomainError(campusRes.error, "No se pudieron cargar las sedes.");
+  const campuses = campusRes.data;
 
-  const flexible = search
-    ? flexibleRaw.filter((a) => a.title.toLocaleLowerCase("es").includes(search.toLocaleLowerCase("es")))
-    : flexibleRaw;
+  // Con fechas explícitas se descartan las tareas que solo entran por el margen de zona.
+  const flexible = byLocalDays ? flexibleRaw.filter((a) => overlapsLocalDays(a, desde, hasta)) : flexibleRaw;
 
   let structure = new Map<string, { blocking: number; warnings: number }>();
   try {
@@ -249,7 +263,15 @@ export default async function ActividadesPage({ searchParams }: { searchParams: 
         </div>
       </form>
       {desde || hasta ? (
-        <p className="act-hint">Las fechas indicadas sustituyen al periodo seleccionado.</p>
+        <p className="act-hint">
+          Las fechas indicadas sustituyen al periodo seleccionado y se aplican en la zona horaria de cada actividad.
+        </p>
+      ) : null}
+      {list.capped ? (
+        <p className="act-hint" role="status">
+          Hay más de {LOCAL_DAY_FETCH_CAP} actividades en esas fechas: solo se tienen en cuenta las primeras{" "}
+          {LOCAL_DAY_FETCH_CAP}. Acota el rango o añade filtros para ver el resto.
+        </p>
       ) : null}
 
       <section className="shell-card act-table-card">
