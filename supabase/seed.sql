@@ -26,7 +26,10 @@ insert into church_modules (church_id, module_key, status, enabled_at) values
   ('00000000-0000-0000-0000-00000000000a', 'people', 'enabled', now()),
   ('00000000-0000-0000-0000-00000000000b', 'people', 'disabled', null);
 
--- Actividad de ejemplo en Church A.
-insert into activities (church_id, campus_id, type, title, starts_at, ends_at, status) values
+-- Actividad de ejemplo en Church A. Publicada y visible para miembros: desde
+-- Fase 4 los borradores solo los ve quien gestiona actividades, y los tests de
+-- aislamiento usan a un miembro sin roles.
+insert into activities (church_id, campus_id, type, title, starts_at, ends_at, status, visibility, published_at) values
   ('00000000-0000-0000-0000-00000000000a', '00000000-0000-0000-0000-0000000001a1',
-   'service', 'Culto dominical (seed)', now() + interval '3 days', now() + interval '3 days 1 hour', 'draft');
+   'service', 'Culto dominical (seed)', now() + interval '3 days', now() + interval '3 days 1 hour',
+   'published', 'members', now());
