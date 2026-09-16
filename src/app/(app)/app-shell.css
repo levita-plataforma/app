@@ -555,3 +555,156 @@
     transition: none;
   }
 }
+
+/* Tabla de personas (Fase 2) ---------------------------------------------- */
+
+.people-table-wrap {
+  overflow-x: auto;
+}
+
+.people-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+
+.people-table th {
+  text-align: left;
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--shell-text-subtle);
+  padding: 14px 16px;
+  border-bottom: 1px solid var(--shell-border);
+  white-space: nowrap;
+}
+
+.people-table td {
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--shell-border);
+  vertical-align: middle;
+}
+
+.people-table tr:last-child td {
+  border-bottom: none;
+}
+
+.people-table tr.is-archived {
+  opacity: 0.55;
+}
+
+.people-name-cell {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  text-decoration: none;
+  color: inherit;
+}
+
+.people-avatar {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: var(--shell-active-bg);
+  color: var(--shell-brand);
+  display: grid;
+  place-items: center;
+  font-size: 11.5px;
+  font-weight: 700;
+  flex-shrink: 0;
+}
+
+.people-name {
+  font-weight: 600;
+  color: var(--shell-text);
+}
+
+.people-preferred {
+  color: var(--shell-text-muted);
+  font-size: 12px;
+}
+
+.people-contact {
+  display: flex;
+  flex-direction: column;
+  color: var(--shell-text-muted);
+  font-size: 12.5px;
+}
+
+.people-contact-secondary {
+  font-size: 11.5px;
+  color: var(--shell-text-subtle);
+}
+
+.people-badge {
+  display: inline-block;
+  padding: 3px 9px;
+  border-radius: 999px;
+  background: var(--shell-active-bg);
+  color: var(--shell-text);
+  font-size: 11.5px;
+  font-weight: 600;
+}
+
+.people-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+.people-tag {
+  padding: 2px 8px;
+  border-radius: 999px;
+  color: #fff;
+  font-size: 10.5px;
+  font-weight: 600;
+}
+
+.people-open-link {
+  color: var(--shell-brand);
+  font-size: 12.5px;
+  font-weight: 600;
+  text-decoration: none;
+  white-space: nowrap;
+}
+
+@media (max-width: 760px) {
+  .people-table thead {
+    display: none;
+  }
+
+  .people-table,
+  .people-table tbody,
+  .people-table tr,
+  .people-table td {
+    display: block;
+    width: 100%;
+  }
+
+  .people-table tr {
+    padding: 14px 16px;
+    border-bottom: 1px solid var(--shell-border);
+  }
+
+  .people-table td {
+    border: none;
+    padding: 4px 0;
+  }
+
+  .people-table td[data-label]:not([data-label=""])::before {
+    content: attr(data-label);
+    display: block;
+    font-size: 10.5px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--shell-text-subtle);
+    margin-bottom: 2px;
+  }
+
+  .people-open-link {
+    display: inline-block;
+    margin-top: 6px;
+  }
+}
