@@ -179,6 +179,9 @@ create table activity_plan_items (
   foreign key (activity_id, church_id) references activities (id, church_id) on delete cascade,
   foreign key (church_id, responsible_person_id) references church_people (church_id, person_id)
     on delete set null (responsible_person_id),
+  -- FK directa a people (además de la de pertenencia) para que la API pueda
+  -- embeber el nombre del responsable, como activities.organizer_person_id.
+  foreign key (responsible_person_id) references people (id) on delete set null,
   constraint activity_plan_items_order_unique unique (activity_id, sort_order) deferrable initially immediate
 );
 

@@ -4,7 +4,7 @@
 -- estructura a la serie. Ver docs/adr/0017.
 
 begin;
-select plan(53);
+select plan(60);
 
 create or replace function test_set_auth_uid(p_uid uuid) returns void as $$
 begin
@@ -382,6 +382,54 @@ select ok(
   'Una regla con fechas nuevas crea las que faltan sin duplicar fechas existentes (canceladas incluidas)'
 );
 
+-- Excepción de estructura: editar el plan de una ocurrencia la protege.
+select t_set('x_series', public.create_activity(t_id('church'),
+  '{"type":"service","title":"Excepción estructura","local_start":"2030-11-03T11:00","duration_minutes":60,"recurrence":{"frequency":"weekly","count":4}}'::jsonb) ->> 'series_id');
+select t_set('x_occ1', t_occ(t_id('x_series'), 1)::text);
+select t_set('x_occ2', t_occ(t_id('x_series'), 2)::text);
+select t_set('x_occ3', t_occ(t_id('x_series'), 3)::text);
+select t_set('x_occ4', t_occ(t_id('x_series'), 4)::text);
+select public.transition_activity_status(t_id('x_occ3'), 'published');
+
+select lives_ok(
+  $$ select public.add_activity_plan_item(t_id('x_occ2'), '{"item_type":"custom","title":"Bloque propio"}'::jsonb) $$,
+  'Editar el plan de una ocurrencia concreta funciona'
+);
+
+select ok(
+  (select series_structure_modified and not series_modified from activities where id = t_id('x_occ2')),
+  'Editar el plan marca series_structure_modified sin marcar series_modified'
+);
+
+select ok(
+  (select (r ->> 'removed')::int = 1 and (r ->> 'cancelled')::int = 1
+   from public.update_activity_series_rule(t_id('x_occ1'), '{"frequency":"weekly","count":1}'::jsonb) r),
+  'Cambiar la regla elimina el borrador y cancela la publicada que ya no encajan'
+);
+
+select ok(
+  (select status = 'draft' and series_id = t_id('x_series') from activities where id = t_id('x_occ2'))
+  and (select count(*) = 1 from activity_plan_items where activity_id = t_id('x_occ2'))
+  and not exists (select 1 from activities where id = t_id('x_occ4')),
+  'La ocurrencia con excepción de estructura que ya no encaja se conserva con su estado'
+);
+
+reset role;
+
+select ok(
+  exists (select 1 from audit_logs where entity_type = 'activities' and entity_id = t_id('x_occ4')
+          and action = 'activity.series_occurrence_removed'),
+  'Eliminar una ocurrencia por cambio de regla se audita como activity.series_occurrence_removed'
+);
+
+select ok(
+  exists (select 1 from audit_logs where entity_type = 'activities' and entity_id = t_id('x_occ3')
+          and action = 'activity.cancelled' and metadata ->> 'cause' = 'series_rule_changed'),
+  'Cancelar una publicada por cambio de regla se audita como activity.cancelled con causa series_rule_changed'
+);
+
+select test_set_auth_uid('c4000000-0000-0000-0000-000000000001');
+
 -- ============================================================
 -- 9. Aplicar estructura a la serie
 -- ============================================================
@@ -429,6 +477,25 @@ select is(
   public.apply_activity_structure_to_series(t_id('s_occ2'), 'future'),
   1,
   'Aplicar a las siguientes solo afecta a ocurrencias posteriores no modificadas'
+);
+
+-- Una ocurrencia con excepción solo de estructura no recibe la estructura.
+select t_set('e_series', public.create_activity(t_id('church'),
+  '{"type":"service","title":"Estructura propia","local_start":"2030-12-01T11:00","duration_minutes":60,"recurrence":{"frequency":"weekly","count":3}}'::jsonb) ->> 'series_id');
+select t_set('e_occ1', t_occ(t_id('e_series'), 1)::text);
+select t_set('e_occ2', t_occ(t_id('e_series'), 2)::text);
+select t_set('e_occ3', t_occ(t_id('e_series'), 3)::text);
+select public.add_activity_plan_item(t_id('e_occ1'), '{"title":"Base"}'::jsonb);
+select public.add_activity_plan_item(t_id('e_occ3'), '{"title":"Propio"}'::jsonb);
+
+select t_set('e_applied', public.apply_activity_structure_to_series(t_id('e_occ1'), 'all')::text);
+
+select ok(
+  current_setting('t4r.e_applied') = '1'
+  and (select string_agg(title, ',') from activity_plan_items where activity_id = t_id('e_occ2')) = 'Base'
+  and (select string_agg(title, ',') from activity_plan_items where activity_id = t_id('e_occ3')) = 'Propio'
+  and (select series_structure_modified and not series_modified from activities where id = t_id('e_occ3')),
+  'Aplicar estructura a la serie omite ocurrencias con series_structure_modified'
 );
 
 select t_set('s_dup', public.duplicate_activity(t_id('s_occ2')) ->> 'activity_id');

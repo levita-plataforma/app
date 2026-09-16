@@ -1,6 +1,6 @@
 # Fase 4 — Actividades, plantillas, estructura de servicio y planificación
 
-Fecha: **16 de septiembre de 2026**. Rama: `feature/fase-4-actividades-planificacion`.
+Fecha: **16 de septiembre de 2026**. Rama: `feature/carlos-fase-4-actividades`.
 
 ## Estado
 
@@ -11,7 +11,8 @@ NADA DE ESTE DOCUMENTO SE HA APLICADO EN NINGÚN ENTORNO REMOTO
 
 - Decisión de arquitectura: [ADR 0017](adr/0017-actividades-planificacion-fase-4.md) (Propuesto).
 - Fuente de verdad: migraciones `20260920000100` a `20260920000800` (contrato) y `20260920000900` (lecturas para la UI). Este documento solo describe lo que hace ese SQL.
-- La interfaz y la suite pgTAP de Fase 4 están en desarrollo en esta rama; este documento no recoge resultados de pruebas ni describe pantallas.
+- La interfaz está en desarrollo en esta rama; este documento no describe pantallas.
+- Pruebas: suites `supabase/tests/fase4_actividades_test.sql` (121 aserciones), `fase4_permisos_test.sql` (65) y `fase4_recurrencia_test.sql` (53). Según el responsable de la rama, pasan en local (409/409 junto con las suites anteriores) con un arnés PostgreSQL 17 **sin Docker** que emula los roles y `auth` de Supabase. **No es una ejecución de `supabase test db`** (Docker no disponible en esa máquina); debe confirmarlo el CI de la PR.
 
 ---
 
@@ -78,7 +79,8 @@ NADA DE ESTE DOCUMENTO SE HA APLICADO EN NINGÚN ENTORNO REMOTO
 | `template_id` | uuid | FK `(template_id, church_id)` → `activity_templates`, `on delete set null` |
 | `series_id` | uuid | FK `(series_id, church_id)` → `activity_series` |
 | `occurrence_date` | date | Fecha local original; único con `series_id` |
-| `series_modified` | boolean not null default false | Excepción de serie |
+| `series_modified` | boolean not null default false | Excepción de contenido de serie |
+| `series_structure_modified` | boolean not null default false | Excepción de estructura de serie (áreas, puestos, requisitos o plan editados individualmente) |
 | `duplicated_from_activity_id` | uuid | FK a `activities`, `on delete set null` |
 | `creation_request_id` | uuid | Idempotencia; único por iglesia |
 | `published_at`, `published_by` | timestamptz, uuid | Ciclo de vida |
@@ -116,12 +118,14 @@ La FK de Fase 0 `activities_organizer_person_id_fkey` (→ `people`) se mantiene
 
 **Normalización de datos existentes (0200)**
 
+La migración desactiva el trigger `activities_set_updated_at` al empezar y lo reactiva tras estos rellenos, así que `updated_at` de las filas existentes se conserva:
+
 1. `update activities set schedule_kind = ...` sobre todas las filas.
 2. `archived_at is not null and status <> 'archived'` → `status = 'archived'`.
-3. `status = 'archived' and archived_at is null` → `archived_at = updated_at`.
-4. `status = 'cancelled' and cancelled_at is null` → `cancelled_at = updated_at`.
+3. `status = 'archived' and archived_at is null` → `archived_at = updated_at` (el original).
+4. `status = 'cancelled' and cancelled_at is null` → `cancelled_at = updated_at` (el original).
 
-Atención: el trigger `activities_set_updated_at` (Fase 0) fija `updated_at = now()` en el paso 1, así que los pasos 3 y 4 usan la hora de la migración, no la fecha original, y `updated_at` de **todas** las actividades existentes pasa a ser la hora de la migración.
+Los valores rellenados en 3 y 4 son una aproximación (última modificación), no la fecha real de archivado o cancelación. `disable trigger` requiere ser propietario de la tabla, algo que cumple el rol que aplica migraciones.
 
 **Índices**
 
@@ -169,36 +173,38 @@ Todas son `public.*` (`security invoker`) que llaman a `app.*` (`security define
 
 Scope "actividad" = la capability con scope `church`, `campus` de la actividad o `activity` de la actividad (`app.activity_cap`). Scope "puestos" = `activity.manage` o `activity_positions.manage` en scope actividad, o `activity_positions.manage` con scope `service_area` del área (`app.activity_area_positions_cap`).
 
-Errores (SQLSTATE): `42501` no autorizado · `P0002` no encontrado (también para actividades de otra iglesia) · `22023`/`22P02`/`22007`/`22008`/`23514` validación · `23505` conflicto · `40001` datos cambiados.
+Errores (SQLSTATE): `42501` no autorizado · `P0002` no encontrado (también para actividades de otra iglesia) · `22023`/`22P02`/`22007`/`22008`/`23514` validación · `23505` conflicto · `PT409` datos cambiados (HTTP 409; no se usa `40001` porque PostgREST lo reintenta).
 
 ### 4.1 Actividades
 
 | Función | Parámetros / claves JSON | Devuelve | Permiso | Auditoría |
 |---|---|---|---|---|
 | `create_activity(p_church_id, p_input)` | `request_id`, `type`, `title`, `description`, `campus_id`, `schedule_kind`, `local_start`, `local_end` \| `duration_minutes`, `timezone`, `visibility`, `location_text`, `organizer_person_id`, `admin_notes`, `template_id`, `recurrence {frequency, interval, weekdays[], monthly_mode, month_day, week_of_month, month_weekday, month_day_fallback, until_date \| count}` | `{activity_id, series_id, occurrences, skipped[], replayed}` | Miembro; `activity.create` scope `church` (sin sede) o `campus` | `activity.created` |
-| `update_activity(p_activity_id, p_input)` | Solo claves presentes: `title`, `description`, `type`, `visibility`, `location_text`, `organizer_person_id`, `campus_id`, `schedule_kind`, `local_start`, `local_end`, `duration_minutes`, `timezone`, `admin_notes` | `{updated: 0\|1}` | `activity.manage` scope actividad; cambio de sede: también en destino (sin sede: scope `church`) | `activity.updated` (`scope: this`) |
-| `transition_activity_status(p_activity_id, p_to, p_reason)` | `p_reason` ≤ 500, solo se guarda al cancelar | `activity_status` | Según matriz (§5.1), scope actividad | `activity.published` (desde draft/planned), `activity.cancelled`, `activity.completed`, `activity.archived`, `activity.status_changed` |
+| `update_activity(p_activity_id, p_input)` | Solo claves presentes: `title`, `description`, `type`, `visibility`, `location_text`, `organizer_person_id`, `campus_id`, `schedule_kind`, `local_start`, `local_end`, `duration_minutes`, `timezone`, `admin_notes` | `{updated: 0\|1}` | `activity.manage` scope actividad; cambio de sede: además `activity.manage` con scope `church` (destino global) o `campus` de la sede destino; el scope `activity` no basta | `activity.updated` (`scope: this`) |
+| `transition_activity_status(p_activity_id, p_to, p_reason)` | `p_reason` ≤ 500, solo se guarda al cancelar (no al desarchivar hacia `cancelled`) | `activity_status` | Según matriz (§5.1), scope actividad | Desde `archived`: `activity.unarchived`. Resto, por estado destino: `activity.published` (desde draft/planned), `activity.cancelled`, `activity.completed`, `activity.archived`; otros `activity.status_changed` |
 | `duplicate_activity(p_activity_id, p_input)` | `request_id`, `local_start`, `title` | `{activity_id, replayed}` | Poder leer el origen + `activity.create` en su sede/iglesia | `activity.duplicated` |
 
 Notas:
 
 - `create_activity` y `duplicate_activity` son idempotentes por `request_id` (bloqueo advisory + búsqueda por `creation_request_id` de actividad o serie); un reintento devuelve `replayed: true`.
-- `create_activity` con plantilla: `type`, `campus_id` (si no se envía la clave), `schedule_kind`, `title` (`default_title` o `name`), `description`, `visibility`, `location_text` y `default_duration_minutes` salen de la plantilla. Una plantilla con sede exige la misma sede. `default_local_start_time` de la plantilla no se usa: `local_start` es obligatorio para `timed`.
-- `update_activity` convierte una ocurrencia en excepción (`series_modified = true`) si cambia contenido. Para cambiar horario hay que enviar `local_start` (la zona sola no basta en `timed`). Cambiar la sede no recalcula la zona salvo que se envíe `timezone`.
-- `duplicate_activity` crea un borrador nuevo: copia contenido, estructura exacta y plan (responsable solo si sigue activo en la iglesia) y notas si quien duplica puede leerlas; no copia estado, publicación, cancelación ni pertenencia a la serie. Conserva `template_id` y fija `duplicated_from_activity_id`.
+- `create_activity` con plantilla: `type`, `campus_id` (si no se envía la clave), `schedule_kind`, `title` (`default_title` o `name`), `description`, `visibility`, `location_text` y `default_duration_minutes` salen de la plantilla. Una plantilla con sede exige la misma sede. Si `local_start` es solo fecha (`YYYY-MM-DD`) y la plantilla tiene `default_local_start_time`, se usa esa hora; si no, `local_start` con hora es obligatorio para `timed`.
+- `update_activity` convierte una ocurrencia en excepción de contenido (`series_modified = true`) si cambia contenido. `admin_notes` se puede cambiar también en actividades `completed`, `cancelled` y `archived` (decisión intencionada: anotaciones administrativas, auditadas como `activity.updated`); no marca excepción. Para cambiar horario hay que enviar `local_start` (la zona sola no basta en `timed`). Cambiar la sede no recalcula la zona salvo que se envíe `timezone`.
+- `duplicate_activity` crea un borrador nuevo: copia contenido, estructura exacta (solo si el módulo `serving` está habilitado) y plan (responsable solo si sigue activo en la iglesia) y notas si quien duplica puede leerlas; no copia estado, publicación, cancelación ni pertenencia a la serie. Conserva `template_id` y fija `duplicated_from_activity_id`.
 
 ### 4.2 Estructura
 
 | Función | Parámetros / claves JSON | Devuelve | Permiso | Módulo `serving` | Auditoría |
 |---|---|---|---|---|---|
 | `add_activity_area(p_activity_id, p_service_area_id, p_requirement, p_notes, p_include_positions)` | `p_include_positions` default true: copia los puestos activos compatibles con la sede | `{activity_service_area_id, positions_added, positions_skipped}` | `activity.manage` scope actividad | Sí | `activity.area_added` |
-| `update_activity_area(p_activity_service_area_id, p_input)` | `requirement`, `notes`, `sort_order` | void | `activity.manage` | No se comprueba | `activity.area_updated` |
-| `remove_activity_area(p_activity_service_area_id)` | — | void | `activity.manage` | No se comprueba | `activity.area_removed` |
+| `update_activity_area(p_activity_service_area_id, p_input)` | `requirement`, `notes`, `sort_order` | void | `activity.manage` | Sí | `activity.area_updated` |
+| `remove_activity_area(p_activity_service_area_id)` | — | void | `activity.manage` | Sí | `activity.area_removed` |
 | `add_activity_position(p_activity_service_area_id, p_input)` | `service_position_id` (nulo = ad-hoc, exige `name`), `name`, `description`, `critical`, `min_people`, `max_people`, `requires_autonomous_person`, `notes`, `sort_order` | uuid | Scope puestos | Sí | `activity.position_added` |
 | `update_activity_position(p_activity_position_id, p_input)` | `name`, `description`, `critical`, `min_people`, `max_people`, `requires_autonomous_person`, `notes`, `sort_order` | void | Scope puestos | Sí | `activity.position_updated` |
 | `remove_activity_position(p_activity_position_id)` | — | void | Scope puestos | Sí | `activity.position_removed` |
 | `save_activity_position_requirement(p_activity_position_id, p_requirement_id, p_input)` | `p_requirement_id` nulo = añadir (`requirement_type`, `strictness`, `qualification_id`, `credential_type_id`, `min_level`, `min_operational_level`, `requires_current_validity`); no nulo = override (`strictness`, `min_level`, `min_operational_level`, `requires_current_validity`, `disabled`) | uuid | Scope puestos | Sí | `activity.position_updated` (`requirement_change: added\|override`) |
 | `remove_activity_position_requirement(p_requirement_id)` | Solo requisitos `added` | void | Scope puestos | Sí | `activity.position_updated` (`requirement_change: removed`) |
+
+Todas las RPC de §4.2 y §4.3, sobre una ocurrencia de serie, la marcan como excepción de estructura (`app.mark_structure_modified` → `series_structure_modified = true`).
 
 ### 4.3 Planificación
 
@@ -207,13 +213,13 @@ Notas:
 | `add_activity_plan_item(p_activity_id, p_input)` | `item_type`, `title`, `duration_minutes`, `start_offset_minutes`, `responsible_text`, `responsible_person_id`, `notes`, `position` (índice; por defecto al final) | uuid | `activity_plan.manage` o `activity.manage`, scope actividad | `activity.plan_item_added` |
 | `update_activity_plan_item(p_plan_item_id, p_input)` | Mismas claves salvo `position` | void | Ídem | `activity.plan_item_updated` |
 | `remove_activity_plan_item(p_plan_item_id)` | Compacta `sort_order` a 0..n−1 | void | Ídem | `activity.plan_item_removed` |
-| `reorder_activity_plan_items(p_activity_id, p_item_ids uuid[])` | Exactamente todos los bloques actuales, sin repetidos; si no, `40001` | void | Ídem | `activity.plan_reordered` |
+| `reorder_activity_plan_items(p_activity_id, p_item_ids uuid[])` | Exactamente todos los bloques actuales, sin repetidos; si no, `PT409` | void | Ídem | `activity.plan_reordered` |
 
 ### 4.4 Plantillas
 
 | Función | Parámetros / claves JSON | Devuelve | Permiso | Auditoría |
 |---|---|---|---|---|
-| `save_activity_template(p_church_id, p_template_id, p_input)` | `name`, `type`, `campus_id`, `default_title`, `schedule_kind`, `default_local_start_time`, `default_duration_minutes`, `description`, `visibility`, `location_text`, `notes`, `active`, `sort_order`, `areas[{service_area_id, requirement, notes, positions[{service_position_id?, name, description, critical, min_people, max_people, requires_autonomous_person}]}]`, `plan_items[{item_type, title, duration_minutes, start_offset_minutes, responsible_text, notes}]`. Sustituye las hijas. | uuid | `activity_template.manage` scope `church` o `campus` (sede nueva y, al editar, la actual); módulo `serving` si hay áreas | `activity_template.created` / `activity_template.updated` |
+| `save_activity_template(p_church_id, p_template_id, p_input)` | `name`, `type`, `campus_id`, `default_title`, `schedule_kind`, `default_local_start_time`, `default_duration_minutes`, `description`, `visibility`, `location_text`, `notes`, `active`, `sort_order`, `areas[{service_area_id, requirement, notes, positions[{service_position_id?, name, description, critical, min_people, max_people, requires_autonomous_person}]}]`, `plan_items[{item_type, title, duration_minutes, start_offset_minutes, responsible_text, notes}]`. Sustituye las hijas: primero las elimina y después actualiza la plantilla (un cambio de sede con áreas nuevas funciona en un solo guardado). | uuid | `activity_template.manage` scope `church` o `campus` (sede nueva y, al editar, la actual); módulo `serving` si hay áreas | `activity_template.created` / `activity_template.updated` |
 | `duplicate_activity_template(p_template_id, p_name)` | Nombre por defecto `"<nombre> (copia)"` | uuid | Ídem | `activity_template.created` (`duplicated_from`) |
 | `set_activity_template_archived(p_template_id, p_archived)` | Archivar también desactiva | void | Ídem | `activity_template.archived` / `activity_template.restored` |
 
@@ -222,8 +228,8 @@ Notas:
 | Función | Parámetros / claves JSON | Devuelve | Permiso | Auditoría |
 |---|---|---|---|---|
 | `update_activity_series(p_activity_id, p_input, p_scope)` | `p_scope` `future`\|`all`; claves: `title`, `description`, `type`, `visibility`, `location_text`, `organizer_person_id`, `campus_id`, `local_start_time` (`HH:MM`), `duration_minutes`. Otra clave → error | `{series_id, updated}` | `activity.manage` en la ocurrencia de origen y en cada ocurrencia afectada; cambio de sede: en destino (`church` o `campus`) | `activity.updated` sobre `activity_series` (`scope`) |
-| `update_activity_series_rule(p_activity_id, p_input)` | Regla (`frequency`, `interval`, `weekdays[]`, `monthly_mode`, `month_day`, `week_of_month`, `month_weekday`, `month_day_fallback`, `until_date` \| `count`) + `local_start_time`, `duration_minutes` | `{series_id, first_activity_id, created, removed, cancelled, updated}` | `activity.manage` en la ocurrencia de origen; cancelar ocurrencias publicadas exige además `activity.cancel` (trigger) | `activity.updated` sobre `activity_series` (`scope: series_rule`) |
-| `apply_activity_structure_to_series(p_activity_id, p_scope)` | `future`\|`all` | integer (ocurrencias) | `activity.manage` en origen y en cada destino | `activity.updated` sobre `activity_series` (`structure_from_activity_id`) |
+| `update_activity_series_rule(p_activity_id, p_input)` | Regla (`frequency`, `interval`, `weekdays[]`, `monthly_mode`, `month_day`, `week_of_month`, `month_weekday`, `month_day_fallback`, `until_date` \| `count`) + `local_start_time`, `duration_minutes` | `{series_id, first_activity_id, created, removed, cancelled, updated}` | `activity.manage` en la ocurrencia de origen; cancelar ocurrencias publicadas exige además `activity.cancel` (trigger; sin ella falla toda la operación con `42501`) | `activity.updated` sobre `activity_series` (`scope: series_rule`); por ocurrencia, `activity.cancelled` (`cause: series_rule_changed`) o `activity.series_occurrence_removed` |
+| `apply_activity_structure_to_series(p_activity_id, p_scope)` | `future`\|`all`; omite las ocurrencias con `series_structure_modified` | integer (ocurrencias) | `activity.manage` en origen y en cada destino; módulo `serving` | `activity.updated` sobre `activity_series` (`structure_from_activity_id`) |
 | `preview_activity_recurrence(p_church_id, p_input)` | `campus_id`, `timezone`, `local_start`, `local_end` \| `duration_minutes`, `recurrence{...}`. No escribe | tabla `(occurrence_date, starts_at, ends_at)` | Solo pertenencia a la iglesia | — |
 
 ### 4.6 Lecturas derivadas
@@ -235,6 +241,8 @@ Notas:
 | `activity_position_effective_requirements(p_activity_position_id)` | `setof activity_position_requirements` | `app.can_read_activity` |
 
 Contrato Fase 5 sin wrapper público: `app.activity_accepts_assignments(activity_id)`.
+
+`app.activity_structure_issues`, `app.activity_position_effective_requirements` y `app.activity_accepts_assignments` comprueban `app.can_read_activity` cuando hay usuario (`auth.uid()` no nulo). Los triggers usan `app.activity_structure_issues_unchecked`, sin `EXECUTE` para `authenticated`.
 
 ### 4.7 Lecturas para la interfaz (`0900`)
 
@@ -260,15 +268,16 @@ Solo informan a la UI para mostrar u ocultar acciones; la autorización real sig
 | `published` | ✗ | publish | — | publish ² | cancel | archive |
 | `completed` | ✗ | ✗ | publish ¹ | — | ✗ | archive |
 | `cancelled` | cancel | ✗ | ✗ | ✗ | — | archive |
-| `archived` | archive ³ | archive ³ | archive ¹ ³ | archive ³ | archive ³ | — |
+| `archived` | archive ³ | archive ³ | archive ³ | archive ³ | archive ³ | — |
 
 `manage` = `activity.manage`, `publish` = `activity.publish`, `cancel` = `activity.cancel`, `archive` = `activity.archive`; ✗ = no permitida (`22023`).
-¹ Sin incidencias `blocking`. ² Si es `timed`, solo cuando `starts_at <= now()`. ³ Solo hacia `status_before_archive` (o `draft` si es nulo).
+¹ Sin incidencias `blocking`. ² Si es `timed`, solo cuando `starts_at <= now()`. ³ Solo hacia `status_before_archive` (o `draft` si es nulo). Restaura el estado tal cual: conserva cancelación (fecha, autor, motivo), publicación y completado; no revalida la estructura.
 
 Reglas de trigger adicionales:
 
 - Una actividad nueva creada con usuario autenticado empieza en `draft`.
-- `completed`, `cancelled` y `archived`: contenido inmutable (salvo organizador anulado por FK).
+- `completed`, `cancelled` y `archived`: contenido inmutable (salvo organizador anulado por FK). Las notas administrativas (tabla aparte) sí se pueden editar.
+- Cambio de sede: se rechaza si deja áreas o puestos incompatibles, con el mismo criterio que `area_campus_mismatch` (catálogo vigente; snapshot solo si el área ya no existe).
 - Estructura (áreas, puestos, requisitos) y plan: editables solo en `draft`, `planned` y `published`.
 - No se puede cambiar `id` ni `church_id`.
 - Organizador y responsable del plan: persona activa (`church_people.archived_at is null`) de la iglesia.
@@ -282,7 +291,7 @@ Reglas de trigger adicionales:
 | `members` | Cualquier miembro de la iglesia |
 | `public_future` | Igual que `members`; **sin acceso anónimo** en Fase 4 |
 
-En cualquier estado leen además: el organizador; `activity.read`/`activity.manage`/`activity_plan.manage` con scope `church`, `campus` o `activity`; `activity.read`/`activity_positions.manage` con scope `service_area` de un área incluida. Notas administrativas: solo `activity.read`/`activity.manage` con scope `church`, `campus` o `activity`.
+En cualquier estado leen además: el organizador; `activity.read`/`activity.manage`/`activity.publish`/`activity.cancel`/`activity.archive`/`activity_plan.manage` con scope `church`, `campus` o `activity`; `activity.read`/`activity_positions.manage` con scope `service_area` de un área incluida. Notas administrativas: solo `activity.read`/`activity.manage` con scope `church`, `campus` o `activity`.
 
 Otras lecturas: estructura y plan siguen a la actividad; `activity_series`, con `activity.read` de iglesia o alguna ocurrencia legible; plantillas, con `activity_template.manage` o `activity.create` en cualquier scope (todas las plantillas de la iglesia).
 
@@ -306,9 +315,10 @@ Otras lecturas: estructura y plan siguen a la actividad; `activity_series`, con 
 | `catalog_area_unavailable` | warning | Área de catálogo borrada, archivada o inactiva |
 | `catalog_position_unavailable` | warning | Puesto de catálogo borrado, archivado o inactivo |
 | `no_areas` | warning | `service`, `event` o `rehearsal` sin áreas |
+| `plan_items_overlap` | warning | Algún bloque empieza antes de que termine el bloque anterior (cualquier `schedule_kind`) |
 | `plan_exceeds_activity` | warning | `timed` y el final calculado del plan supera la duración |
 
-Cálculo del final del plan: se recorren los bloques por `sort_order`; cursor = `start_offset_minutes` si existe, si no el final del anterior; final = máximo de cursor + duración.
+Línea temporal del plan: se recorren los bloques por `sort_order`; inicio = `start_offset_minutes` si existe, si no el final del anterior; hay solape si el inicio es menor que el final del bloque inmediatamente anterior; final del plan = máximo de inicio + duración.
 
 ### 5.5 Compatibilidad de sede
 
@@ -343,40 +353,44 @@ Se comprueba al añadir (triggers de estructura y de plantilla), al cambiar la s
 
 ### 6.2 Ejemplos
 
-Los instantes siguientes se derivan de las reglas de zona IANA; no son resultados de pruebas ejecutadas.
+Casos cubiertos por aserciones de `supabase/tests/fase4_recurrencia_test.sql` (resultado según el arnés local descrito en "Estado"; pendiente de CI):
 
-**Nueva York, domingo 11:00, semanal** (fin de horario de verano el 1 de noviembre de 2026):
+**Nueva York, domingo 11:00, semanal** (fin de horario de verano el 3 de noviembre de 2030):
 
 | Ocurrencia | Local | UTC |
 |---|---|---|
-| 2026-10-25 | 11:00 EDT (UTC−4) | 15:00 |
-| 2026-11-01 | 11:00 EST (UTC−5) | 16:00 |
-| 2026-11-08 | 11:00 EST (UTC−5) | 16:00 |
+| 2030-10-20 | 11:00 EDT (UTC−4) | 15:00 |
+| 2030-10-27 | 11:00 EDT (UTC−4) | 15:00 |
+| 2030-11-03 | 11:00 EST (UTC−5) | 16:00 |
 
-**Madrid, hora inexistente:** 2026-03-29 02:30 local no existe (02:00 → 03:00). Resultado: **03:30 CEST** (01:30 UTC).
+**Madrid, hora inexistente:** serie semanal a las 02:30 desde 2030-03-24. El 2030-03-31 las 02:30 no existen (02:00 → 03:00). Resultado: **03:30 CEST** (01:30 UTC), igual que el 24 de marzo a las 02:30 CET (01:30 UTC).
 
-**Madrid, hora ambigua:** 2026-10-25 02:30 local existe dos veces (03:00 CEST → 02:00 CET). Resultado: **02:30 CET** (01:30 UTC), la segunda.
+**Madrid, hora ambigua:** 2030-10-27 02:30 local existe dos veces (03:00 CEST → 02:00 CET). Resultado: **02:30 CET** (01:30 UTC), la segunda.
 
-**Mensual día 31, desde 2027-01-31, 4 ocurrencias:**
+**Mensual día 31, 4 ocurrencias:**
 
-| `month_day_fallback` | Fechas |
-|---|---|
-| `skip` | 2027-01-31, 2027-03-31, 2027-05-31, 2027-07-31 |
-| `last_day` | 2027-01-31, 2027-02-28, 2027-03-31, 2027-04-30 |
+| `month_day_fallback` | Desde | Fechas | En la suite |
+|---|---|---|---|
+| `skip` | 2031-01-31 | 2031-01-31, 2031-03-31, 2031-05-31, 2031-07-31 | Sí |
+| `skip` | 2027-01-31 | 2027-01-31, 2027-03-31, 2027-05-31, 2027-07-31 | No (derivado de la regla) |
+| `last_day` | 2027-01-31 | 2027-01-31, 2027-02-28, 2027-03-31, 2027-04-30 | Sí |
+
+Las mismas reglas dan para 2026 (Nueva York 2026-10-25 15:00 UTC → 2026-11-01 16:00 UTC; Madrid 2026-03-29 02:30 → 03:30 CEST; 2026-10-25 02:30 → CET); esos ejemplos no están en la suite.
 
 ### 6.3 Edición de series
 
 | Operación | Ocurrencias afectadas | Serie |
 |---|---|---|
-| Solo esta (`update_activity`) | Esta; pasa a `series_modified` | Sin cambios |
+| Solo esta (`update_activity`) | Esta; pasa a `series_modified` (contenido) | Sin cambios |
+| Solo esta (RPC de estructura o plan) | Esta; pasa a `series_structure_modified` | Sin cambios |
 | Esta y siguientes (`update_activity_series … 'future'`) | Editables desde esta fecha | Se divide: la original termina el día anterior (`until_date`, `occurrence_count` nulo); la nueva empieza en esta fecha, con `split_from_series_id` y, si había `count`, las ocurrencias restantes |
 | Toda la serie (`… 'all'`) | Todas las editables | Se actualiza sin dividir |
 | Cambio de regla | Desde esta fecha, con reconciliación | Se divide y se actualiza la nueva |
-| Aplicar estructura | Editables (`future` o `all`), salvo el origen | Sin cambios |
+| Aplicar estructura | Editables (`future` o `all`), salvo el origen y las que tienen `series_structure_modified`; exige módulo `serving` | Sin cambios |
 
 Editables: `draft`/`planned`/`published`, sin `series_modified`, `starts_at >= now()`.
 
-Reconciliación de regla: fecha nueva → ocurrencia nueva con copia exacta de estructura y notas del origen; encaja y es editable → se recalcula hora si cambió; no encaja → `draft`/`planned` se **eliminan**, `published` se **cancelan** ("Serie reprogramada"), excepciones, cerradas y pasadas se conservan.
+Reconciliación de regla: fecha nueva → ocurrencia nueva con copia exacta de estructura (si `serving` está habilitado) y plan y notas del origen; encaja y es editable → se recalcula hora si cambió; no encaja → `draft`/`planned` se **eliminan** (auditoría `activity.series_occurrence_removed`), `published` se **cancelan** ("Serie reprogramada"; auditoría `activity.cancelled` con `cause: series_rule_changed`; requiere `activity.cancel`), excepciones (de contenido o de estructura), cerradas y pasadas se conservan.
 
 ---
 
@@ -558,7 +572,7 @@ alter table activities add constraint activities_visibility_check
 9. Eliminar los tipos nuevos.
 10. **`planned` no se puede eliminar de `activity_status` con un `ALTER TYPE`.** Retirarlo exige crear un tipo nuevo sin el valor, convertir la columna y eliminar todo lo que dependa del tipo antiguo, con todas las filas ya fuera de `planned`. Recomendación: dejar el valor; sin reglas que lo usen es inocuo.
 
-`updated_at`, `archived_at` y `cancelled_at` reescritos por la normalización (§3.1) no se recuperan con SQL compensatorio; solo desde el backup.
+`archived_at`/`cancelled_at` rellenados y las filas pasadas a `archived` por la normalización (§3.1) no se distinguen de los datos previos con SQL compensatorio; solo desde el backup. `updated_at` se conserva.
 
 ---
 
@@ -569,12 +583,9 @@ alter table activities add constraint activities_visibility_check
 | Invitaciones con scope `church` (previo, fuera de F4) | `app.accept_person_invitation` asigna el `role_key` de la invitación (`invite_existing_person` acepta cualquier `role_key`) siempre con `scope_type = 'church'`. Un `ministry_leader` así asignado lee todas las actividades (incluidos borradores y notas administrativas) y gestiona puestos en todas; un `campus_admin` obtiene todas las capabilities `activity*` en toda la iglesia. | Rama `hotfix/` separada |
 | Elegibilidad por fecha de actividad | `app.evaluate_person_eligibility` evalúa el puesto de catálogo contra `now()`: no usa la fecha de la actividad ni los overrides, añadidos o desactivados por actividad. | Fase 5, antes de asignar |
 | Filas heredadas que incumplan `CHECK NOT VALID` | No admiten `UPDATE` hasta corregirlas. | Consultas §7.1 c |
-| Normalización con `updated_at` | `archived_at`/`cancelled_at` rellenados reciben la hora de la migración; `updated_at` de todas las actividades se sobrescribe. | Revisar la migración o aceptarlo antes de aplicar |
-| Excepciones de serie por estructura | Editar estructura o plan de una ocurrencia no marca `series_modified`; `apply_activity_structure_to_series` la sobrescribe. | Revisar |
-| Cambio de regla y `activity.cancel` | Cancelar ocurrencias publicadas exige `activity.cancel` además de `activity.manage`. | Documentado |
-| Módulo `serving` no exigido en todas las vías | `update_activity_area`, `remove_activity_area`, `duplicate_activity` y la copia a series no comprueban el módulo. | Revisar |
-| Funciones `app.*` de lectura sin control propio | `app.activity_structure_issues`, `app.activity_position_effective_requirements` y `app.activity_accepts_assignments` son `security definer` con `EXECUTE` para `authenticated`. No están expuestas por la API mientras `app` no esté en `api.schemas` (`supabase/config.toml` local solo expone `public` y `graphql_public`); los wrappers públicos filtran. | Verificar la configuración remota |
-| Suite pgTAP de Fase 4 | En desarrollo en esta rama; sin resultados recogidos aquí. | Pendiente |
+| Fechas aproximadas en la normalización | `archived_at`/`cancelled_at` rellenados usan el `updated_at` original (última modificación), no la fecha real. | Aceptado; consultas §7.1 d |
+| Cambio de regla y `activity.cancel` | Cancelar ocurrencias publicadas exige `activity.cancel` además de `activity.manage`; sin ella falla toda la operación. | Documentado |
+| Pruebas | Suites `fase4_actividades` (121), `fase4_permisos` (65) y `fase4_recurrencia` (53) pasan según el responsable con un arnés PostgreSQL 17 sin Docker; no se ejecutó `supabase test db`. | Confirmar en CI de la PR |
 | Tipos TypeScript | `src/lib/supabase/database.types.ts` no está regenerado. | **Pendiente** |
 | UI e i18n | En desarrollo en esta rama; límites desconocidos para este documento. | Pendiente |
 | Rendimiento de creación recurrente | Hasta 200 ocurrencias con copia de estructura por ocurrencia en una transacción. | Medir en local |

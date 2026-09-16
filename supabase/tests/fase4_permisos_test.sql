@@ -4,7 +4,7 @@
 -- permisos efectivos para la UI. Ver docs/adr/0013 y docs/adr/0017.
 
 begin;
-select plan(65);
+select plan(69);
 
 create or replace function test_set_auth_uid(p_uid uuid) returns void as $$
 begin
@@ -429,6 +429,47 @@ select throws_ok(
   $$ select public.add_activity_plan_item(t_id('area_act'), '{"title":"Intruso"}'::jsonb) $$,
   'P0002', null,
   'Otra iglesia recibe "no existe" al gestionar el planning'
+);
+
+-- ============================================================
+-- 8b. Solo activity.publish
+-- ============================================================
+select test_set_auth_uid('b4000000-0000-0000-0000-000000000001');
+select t_set('blocked_act', public.create_activity(t_id('church_a'),
+  '{"type":"service","title":"Bloqueada publicador","local_start":"2030-03-13T11:00","duration_minutes":60}'::jsonb) ->> 'activity_id');
+select public.add_activity_area(t_id('blocked_act'), 'b4000000-0000-0000-0000-0000000a0002', 'required', null, false);
+
+reset role;
+insert into auth.users (id, email) values ('b4000000-0000-0000-0000-000000000010', 'publicador.p4p@example.test');
+insert into people (id, user_id, first_name, last_name, source)
+values ('b4000000-0000-0000-0000-0000000e0010', 'b4000000-0000-0000-0000-000000000010', 'Pablo', 'Publicador', 'manual');
+insert into church_people (id, church_id, person_id, relationship, source)
+values ('b4000000-0000-0000-0000-0000000f0010', t_id('church_a'), 'b4000000-0000-0000-0000-0000000e0010', 'member', 'manual');
+insert into roles (key, name) values ('test_p4_publisher', 'Solo publicar (test)');
+insert into role_capabilities (role_key, capability_key) values ('test_p4_publisher', 'activity.publish');
+insert into church_people_roles (church_id, church_people_id, role_key, scope_type, scope_id)
+values (t_id('church_a'), 'b4000000-0000-0000-0000-0000000f0010', 'test_p4_publisher', 'church', null);
+
+select test_set_auth_uid('b4000000-0000-0000-0000-000000000010');
+
+select is((select count(*)::int from activities where id in (t_id('draft_org'), t_id('blocked_act'))), 2,
+  'Con solo activity.publish se leen los borradores que puede publicar');
+
+select throws_ok(
+  $$ select public.transition_activity_status(t_id('blocked_act'), 'published') $$,
+  '22023', null,
+  'Con solo activity.publish, publicar con una incidencia bloqueante sigue fallando'
+);
+
+select lives_ok(
+  $$ select public.transition_activity_status(t_id('draft_org'), 'published') $$,
+  'Con solo activity.publish se publica una actividad sin bloqueos'
+);
+
+select throws_ok(
+  $$ select public.update_activity(t_id('draft_org'), '{"title":"Publicador edita"}'::jsonb) $$,
+  '42501', null,
+  'Con solo activity.publish no se edita la actividad'
 );
 
 -- ============================================================

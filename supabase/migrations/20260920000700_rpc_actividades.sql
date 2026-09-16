@@ -8,7 +8,11 @@
 --
 -- Códigos de error (SQLSTATE) que traduce la capa de aplicación:
 --   42501 no autorizado · P0002 no encontrado · 22023/22P02/22007/22008/23514
---   validación · 23505 conflicto · 40001 datos cambiados (reintentar)
+--   validación · 23505 conflicto · PT409 datos cambiados (recargar)
+--
+-- No se usa 40001 (serialization_failure) para "datos cambiados": PostgREST
+-- reintenta automáticamente las transacciones que fallan con 40001 y un error
+-- determinista provocaría reintentos sin fin. PT409 responde HTTP 409.
 
 -- ===========================================================================
 -- Utilidades internas
@@ -877,6 +881,7 @@ begin
   where id = v_activity.id;
 
   v_action := case
+    when v_activity.status = 'archived' then 'activity.unarchived'
     when p_to = 'published' and v_activity.status in ('draft', 'planned') then 'activity.published'
     when p_to = 'cancelled' then 'activity.cancelled'
     when p_to = 'completed' then 'activity.completed'
@@ -1452,7 +1457,7 @@ end;
 $$;
 
 -- Reordenación atómica. p_item_ids debe contener exactamente los bloques
--- actuales; si otro usuario añadió o quitó uno, falla con 40001 para recargar.
+-- actuales; si otro usuario añadió o quitó uno, falla con PT409 para recargar.
 create or replace function app.reorder_activity_plan_items(p_activity_id uuid, p_item_ids uuid[])
 returns void
 language plpgsql
@@ -1471,7 +1476,7 @@ begin
 
   if v_current <> v_requested or cardinality(v_requested) <> cardinality(coalesce(p_item_ids, '{}')) then
     raise exception 'El orden del servicio ha cambiado mientras lo editabas. Recarga e inténtalo de nuevo.'
-      using errcode = '40001';
+      using errcode = 'PT409';
   end if;
 
   set constraints activity_plan_items_order_unique deferred;

@@ -39,61 +39,112 @@ export type Database = {
           archived_at: string | null
           archived_by: string | null
           campus_id: string | null
+          cancellation_reason: string | null
+          cancelled_at: string | null
+          cancelled_by: string | null
           church_id: string
+          completed_at: string | null
           created_at: string
           created_by: string | null
+          creation_request_id: string | null
           description: string | null
+          duplicated_from_activity_id: string | null
           ends_at: string | null
           id: string
+          location_text: string | null
+          occurrence_date: string | null
           organizer_person_id: string | null
+          published_at: string | null
+          published_by: string | null
           recurrence_rule: string | null
+          schedule_kind: Database["public"]["Enums"]["activity_schedule_kind"]
+          series_id: string | null
+          series_modified: boolean
+          series_structure_modified: boolean
           starts_at: string | null
           status: Database["public"]["Enums"]["activity_status"]
+          status_before_archive:
+            Database["public"]["Enums"]["activity_status"] | null
+          template_id: string | null
           timezone: string
           title: string
           type: Database["public"]["Enums"]["activity_type"]
           updated_at: string
-          visibility: string
+          visibility: Database["public"]["Enums"]["activity_visibility"]
         }
         Insert: {
           archived_at?: string | null
           archived_by?: string | null
           campus_id?: string | null
+          cancellation_reason?: string | null
+          cancelled_at?: string | null
+          cancelled_by?: string | null
           church_id: string
+          completed_at?: string | null
           created_at?: string
           created_by?: string | null
+          creation_request_id?: string | null
           description?: string | null
+          duplicated_from_activity_id?: string | null
           ends_at?: string | null
           id?: string
+          location_text?: string | null
+          occurrence_date?: string | null
           organizer_person_id?: string | null
+          published_at?: string | null
+          published_by?: string | null
           recurrence_rule?: string | null
+          schedule_kind?: Database["public"]["Enums"]["activity_schedule_kind"]
+          series_id?: string | null
+          series_modified?: boolean
+          series_structure_modified?: boolean
           starts_at?: string | null
           status?: Database["public"]["Enums"]["activity_status"]
-          timezone?: string
+          status_before_archive?:
+            Database["public"]["Enums"]["activity_status"] | null
+          template_id?: string | null
+          timezone: string
           title: string
           type: Database["public"]["Enums"]["activity_type"]
           updated_at?: string
-          visibility?: string
+          visibility?: Database["public"]["Enums"]["activity_visibility"]
         }
         Update: {
           archived_at?: string | null
           archived_by?: string | null
           campus_id?: string | null
+          cancellation_reason?: string | null
+          cancelled_at?: string | null
+          cancelled_by?: string | null
           church_id?: string
+          completed_at?: string | null
           created_at?: string
           created_by?: string | null
+          creation_request_id?: string | null
           description?: string | null
+          duplicated_from_activity_id?: string | null
           ends_at?: string | null
           id?: string
+          location_text?: string | null
+          occurrence_date?: string | null
           organizer_person_id?: string | null
+          published_at?: string | null
+          published_by?: string | null
           recurrence_rule?: string | null
+          schedule_kind?: Database["public"]["Enums"]["activity_schedule_kind"]
+          series_id?: string | null
+          series_modified?: boolean
+          series_structure_modified?: boolean
           starts_at?: string | null
           status?: Database["public"]["Enums"]["activity_status"]
+          status_before_archive?:
+            Database["public"]["Enums"]["activity_status"] | null
+          template_id?: string | null
           timezone?: string
           title?: string
           type?: Database["public"]["Enums"]["activity_type"]
           updated_at?: string
-          visibility?: string
+          visibility?: Database["public"]["Enums"]["activity_visibility"]
         }
         Relationships: [
           {
@@ -111,10 +162,813 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "activities_duplicated_from_fkey"
+            columns: ["duplicated_from_activity_id", "church_id"]
+            isOneToOne: false
+            referencedRelation: "activities"
+            referencedColumns: ["id", "church_id"]
+          },
+          {
+            foreignKeyName: "activities_organizer_membership_fkey"
+            columns: ["church_id", "organizer_person_id"]
+            isOneToOne: false
+            referencedRelation: "church_people"
+            referencedColumns: ["church_id", "person_id"]
+          },
+          {
             foreignKeyName: "activities_organizer_person_id_fkey"
             columns: ["organizer_person_id"]
             isOneToOne: false
             referencedRelation: "people"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "activities_series_fkey"
+            columns: ["series_id", "church_id"]
+            isOneToOne: false
+            referencedRelation: "activity_series"
+            referencedColumns: ["id", "church_id"]
+          },
+          {
+            foreignKeyName: "activities_template_fkey"
+            columns: ["template_id", "church_id"]
+            isOneToOne: false
+            referencedRelation: "activity_templates"
+            referencedColumns: ["id", "church_id"]
+          },
+        ]
+      }
+      activity_admin_notes: {
+        Row: {
+          activity_id: string
+          church_id: string
+          created_at: string
+          notes: string
+          updated_at: string
+          updated_by: string | null
+        }
+        Insert: {
+          activity_id: string
+          church_id: string
+          created_at?: string
+          notes: string
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Update: {
+          activity_id?: string
+          church_id?: string
+          created_at?: string
+          notes?: string
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "activity_admin_notes_activity_id_church_id_fkey"
+            columns: ["activity_id", "church_id"]
+            isOneToOne: false
+            referencedRelation: "activities"
+            referencedColumns: ["id", "church_id"]
+          },
+          {
+            foreignKeyName: "activity_admin_notes_church_id_fkey"
+            columns: ["church_id"]
+            isOneToOne: false
+            referencedRelation: "churches"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      activity_plan_items: {
+        Row: {
+          activity_id: string
+          church_id: string
+          created_at: string
+          created_by: string | null
+          duration_minutes: number | null
+          id: string
+          item_type: Database["public"]["Enums"]["activity_plan_item_type"]
+          notes: string | null
+          responsible_person_id: string | null
+          responsible_text: string | null
+          sort_order: number
+          start_offset_minutes: number | null
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          activity_id: string
+          church_id: string
+          created_at?: string
+          created_by?: string | null
+          duration_minutes?: number | null
+          id?: string
+          item_type?: Database["public"]["Enums"]["activity_plan_item_type"]
+          notes?: string | null
+          responsible_person_id?: string | null
+          responsible_text?: string | null
+          sort_order: number
+          start_offset_minutes?: number | null
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          activity_id?: string
+          church_id?: string
+          created_at?: string
+          created_by?: string | null
+          duration_minutes?: number | null
+          id?: string
+          item_type?: Database["public"]["Enums"]["activity_plan_item_type"]
+          notes?: string | null
+          responsible_person_id?: string | null
+          responsible_text?: string | null
+          sort_order?: number
+          start_offset_minutes?: number | null
+          title?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "activity_plan_items_activity_id_church_id_fkey"
+            columns: ["activity_id", "church_id"]
+            isOneToOne: false
+            referencedRelation: "activities"
+            referencedColumns: ["id", "church_id"]
+          },
+          {
+            foreignKeyName: "activity_plan_items_church_id_fkey"
+            columns: ["church_id"]
+            isOneToOne: false
+            referencedRelation: "churches"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "activity_plan_items_church_id_responsible_person_id_fkey"
+            columns: ["church_id", "responsible_person_id"]
+            isOneToOne: false
+            referencedRelation: "church_people"
+            referencedColumns: ["church_id", "person_id"]
+          },
+          {
+            foreignKeyName: "activity_plan_items_responsible_person_id_fkey"
+            columns: ["responsible_person_id"]
+            isOneToOne: false
+            referencedRelation: "people"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      activity_position_requirements: {
+        Row: {
+          activity_id: string
+          activity_position_id: string
+          catalog_snapshot: Json | null
+          church_id: string
+          created_at: string
+          created_by: string | null
+          credential_type_id: string | null
+          disabled: boolean
+          id: string
+          min_level: Database["public"]["Enums"]["qualification_level"] | null
+          min_operational_level:
+            Database["public"]["Enums"]["service_operational_level"] | null
+          origin: Database["public"]["Enums"]["activity_requirement_origin"]
+          qualification_id: string | null
+          requirement_type: Database["public"]["Enums"]["position_requirement_type"]
+          requires_current_validity: boolean
+          source_requirement_id: string | null
+          strictness: Database["public"]["Enums"]["position_requirement_strictness"]
+          updated_at: string
+        }
+        Insert: {
+          activity_id: string
+          activity_position_id: string
+          catalog_snapshot?: Json | null
+          church_id: string
+          created_at?: string
+          created_by?: string | null
+          credential_type_id?: string | null
+          disabled?: boolean
+          id?: string
+          min_level?: Database["public"]["Enums"]["qualification_level"] | null
+          min_operational_level?:
+            Database["public"]["Enums"]["service_operational_level"] | null
+          origin: Database["public"]["Enums"]["activity_requirement_origin"]
+          qualification_id?: string | null
+          requirement_type: Database["public"]["Enums"]["position_requirement_type"]
+          requires_current_validity?: boolean
+          source_requirement_id?: string | null
+          strictness?: Database["public"]["Enums"]["position_requirement_strictness"]
+          updated_at?: string
+        }
+        Update: {
+          activity_id?: string
+          activity_position_id?: string
+          catalog_snapshot?: Json | null
+          church_id?: string
+          created_at?: string
+          created_by?: string | null
+          credential_type_id?: string | null
+          disabled?: boolean
+          id?: string
+          min_level?: Database["public"]["Enums"]["qualification_level"] | null
+          min_operational_level?:
+            Database["public"]["Enums"]["service_operational_level"] | null
+          origin?: Database["public"]["Enums"]["activity_requirement_origin"]
+          qualification_id?: string | null
+          requirement_type?: Database["public"]["Enums"]["position_requirement_type"]
+          requires_current_validity?: boolean
+          source_requirement_id?: string | null
+          strictness?: Database["public"]["Enums"]["position_requirement_strictness"]
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "activity_position_requirement_activity_position_id_church__fkey"
+            columns: ["activity_position_id", "church_id"]
+            isOneToOne: false
+            referencedRelation: "activity_positions"
+            referencedColumns: ["id", "church_id"]
+          },
+          {
+            foreignKeyName: "activity_position_requirement_credential_type_id_church_id_fkey"
+            columns: ["credential_type_id", "church_id"]
+            isOneToOne: false
+            referencedRelation: "credential_types"
+            referencedColumns: ["id", "church_id"]
+          },
+          {
+            foreignKeyName: "activity_position_requirements_activity_id_church_id_fkey"
+            columns: ["activity_id", "church_id"]
+            isOneToOne: false
+            referencedRelation: "activities"
+            referencedColumns: ["id", "church_id"]
+          },
+          {
+            foreignKeyName: "activity_position_requirements_church_id_fkey"
+            columns: ["church_id"]
+            isOneToOne: false
+            referencedRelation: "churches"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "activity_position_requirements_qualification_id_church_id_fkey"
+            columns: ["qualification_id", "church_id"]
+            isOneToOne: false
+            referencedRelation: "qualifications"
+            referencedColumns: ["id", "church_id"]
+          },
+          {
+            foreignKeyName: "activity_position_requirements_source_requirement_id_fkey"
+            columns: ["source_requirement_id"]
+            isOneToOne: false
+            referencedRelation: "position_requirements"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      activity_positions: {
+        Row: {
+          activity_id: string
+          activity_service_area_id: string
+          catalog_snapshot: Json | null
+          church_id: string
+          created_at: string
+          created_by: string | null
+          critical: boolean
+          description: string | null
+          id: string
+          max_people: number | null
+          min_people: number
+          name: string
+          notes: string | null
+          requires_autonomous_person: boolean
+          service_area_id: string | null
+          service_position_id: string | null
+          snapshot_taken_at: string | null
+          sort_order: number
+          updated_at: string
+        }
+        Insert: {
+          activity_id: string
+          activity_service_area_id: string
+          catalog_snapshot?: Json | null
+          church_id: string
+          created_at?: string
+          created_by?: string | null
+          critical?: boolean
+          description?: string | null
+          id?: string
+          max_people?: number | null
+          min_people?: number
+          name: string
+          notes?: string | null
+          requires_autonomous_person?: boolean
+          service_area_id?: string | null
+          service_position_id?: string | null
+          snapshot_taken_at?: string | null
+          sort_order?: number
+          updated_at?: string
+        }
+        Update: {
+          activity_id?: string
+          activity_service_area_id?: string
+          catalog_snapshot?: Json | null
+          church_id?: string
+          created_at?: string
+          created_by?: string | null
+          critical?: boolean
+          description?: string | null
+          id?: string
+          max_people?: number | null
+          min_people?: number
+          name?: string
+          notes?: string | null
+          requires_autonomous_person?: boolean
+          service_area_id?: string | null
+          service_position_id?: string | null
+          snapshot_taken_at?: string | null
+          sort_order?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "activity_positions_activity_id_church_id_fkey"
+            columns: ["activity_id", "church_id"]
+            isOneToOne: false
+            referencedRelation: "activities"
+            referencedColumns: ["id", "church_id"]
+          },
+          {
+            foreignKeyName: "activity_positions_activity_service_area_id_church_id_fkey"
+            columns: ["activity_service_area_id", "church_id"]
+            isOneToOne: false
+            referencedRelation: "activity_service_areas"
+            referencedColumns: ["id", "church_id"]
+          },
+          {
+            foreignKeyName: "activity_positions_church_id_fkey"
+            columns: ["church_id"]
+            isOneToOne: false
+            referencedRelation: "churches"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "activity_positions_service_position_id_church_id_fkey"
+            columns: ["service_position_id", "church_id"]
+            isOneToOne: false
+            referencedRelation: "service_positions"
+            referencedColumns: ["id", "church_id"]
+          },
+        ]
+      }
+      activity_series: {
+        Row: {
+          archived_at: string | null
+          church_id: string
+          created_at: string
+          created_by: string | null
+          creation_request_id: string | null
+          duration_minutes: number
+          frequency: Database["public"]["Enums"]["activity_recurrence_frequency"]
+          id: string
+          interval_count: number
+          local_start_time: string
+          month_day: number | null
+          month_day_fallback: string
+          month_weekday: number | null
+          monthly_mode:
+            Database["public"]["Enums"]["activity_monthly_mode"] | null
+          occurrence_count: number | null
+          rrule: string | null
+          split_from_series_id: string | null
+          starts_on: string
+          timezone: string
+          title: string
+          type: Database["public"]["Enums"]["activity_type"]
+          until_date: string | null
+          updated_at: string
+          week_of_month: number | null
+          weekdays: number[] | null
+        }
+        Insert: {
+          archived_at?: string | null
+          church_id: string
+          created_at?: string
+          created_by?: string | null
+          creation_request_id?: string | null
+          duration_minutes: number
+          frequency: Database["public"]["Enums"]["activity_recurrence_frequency"]
+          id?: string
+          interval_count?: number
+          local_start_time: string
+          month_day?: number | null
+          month_day_fallback?: string
+          month_weekday?: number | null
+          monthly_mode?:
+            Database["public"]["Enums"]["activity_monthly_mode"] | null
+          occurrence_count?: number | null
+          rrule?: string | null
+          split_from_series_id?: string | null
+          starts_on: string
+          timezone: string
+          title: string
+          type: Database["public"]["Enums"]["activity_type"]
+          until_date?: string | null
+          updated_at?: string
+          week_of_month?: number | null
+          weekdays?: number[] | null
+        }
+        Update: {
+          archived_at?: string | null
+          church_id?: string
+          created_at?: string
+          created_by?: string | null
+          creation_request_id?: string | null
+          duration_minutes?: number
+          frequency?: Database["public"]["Enums"]["activity_recurrence_frequency"]
+          id?: string
+          interval_count?: number
+          local_start_time?: string
+          month_day?: number | null
+          month_day_fallback?: string
+          month_weekday?: number | null
+          monthly_mode?:
+            Database["public"]["Enums"]["activity_monthly_mode"] | null
+          occurrence_count?: number | null
+          rrule?: string | null
+          split_from_series_id?: string | null
+          starts_on?: string
+          timezone?: string
+          title?: string
+          type?: Database["public"]["Enums"]["activity_type"]
+          until_date?: string | null
+          updated_at?: string
+          week_of_month?: number | null
+          weekdays?: number[] | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "activity_series_church_id_fkey"
+            columns: ["church_id"]
+            isOneToOne: false
+            referencedRelation: "churches"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "activity_series_split_from_fkey"
+            columns: ["split_from_series_id", "church_id"]
+            isOneToOne: false
+            referencedRelation: "activity_series"
+            referencedColumns: ["id", "church_id"]
+          },
+        ]
+      }
+      activity_service_areas: {
+        Row: {
+          activity_id: string
+          area_campus_id: string | null
+          area_name: string
+          church_id: string
+          created_at: string
+          created_by: string | null
+          id: string
+          notes: string | null
+          requirement: Database["public"]["Enums"]["activity_area_requirement"]
+          service_area_id: string | null
+          sort_order: number
+          updated_at: string
+        }
+        Insert: {
+          activity_id: string
+          area_campus_id?: string | null
+          area_name: string
+          church_id: string
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          notes?: string | null
+          requirement?: Database["public"]["Enums"]["activity_area_requirement"]
+          service_area_id?: string | null
+          sort_order?: number
+          updated_at?: string
+        }
+        Update: {
+          activity_id?: string
+          area_campus_id?: string | null
+          area_name?: string
+          church_id?: string
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          notes?: string | null
+          requirement?: Database["public"]["Enums"]["activity_area_requirement"]
+          service_area_id?: string | null
+          sort_order?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "activity_service_areas_activity_id_church_id_fkey"
+            columns: ["activity_id", "church_id"]
+            isOneToOne: false
+            referencedRelation: "activities"
+            referencedColumns: ["id", "church_id"]
+          },
+          {
+            foreignKeyName: "activity_service_areas_area_campus_id_church_id_fkey"
+            columns: ["area_campus_id", "church_id"]
+            isOneToOne: false
+            referencedRelation: "campuses"
+            referencedColumns: ["id", "church_id"]
+          },
+          {
+            foreignKeyName: "activity_service_areas_church_id_fkey"
+            columns: ["church_id"]
+            isOneToOne: false
+            referencedRelation: "churches"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "activity_service_areas_service_area_id_church_id_fkey"
+            columns: ["service_area_id", "church_id"]
+            isOneToOne: false
+            referencedRelation: "service_areas"
+            referencedColumns: ["id", "church_id"]
+          },
+        ]
+      }
+      activity_template_areas: {
+        Row: {
+          church_id: string
+          created_at: string
+          id: string
+          notes: string | null
+          requirement: Database["public"]["Enums"]["activity_area_requirement"]
+          service_area_id: string
+          sort_order: number
+          template_id: string
+        }
+        Insert: {
+          church_id: string
+          created_at?: string
+          id?: string
+          notes?: string | null
+          requirement?: Database["public"]["Enums"]["activity_area_requirement"]
+          service_area_id: string
+          sort_order?: number
+          template_id: string
+        }
+        Update: {
+          church_id?: string
+          created_at?: string
+          id?: string
+          notes?: string | null
+          requirement?: Database["public"]["Enums"]["activity_area_requirement"]
+          service_area_id?: string
+          sort_order?: number
+          template_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "activity_template_areas_church_id_fkey"
+            columns: ["church_id"]
+            isOneToOne: false
+            referencedRelation: "churches"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "activity_template_areas_service_area_id_church_id_fkey"
+            columns: ["service_area_id", "church_id"]
+            isOneToOne: false
+            referencedRelation: "service_areas"
+            referencedColumns: ["id", "church_id"]
+          },
+          {
+            foreignKeyName: "activity_template_areas_template_id_church_id_fkey"
+            columns: ["template_id", "church_id"]
+            isOneToOne: false
+            referencedRelation: "activity_templates"
+            referencedColumns: ["id", "church_id"]
+          },
+        ]
+      }
+      activity_template_plan_items: {
+        Row: {
+          church_id: string
+          created_at: string
+          duration_minutes: number | null
+          id: string
+          item_type: Database["public"]["Enums"]["activity_plan_item_type"]
+          notes: string | null
+          responsible_text: string | null
+          sort_order: number
+          start_offset_minutes: number | null
+          template_id: string
+          title: string
+        }
+        Insert: {
+          church_id: string
+          created_at?: string
+          duration_minutes?: number | null
+          id?: string
+          item_type?: Database["public"]["Enums"]["activity_plan_item_type"]
+          notes?: string | null
+          responsible_text?: string | null
+          sort_order: number
+          start_offset_minutes?: number | null
+          template_id: string
+          title: string
+        }
+        Update: {
+          church_id?: string
+          created_at?: string
+          duration_minutes?: number | null
+          id?: string
+          item_type?: Database["public"]["Enums"]["activity_plan_item_type"]
+          notes?: string | null
+          responsible_text?: string | null
+          sort_order?: number
+          start_offset_minutes?: number | null
+          template_id?: string
+          title?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "activity_template_plan_items_church_id_fkey"
+            columns: ["church_id"]
+            isOneToOne: false
+            referencedRelation: "churches"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "activity_template_plan_items_template_id_church_id_fkey"
+            columns: ["template_id", "church_id"]
+            isOneToOne: false
+            referencedRelation: "activity_templates"
+            referencedColumns: ["id", "church_id"]
+          },
+        ]
+      }
+      activity_template_positions: {
+        Row: {
+          church_id: string
+          created_at: string
+          critical: boolean
+          description: string | null
+          id: string
+          max_people: number | null
+          min_people: number
+          name: string
+          requires_autonomous_person: boolean
+          service_position_id: string | null
+          sort_order: number
+          template_area_id: string
+          template_id: string
+        }
+        Insert: {
+          church_id: string
+          created_at?: string
+          critical?: boolean
+          description?: string | null
+          id?: string
+          max_people?: number | null
+          min_people?: number
+          name: string
+          requires_autonomous_person?: boolean
+          service_position_id?: string | null
+          sort_order?: number
+          template_area_id: string
+          template_id: string
+        }
+        Update: {
+          church_id?: string
+          created_at?: string
+          critical?: boolean
+          description?: string | null
+          id?: string
+          max_people?: number | null
+          min_people?: number
+          name?: string
+          requires_autonomous_person?: boolean
+          service_position_id?: string | null
+          sort_order?: number
+          template_area_id?: string
+          template_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "activity_template_positions_church_id_fkey"
+            columns: ["church_id"]
+            isOneToOne: false
+            referencedRelation: "churches"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "activity_template_positions_service_position_id_church_id_fkey"
+            columns: ["service_position_id", "church_id"]
+            isOneToOne: false
+            referencedRelation: "service_positions"
+            referencedColumns: ["id", "church_id"]
+          },
+          {
+            foreignKeyName: "activity_template_positions_template_area_id_church_id_fkey"
+            columns: ["template_area_id", "church_id"]
+            isOneToOne: false
+            referencedRelation: "activity_template_areas"
+            referencedColumns: ["id", "church_id"]
+          },
+          {
+            foreignKeyName: "activity_template_positions_template_id_church_id_fkey"
+            columns: ["template_id", "church_id"]
+            isOneToOne: false
+            referencedRelation: "activity_templates"
+            referencedColumns: ["id", "church_id"]
+          },
+        ]
+      }
+      activity_templates: {
+        Row: {
+          active: boolean
+          archived_at: string | null
+          archived_by: string | null
+          campus_id: string | null
+          church_id: string
+          created_at: string
+          created_by: string | null
+          default_duration_minutes: number | null
+          default_local_start_time: string | null
+          default_title: string | null
+          description: string | null
+          id: string
+          location_text: string | null
+          name: string
+          notes: string | null
+          schedule_kind: Database["public"]["Enums"]["activity_schedule_kind"]
+          sort_order: number
+          type: Database["public"]["Enums"]["activity_type"]
+          updated_at: string
+          visibility: Database["public"]["Enums"]["activity_visibility"]
+        }
+        Insert: {
+          active?: boolean
+          archived_at?: string | null
+          archived_by?: string | null
+          campus_id?: string | null
+          church_id: string
+          created_at?: string
+          created_by?: string | null
+          default_duration_minutes?: number | null
+          default_local_start_time?: string | null
+          default_title?: string | null
+          description?: string | null
+          id?: string
+          location_text?: string | null
+          name: string
+          notes?: string | null
+          schedule_kind?: Database["public"]["Enums"]["activity_schedule_kind"]
+          sort_order?: number
+          type: Database["public"]["Enums"]["activity_type"]
+          updated_at?: string
+          visibility?: Database["public"]["Enums"]["activity_visibility"]
+        }
+        Update: {
+          active?: boolean
+          archived_at?: string | null
+          archived_by?: string | null
+          campus_id?: string | null
+          church_id?: string
+          created_at?: string
+          created_by?: string | null
+          default_duration_minutes?: number | null
+          default_local_start_time?: string | null
+          default_title?: string | null
+          description?: string | null
+          id?: string
+          location_text?: string | null
+          name?: string
+          notes?: string | null
+          schedule_kind?: Database["public"]["Enums"]["activity_schedule_kind"]
+          sort_order?: number
+          type?: Database["public"]["Enums"]["activity_type"]
+          updated_at?: string
+          visibility?: Database["public"]["Enums"]["activity_visibility"]
+        }
+        Relationships: [
+          {
+            foreignKeyName: "activity_templates_campus_id_church_id_fkey"
+            columns: ["campus_id", "church_id"]
+            isOneToOne: false
+            referencedRelation: "campuses"
+            referencedColumns: ["id", "church_id"]
+          },
+          {
+            foreignKeyName: "activity_templates_church_id_fkey"
+            columns: ["church_id"]
+            isOneToOne: false
+            referencedRelation: "churches"
             referencedColumns: ["id"]
           },
         ]
@@ -2342,6 +3196,89 @@ export type Database = {
           out_person_id: string
         }[]
       }
+      activities_structure_status: {
+        Args: { p_activity_ids: string[] }
+        Returns: {
+          activity_id: string
+          blocking: number
+          warnings: number
+        }[]
+      }
+      activity_capabilities: { Args: { p_activity_id: string }; Returns: Json }
+      activity_creation_scopes: { Args: { p_church_id: string }; Returns: Json }
+      activity_dashboard: { Args: { p_church_id: string }; Returns: Json }
+      activity_position_coverage: {
+        Args: { p_activity_id: string }
+        Returns: {
+          activity_position_id: string
+          activity_service_area_id: string
+          assigned_count: number
+          coverage_status: string
+          max_people: number
+          min_people: number
+        }[]
+      }
+      activity_position_effective_requirements: {
+        Args: { p_activity_position_id: string }
+        Returns: {
+          activity_id: string
+          activity_position_id: string
+          catalog_snapshot: Json | null
+          church_id: string
+          created_at: string
+          created_by: string | null
+          credential_type_id: string | null
+          disabled: boolean
+          id: string
+          min_level: Database["public"]["Enums"]["qualification_level"] | null
+          min_operational_level:
+            Database["public"]["Enums"]["service_operational_level"] | null
+          origin: Database["public"]["Enums"]["activity_requirement_origin"]
+          qualification_id: string | null
+          requirement_type: Database["public"]["Enums"]["position_requirement_type"]
+          requires_current_validity: boolean
+          source_requirement_id: string | null
+          strictness: Database["public"]["Enums"]["position_requirement_strictness"]
+          updated_at: string
+        }[]
+        SetofOptions: {
+          from: "*"
+          to: "activity_position_requirements"
+          isOneToOne: false
+          isSetofReturn: true
+        }
+      }
+      activity_structure_issues: {
+        Args: { p_activity_id: string }
+        Returns: {
+          activity_position_id: string
+          activity_service_area_id: string
+          code: string
+          severity: string
+        }[]
+      }
+      add_activity_area: {
+        Args: {
+          p_activity_id: string
+          p_include_positions?: boolean
+          p_notes?: string
+          p_requirement?: Database["public"]["Enums"]["activity_area_requirement"]
+          p_service_area_id: string
+        }
+        Returns: Json
+      }
+      add_activity_plan_item: {
+        Args: { p_activity_id: string; p_input: Json }
+        Returns: string
+      }
+      add_activity_position: {
+        Args: { p_activity_service_area_id: string; p_input: Json }
+        Returns: string
+      }
+      apply_activity_structure_to_series: {
+        Args: { p_activity_id: string; p_scope: string }
+        Returns: number
+      }
       assisted_provision_church: {
         Args: {
           p_country: string
@@ -2359,6 +3296,10 @@ export type Database = {
           invitation_token: string
         }[]
       }
+      create_activity: {
+        Args: { p_church_id: string; p_input: Json }
+        Returns: Json
+      }
       create_person: {
         Args: {
           p_birth_date?: string
@@ -2372,6 +3313,14 @@ export type Database = {
           p_relationship?: string
           p_tag_ids?: string[]
         }
+        Returns: string
+      }
+      duplicate_activity: {
+        Args: { p_activity_id: string; p_input?: Json }
+        Returns: Json
+      }
+      duplicate_activity_template: {
+        Args: { p_name?: string; p_template_id: string }
         Returns: string
       }
       eligible_people_for_position: {
@@ -2436,6 +3385,14 @@ export type Database = {
         Args: { p_church_id: string; p_module_key: string }
         Returns: boolean
       }
+      preview_activity_recurrence: {
+        Args: { p_church_id: string; p_input: Json }
+        Returns: {
+          ends_at: string
+          occurrence_date: string
+          starts_at: string
+        }[]
+      }
       provision_church: {
         Args: {
           p_campus_address?: string
@@ -2463,11 +3420,79 @@ export type Database = {
           person_id: string
         }[]
       }
+      remove_activity_area: {
+        Args: { p_activity_service_area_id: string }
+        Returns: undefined
+      }
+      remove_activity_plan_item: {
+        Args: { p_plan_item_id: string }
+        Returns: undefined
+      }
+      remove_activity_position: {
+        Args: { p_activity_position_id: string }
+        Returns: undefined
+      }
+      remove_activity_position_requirement: {
+        Args: { p_requirement_id: string }
+        Returns: undefined
+      }
+      reorder_activity_plan_items: {
+        Args: { p_activity_id: string; p_item_ids: string[] }
+        Returns: undefined
+      }
+      save_activity_position_requirement: {
+        Args: {
+          p_activity_position_id: string
+          p_input: Json
+          p_requirement_id: string
+        }
+        Returns: string
+      }
+      save_activity_template: {
+        Args: { p_church_id: string; p_input: Json; p_template_id: string }
+        Returns: string
+      }
+      set_activity_template_archived: {
+        Args: { p_archived: boolean; p_template_id: string }
+        Returns: undefined
+      }
       show_limit: { Args: never; Returns: number }
       show_trgm: { Args: { "": string }; Returns: string[] }
       slug_available: { Args: { p_slug: string }; Returns: boolean }
       slugify: { Args: { p_input: string }; Returns: string }
+      transition_activity_status: {
+        Args: {
+          p_activity_id: string
+          p_reason?: string
+          p_to: Database["public"]["Enums"]["activity_status"]
+        }
+        Returns: Database["public"]["Enums"]["activity_status"]
+      }
       unaccent: { Args: { "": string }; Returns: string }
+      update_activity: {
+        Args: { p_activity_id: string; p_input: Json }
+        Returns: Json
+      }
+      update_activity_area: {
+        Args: { p_activity_service_area_id: string; p_input: Json }
+        Returns: undefined
+      }
+      update_activity_plan_item: {
+        Args: { p_input: Json; p_plan_item_id: string }
+        Returns: undefined
+      }
+      update_activity_position: {
+        Args: { p_activity_position_id: string; p_input: Json }
+        Returns: undefined
+      }
+      update_activity_series: {
+        Args: { p_activity_id: string; p_input: Json; p_scope: string }
+        Returns: Json
+      }
+      update_activity_series_rule: {
+        Args: { p_activity_id: string; p_input: Json }
+        Returns: Json
+      }
       write_audit_log: {
         Args: {
           p_action: string
@@ -2481,8 +3506,23 @@ export type Database = {
       }
     }
     Enums: {
+      activity_area_requirement: "required" | "optional"
+      activity_monthly_mode: "day_of_month" | "nth_weekday"
+      activity_plan_item_type:
+        | "section"
+        | "song"
+        | "speech"
+        | "prayer"
+        | "announcement"
+        | "media"
+        | "transition"
+        | "custom"
+      activity_recurrence_frequency: "weekly" | "monthly"
+      activity_requirement_origin: "inherited" | "added"
+      activity_schedule_kind: "timed" | "flexible"
       activity_status:
         | "draft"
+        | "planned"
         | "published"
         | "cancelled"
         | "completed"
@@ -2496,6 +3536,7 @@ export type Database = {
         | "rehearsal"
         | "task"
         | "shift"
+      activity_visibility: "private" | "leaders" | "members" | "public_future"
       church_module_status: "enabled" | "disabled" | "trial" | "suspended"
       church_onboarding_step:
         | "account"
@@ -2696,8 +3737,24 @@ export const Constants = {
   },
   public: {
     Enums: {
+      activity_area_requirement: ["required", "optional"],
+      activity_monthly_mode: ["day_of_month", "nth_weekday"],
+      activity_plan_item_type: [
+        "section",
+        "song",
+        "speech",
+        "prayer",
+        "announcement",
+        "media",
+        "transition",
+        "custom",
+      ],
+      activity_recurrence_frequency: ["weekly", "monthly"],
+      activity_requirement_origin: ["inherited", "added"],
+      activity_schedule_kind: ["timed", "flexible"],
       activity_status: [
         "draft",
+        "planned",
         "published",
         "cancelled",
         "completed",
@@ -2713,6 +3770,7 @@ export const Constants = {
         "task",
         "shift",
       ],
+      activity_visibility: ["private", "leaders", "members", "public_future"],
       church_module_status: ["enabled", "disabled", "trial", "suspended"],
       church_onboarding_step: [
         "account",

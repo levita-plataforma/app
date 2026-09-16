@@ -643,9 +643,10 @@ begin
           update activities set recurrence_rule = v_series.rrule where id = v_target.id;
         end if;
       end if;
-    elsif v_target.series_modified or v_target.status not in ('draft', 'planned', 'published')
+    elsif v_target.series_modified or v_target.series_structure_modified
+          or v_target.status not in ('draft', 'planned', 'published')
           or v_target.starts_at < now() then
-      -- Excepción o histórico: se conserva.
+      -- Excepción (de contenido o de estructura) o histórico: se conserva.
       null;
     elsif v_target.status = 'published' then
       -- Requiere activity.cancel (lo comprueba el trigger de estado).

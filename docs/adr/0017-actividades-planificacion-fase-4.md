@@ -4,7 +4,7 @@
 
 Propuesto — pendiente de validación de Carlos, 16 de septiembre de 2026.
 
-Fuente de verdad: migraciones `supabase/migrations/20260920000100_activity_status_planned.sql` a `20260920000800_recurrencia_actividades.sql` de la rama `feature/fase-4-actividades-planificacion`. Este ADR solo describe lo que ese SQL hace. Nada de lo descrito se ha aplicado en ningún entorno remoto. La interfaz está en desarrollo en esta rama y no forma parte de esta decisión.
+Fuente de verdad: migraciones `supabase/migrations/20260920000100_activity_status_planned.sql` a `20260920000800_recurrencia_actividades.sql` de la rama `feature/carlos-fase-4-actividades`. Este ADR solo describe lo que ese SQL hace. Nada de lo descrito se ha aplicado en ningún entorno remoto. La interfaz está en desarrollo en esta rama y no forma parte de esta decisión.
 
 Detalle técnico, contrato RPC y plan de despliegue: [FASE-4-ACTIVIDADES.md](../FASE-4-ACTIVIDADES.md).
 
@@ -58,7 +58,7 @@ ADR 0004 dejó abierta la pregunta de si Fase 4 justificaba extraer columnas esp
 | `draft`, `planned`, `published` | `cancelled` | `activity.cancel` | Fija `cancelled_at/by`; motivo opcional (≤ 500). |
 | `cancelled` | `draft` (reactivar) | `activity.cancel` | Borra cancelación y publicación. |
 | cualquiera | `archived` | `activity.archive` | Fija `archived_at/by` y `status_before_archive`. |
-| `archived` | `coalesce(status_before_archive, 'draft')` | `activity.archive` | Borra archivado. Si el destino es `published`, vuelve a exigir estructura sin bloqueos. |
+| `archived` | `coalesce(status_before_archive, 'draft')` | `activity.archive` | Borra archivado. Restaura el estado previo tal cual: conserva cancelación (fecha, autor y motivo), publicación y completado, y **no** revalida la estructura. |
 
 Cualquier otra combinación falla con `22023`. La capability se comprueba en el ámbito de la actividad (church, campus o activity) siempre que `auth.uid()` no es nulo; con `service_role` o SQL sin usuario solo se aplica la matriz. Toda actividad nueva creada por un usuario empieza en `draft`.
 
@@ -68,8 +68,9 @@ Cualquier otra combinación falla con `22023`. La capability se comprueba en el 
 - `activities_cancelled_consistency_check` (validada): `cancelled` ⇒ `cancelled_at is not null`.
 - `status_before_archive` guarda el estado previo para desarchivar sin perder el ciclo de vida.
 - Sin cambio de estado, el trigger restaura todos los metadatos de ciclo de vida: un cliente no puede fijarlos.
-- `cancellation_reason` solo se fija al cancelar y solo se borra al reactivar.
+- `cancellation_reason` solo se fija al cancelar y solo se borra al reactivar (`cancelled → draft`). Desarchivar no lo sobrescribe.
 - `completed`, `cancelled` y `archived` son histórico: su contenido (tipo, título, descripción, sede, horario, zona, visibilidad, organizador, ubicación) no se puede modificar, salvo que una FK anule el organizador. La estructura y el plan solo son editables en `draft`, `planned` y `published`.
+- **Decisión intencionada:** las notas administrativas siguen siendo editables en actividades `completed`, `cancelled` y `archived`. Son anotaciones administrativas, no contenido histórico; cada cambio se audita como `activity.updated`.
 
 **Alternativas.** Reutilizar `draft` para "preparada": impedía distinguir borrador de actividad lista, y `activity_accepts_assignments` (Fase 5) necesita esa distinción.
 
@@ -90,7 +91,7 @@ Siempre dentro de una iglesia del usuario. Puede leer:
    - `leaders`: quien tiene algún rol distinto de `member` o es líder vigente de algún área (`app.is_church_leader`);
    - `private`: nadie por audiencia.
 2. El organizador (`organizer_person_id`), en cualquier estado.
-3. Quien tiene `activity.read`, `activity.manage` o `activity_plan.manage` con scope church, campus de la actividad o la actividad concreta.
+3. Quien tiene `activity.read`, `activity.manage`, `activity.publish`, `activity.cancel`, `activity.archive` o `activity_plan.manage` con scope church, campus de la actividad o la actividad concreta.
 4. Quien tiene `activity.read` o `activity_positions.manage` con scope `service_area` sobre un área que participa en la actividad.
 
 Consecuencia: `draft`, `planned` y `archived` solo los ven quienes gestionan o leen en su ámbito, el organizador y los líderes de las áreas incluidas. El acceso efectivo a datos existentes solo se reduce.
@@ -123,7 +124,7 @@ Consecuencia: `draft`, `planned` y `archived` solo los ven quienes gestionan o l
 
 ### DST
 
-Cada ocurrencia calcula su instante con su propia fecha local más la hora local de la serie, así que "domingo 11:00" sigue siendo 11:00 local antes y después del cambio de hora; la duración es absoluta. `app.local_to_instant` usa `timestamp AT TIME ZONE zona`, con la semántica documentada de PostgreSQL: una hora inexistente (salto de primavera) se desplaza hacia delante (02:30 → 03:30) y una hora ambigua (vuelta a horario estándar) se resuelve como horario estándar (la segunda).
+Cada ocurrencia calcula su instante con su propia fecha local más la hora local de la serie, así que "domingo 11:00" sigue siendo 11:00 local antes y después del cambio de hora; la duración es absoluta. `app.local_to_instant` usa `timestamp AT TIME ZONE zona`, con la semántica documentada de PostgreSQL: una hora inexistente (salto de primavera) se desplaza hacia delante (02:30 → 03:30) y una hora ambigua (vuelta a horario estándar) se resuelve como horario estándar (la segunda). La suite `supabase/tests/fase4_recurrencia_test.sql` cubre estos casos (Nueva York en 2030; Madrid, hueco y solape de 2030).
 
 ### Meses cortos y n-ésimo día
 
@@ -137,19 +138,25 @@ Cada ocurrencia calcula su instante con su propia fecha local más la hora local
 | Esta y siguientes | `update_activity_series(..., 'future')` | Divide la serie en la fecha de la ocurrencia (`app.split_activity_series`: la original termina el día anterior; la nueva conserva la regla y `split_from_series_id`) y aplica los cambios a la nueva. |
 | Toda la serie | `update_activity_series(..., 'all')` | Aplica los cambios sin dividir. |
 | Cambio de regla | `update_activity_series_rule` | Siempre desde esta ocurrencia: divide y reconcilia. |
-| Estructura a la serie | `apply_activity_structure_to_series(..., 'future'/'all')` | Sustituye áreas, puestos, requisitos y plan de las ocurrencias editables por una copia exacta de esta. |
+| Estructura a la serie | `apply_activity_structure_to_series(..., 'future'/'all')` | Sustituye áreas, puestos, requisitos y plan de las ocurrencias editables por una copia exacta de esta, salvo las que son excepción de estructura. Exige el módulo `serving`. |
 
-Las ediciones masivas solo tocan ocurrencias **editables**: estado `draft`/`planned`/`published`, sin `series_modified` y con `starts_at >= now()`. Las ediciones masivas no admiten cambiar la fecha (eso es "solo esta").
+Hay dos tipos de excepción:
 
-Reconciliación al cambiar la regla: fechas nuevas → se crean ocurrencias copiando la estructura y las notas de la ocurrencia de origen; ocurrencias que siguen encajando → se recalcula la hora si cambió; ocurrencias que ya no encajan → `draft`/`planned` se eliminan, `published` se cancelan con motivo "Serie reprogramada", y excepciones, cerradas y pasadas se conservan.
+- **De contenido** (`series_modified`): la marca `update_activity` al cambiar el contenido de una ocurrencia. Las ediciones masivas de contenido no la tocan.
+- **De estructura** (`series_structure_modified`): la marca `app.mark_structure_modified` en cualquier RPC de estructura o plan sobre una ocurrencia de serie (áreas, puestos, requisitos y bloques del plan). `apply_activity_structure_to_series` la omite.
+
+Las ediciones masivas solo tocan ocurrencias **editables**: estado `draft`/`planned`/`published`, sin `series_modified` y con `starts_at >= now()`. Aplicar estructura omite además las que tienen `series_structure_modified`. Las ediciones masivas no admiten cambiar la fecha (eso es "solo esta").
+
+Reconciliación al cambiar la regla: fechas nuevas → se crean ocurrencias copiando la estructura y las notas de la ocurrencia de origen; ocurrencias que siguen encajando → se recalcula la hora si cambió; ocurrencias que ya no encajan → `draft`/`planned` se eliminan (auditoría `activity.series_occurrence_removed` por ocurrencia), `published` se cancelan con motivo "Serie reprogramada" (auditoría `activity.cancelled` por ocurrencia, con `cause: series_rule_changed`), y excepciones (de contenido o de estructura), cerradas y pasadas se conservan.
 
 **Alternativas.** (a) Expansión perezosa (calcular ocurrencias al leer): impide asignaciones, estructura y excepciones por ocurrencia. (b) Serie ilimitada con job de extensión: requiere jobs que aún no existen. (c) RRULE como fuente de verdad: difícil de validar en SQL.
 
-**Riesgos.** Las ediciones de estructura o plan de una ocurrencia individual **no** marcan `series_modified`; `apply_activity_structure_to_series` las sobrescribe. Cancelar ocurrencias publicadas al cambiar la regla pasa por el trigger de estado y exige `activity.cancel` además de `activity.manage`.
+**Riesgos.** Cancelar ocurrencias publicadas al cambiar la regla pasa por el trigger de estado y exige `activity.cancel` además de `activity.manage`; sin ella, la operación completa falla con `42501`.
 
 ## Decisión 7 · Plantillas
 
-- `activity_templates` + `activity_template_areas` + `activity_template_positions` + `activity_template_plan_items`. Guardado completo en una transacción (`save_activity_template` sustituye las filas hijas).
+- `activity_templates` + `activity_template_areas` + `activity_template_positions` + `activity_template_plan_items`. Guardado completo en una transacción: `save_activity_template` elimina primero las filas hijas y después actualiza la plantilla, así que un cambio de sede junto con áreas nuevas funciona en un único guardado.
+- Si se crea una actividad desde plantilla con `local_start` solo de fecha (`YYYY-MM-DD`) y la plantilla tiene `default_local_start_time`, se usa esa hora.
 - Usar una plantilla **copia** su estructura a la actividad. La actividad solo guarda `template_id` como trazabilidad (`on delete set null`); cambiar o archivar la plantilla no altera actividades ya creadas.
 - Al copiar, se **omiten** (sin fallar la creación) las áreas y puestos inactivos, de otra sede o con el módulo `serving` deshabilitado, y se devuelven en `skipped` con `kind`, `name` y `reason` (`inactive`, `campus_mismatch`, `serving_module_disabled`).
 - Una plantilla con sede solo admite áreas y puestos globales o de esa sede, y solo se aplica a actividades de esa sede.
@@ -161,12 +168,13 @@ Reconciliación al cambiar la regla: fechas nuevas → se crean ocurrencias copi
 - `activity_service_areas`: área del catálogo con `area_name` y `area_campus_id` como snapshot fijado por el servidor; `requirement` `required`/`optional`.
 - `activity_positions`: valores efectivos propios (`min_people`, `max_people`, `critical`, `requires_autonomous_person`...). `catalog_snapshot` guarda los valores del catálogo al copiar y es inmutable. `service_position_id` nulo = **puesto ad-hoc** de esa actividad.
 - `activity_position_requirements`: `origin = inherited` (copiado de `position_requirements`, con `catalog_snapshot`) o `added` (solo esta actividad). Un requisito heredado no se borra: se **desactiva** (`disabled`) o se ajusta (override de exigencia, nivel o vigencia); no se puede cambiar su tipo, cualificación o credencial. Solo los `added` se pueden eliminar.
-- Borrar un elemento del catálogo anula la referencia (`on delete set null`) y conserva el snapshot. La copia exacta entre actividades (duplicar, aplicar a la serie) conserva snapshots, overrides y desactivaciones.
+- Borrar un elemento del catálogo anula la referencia (`on delete set null`) y conserva el snapshot. La copia exacta entre actividades (duplicar, aplicar a la serie, nuevas ocurrencias al cambiar la regla) conserva snapshots, overrides y desactivaciones. Si el módulo `serving` está deshabilitado, la copia exacta omite áreas y puestos y solo copia el plan.
 
 ## Decisión 9 · Contrato para Fase 5
 
-- `app.activity_position_effective_requirements(activity_position_id)`: requisitos heredados no desactivados más los añadidos. Wrapper público filtrado por `app.can_read_activity`.
+- `app.activity_position_effective_requirements(activity_position_id)`: requisitos heredados no desactivados más los añadidos.
 - `app.activity_accepts_assignments(activity_id)`: verdadero solo si el estado es `planned` o `published` y la actividad es `flexible` o `ends_at > now()`.
+- Ambas, igual que `app.activity_structure_issues`, comprueban `app.can_read_activity` cuando hay usuario (`auth.uid()` no nulo); sin usuario (procesos internos) no filtran. Los triggers usan `app.activity_structure_issues_unchecked`, que no se concede a `authenticated`.
 
 **Declaración explícita:** la elegibilidad de Fase 3 (`app.evaluate_person_eligibility(church, service_position, person)`) trabaja contra el puesto de **catálogo** y `now()`. **No** evalúa la vigencia de credenciales en la fecha de la actividad **ni** los overrides, requisitos añadidos o desactivados por actividad. La Fase 5 debe añadir esa evaluación antes de asignar.
 
@@ -194,6 +202,7 @@ Reconciliación al cambiar la regla: fechas nuevas → se crean ocurrencias copi
 | `catalog_area_unavailable` | warning |
 | `catalog_position_unavailable` | warning |
 | `no_areas` (solo `service`, `event`, `rehearsal`) | warning |
+| `plan_items_overlap` | warning |
 | `plan_exceeds_activity` (solo `timed`) | warning |
 
 **Publicar exige estructura válida (sin `blocking`), no personas.** Los huecos de cobertura no bloquean la publicación.
@@ -202,7 +211,8 @@ Reconciliación al cambiar la regla: fechas nuevas → se crean ocurrencias copi
 
 - Actividad **global** (sin sede): admite áreas y puestos de cualquier sede o globales.
 - Actividad **de sede**: solo áreas y puestos globales (`campus_id` nulo) o de la misma sede.
-- Se comprueba al añadir (trigger), al cambiar la sede de la actividad (el trigger rechaza el cambio si dejaría áreas o puestos incompatibles) y al cambiar la sede de una plantilla.
+- Se comprueba al añadir (trigger), al cambiar la sede de la actividad (el trigger rechaza el cambio si dejaría áreas o puestos incompatibles) y al cambiar la sede de una plantilla. El trigger y las incidencias usan el mismo criterio para el área: la sede del catálogo vigente si el área de catálogo existe, y el snapshot solo si ya no existe.
+- Mover una actividad de sede (`update_activity`) exige `activity.manage` en el destino: scope `church` si el destino es global o scope `campus` de la sede destino. Un scope `activity` no basta.
 - Si el catálogo cambia de sede después, `area_campus_mismatch`/`position_campus_mismatch` lo señalan como incidencia bloqueante para publicar.
 
 ## Decisión 12 · Permisos
@@ -239,7 +249,7 @@ Reconciliación al cambiar la regla: fechas nuevas → se crean ocurrencias copi
 
 ### Módulos
 
-Actividades, calendario, plantillas sin áreas y planificación son **núcleo** (`module_key` nulo): una iglesia puede programar reuniones o tareas sin Serving. La estructura de servicio por actividad exige el módulo `serving` habilitado (`app.require_serving_module`) en `add_activity_area`, en las operaciones de puestos y requisitos y en `save_activity_template` con áreas.
+Actividades, calendario, plantillas sin áreas y planificación son **núcleo** (`module_key` nulo): una iglesia puede programar reuniones o tareas sin Serving. La estructura de servicio por actividad exige el módulo `serving` habilitado (`app.require_serving_module`) en `add_activity_area`, `update_activity_area`, `remove_activity_area`, las operaciones de puestos y requisitos, `apply_activity_structure_to_series` y `save_activity_template` con áreas. Las copias sin comprobación explícita (duplicar, plantilla, nuevas ocurrencias) omiten áreas y puestos cuando el módulo está deshabilitado y copian el plan.
 
 ## Decisión 13 · RLS y escritura solo por RPC
 
@@ -253,9 +263,9 @@ Actividades, calendario, plantillas sin áreas y planificación son **núcleo** 
 
 - Unidades explícitas: **minutos**. `duration_minutes` 0–1440; `start_offset_minutes` −1440–4320 **respecto a `starts_at`** de la actividad (negativo = antes del inicio). Offset nulo = empieza cuando termina el bloque anterior.
 - `item_type`: `section`, `song`, `speech`, `prayer`, `announcement`, `media`, `transition`, `custom`. `song` es un bloque, no un catálogo musical.
-- `sort_order` único por actividad con constraint **diferible** (`activity_plan_items_order_unique`). Insertar en una posición, eliminar (compacta a 0..n−1) y reordenar son atómicos. `reorder_activity_plan_items` exige exactamente el conjunto actual de bloques; si otro usuario añadió o quitó uno, falla con **`40001`** para recargar.
+- `sort_order` único por actividad con constraint **diferible** (`activity_plan_items_order_unique`). Insertar en una posición, eliminar (compacta a 0..n−1) y reordenar son atómicos. `reorder_activity_plan_items` exige exactamente el conjunto actual de bloques; si otro usuario añadió o quitó uno, falla con **`PT409`** (HTTP 409) para recargar. No se usa `40001`: PostgREST reintenta automáticamente los fallos de serialización y un error determinista se reintentaría sin fin.
 - Máximo 200 bloques. El responsable puede ser texto libre o una persona activa de la iglesia.
-- Los solapamientos entre bloques están permitidos. Un plan que termina después de la actividad genera la incidencia `plan_exceeds_activity` (warning). No existe incidencia específica de solapamiento.
+- Los solapamientos entre bloques están permitidos, pero se avisan: si un bloque empieza antes de que termine el bloque anterior (en orden de `sort_order`), aparece la incidencia `plan_items_overlap` (warning), con cualquier tipo de horario. Un plan que termina después de la actividad genera `plan_exceeds_activity` (warning, solo `timed`).
 
 ## Decisión 15 · Auditoría
 
@@ -265,13 +275,16 @@ Acciones emitidas con `app.write_audit_log` en la misma transacción:
 |---|---|
 | `activity.created`, `activity.duplicated` | `activities` |
 | `activity.updated` | `activities` (`scope: this`) o `activity_series` (`future`, `all`, `series_rule` o aplicación de estructura) |
-| `activity.published`, `activity.cancelled`, `activity.completed`, `activity.archived`, `activity.status_changed` | `activities` |
+| `activity.published`, `activity.cancelled`, `activity.completed`, `activity.archived`, `activity.unarchived`, `activity.status_changed` | `activities` |
+| `activity.cancelled` (`cause: series_rule_changed`), `activity.series_occurrence_removed` | `activities`, una fila por ocurrencia afectada al cambiar la regla |
 | `activity.area_added`, `activity.area_updated`, `activity.area_removed` | `activities` |
 | `activity.position_added`, `activity.position_updated` (también requisitos: `added`/`override`/`removed`), `activity.position_removed` | `activities` |
 | `activity.plan_item_added`, `activity.plan_item_updated`, `activity.plan_item_removed`, `activity.plan_reordered` | `activities` |
 | `activity_template.created` (también duplicar), `activity_template.updated`, `activity_template.archived`, `activity_template.restored` | `activity_templates` |
 
-Los metadatos registran campos cambiados, no contenido: el motivo de cancelación se registra como `has_reason`. Las cancelaciones y eliminaciones de la reconciliación de reglas quedan resumidas en el `activity.updated` de la serie, sin una entrada por ocurrencia.
+Los metadatos registran campos cambiados, no contenido: el motivo de cancelación se registra como `has_reason`. La reconciliación de reglas registra además un `activity.updated` resumen sobre la serie. Los cambios de notas administrativas (también en actividades cerradas) se registran como `activity.updated` con la lista de campos.
+
+`transition_activity_status` registra cualquier salida de `archived` como `activity.unarchived` (con `from` y `to`), sea cual sea el estado restaurado. En el resto de transiciones la acción depende del destino.
 
 ## Consecuencias
 
@@ -283,8 +296,8 @@ Los metadatos registran campos cambiados, no contenido: el motivo de cancelació
 ## Riesgos
 
 - Filas heredadas que incumplan constraints `NOT VALID` quedan bloqueadas para `UPDATE`.
-- La normalización de `archived_at`/`cancelled_at` usa `updated_at`, que la propia migración sobrescribe al rellenar `schedule_kind` (ver documento técnico).
+- La normalización rellena `archived_at`/`cancelled_at` con el `updated_at` original (la migración desactiva `activities_set_updated_at` durante los rellenos); es una aproximación, no la fecha real de archivado o cancelación.
 - Elegibilidad por fecha de actividad y overrides pendiente para Fase 5.
 - Riesgo previo de invitaciones con scope `church`.
 - `planned` no se puede retirar con una simple reversión.
-- La suite pgTAP de Fase 4 está en desarrollo en esta rama; este ADR no recoge resultados de pruebas.
+- Pruebas: existen las suites `supabase/tests/fase4_actividades_test.sql` (121), `fase4_permisos_test.sql` (65) y `fase4_recurrencia_test.sql` (53). Según el responsable de la rama, pasan en local (409/409 con las suites anteriores) con un arnés PostgreSQL 17 sin Docker que emula los roles y `auth` de Supabase. **No se ejecutó `supabase test db`** (Docker no disponible); debe confirmarlo el CI de la PR.

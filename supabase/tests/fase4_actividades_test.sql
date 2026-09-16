@@ -4,7 +4,7 @@
 -- Ver docs/adr/0017.
 
 begin;
-select plan(121);
+select plan(122);
 
 create or replace function test_set_auth_uid(p_uid uuid) returns void as $$
 begin
@@ -376,6 +376,17 @@ select is(
   'Desarchivar una cancelada conserva el motivo de cancelación'
 );
 
+reset role;
+select ok(
+  exists (select 1 from audit_logs where entity_id = t_id('act3') and action = 'activity.unarchived'
+          and metadata ->> 'from' = 'archived' and metadata ->> 'to' = 'cancelled')
+  and (select count(*) = 1 from audit_logs where entity_id = t_id('act3') and action = 'activity.cancelled')
+  and not exists (select 1 from audit_logs where entity_id = t_id('act3')
+                  and action in ('activity.status_changed', 'activity.completed')),
+  'Desarchivar (archived -> cancelled) se audita como activity.unarchived, no como cancelación ni cambio de estado'
+);
+select test_set_auth_uid('a4000000-0000-0000-0000-000000000001');
+
 -- Completar: actividad ya pasada (crear en el pasado está permitido).
 select t_set('act_past', public.create_activity(t_id('church_a'),
   '{"type":"service","title":"Culto pasado","local_start":"2020-01-05T11:00","duration_minutes":60}'::jsonb) ->> 'activity_id');
@@ -694,8 +705,8 @@ select is(
 
 select throws_ok(
   $$ select public.reorder_activity_plan_items(t_id('act4'), array[t_id('pi_c'), t_id('pi_b'), t_id('pi_a')]) $$,
-  '40001', null,
-  'Reordenar con un conjunto desactualizado falla con 40001'
+  'PT409', null,
+  'Reordenar con un conjunto desactualizado falla con PT409 (no 40001: PostgREST reintentaría sin fin)'
 );
 
 select lives_ok(
