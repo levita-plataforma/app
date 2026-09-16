@@ -4,6 +4,7 @@ import SidebarNav from "@/components/shell/SidebarNav";
 import ShellHeader from "@/components/shell/ShellHeader";
 import { getTenantContext } from "@/server/tenant/tenant-context";
 import { createSupabaseServerClient } from "@/server/supabase/server-client";
+import { getOnboardingState } from "@/server/onboarding/onboarding-service";
 import "../app-shell.css";
 
 /**
@@ -19,7 +20,18 @@ export default async function AppLayout({
   const tenant = await getTenantContext();
 
   if (!tenant) {
-    redirect("/acceso");
+    const supabase = await createSupabaseServerClient();
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+    // Autenticado pero sin ninguna iglesia todavía: continúa el
+    // onboarding, no vuelve al login (ver encargo de Fase 1 §2).
+    redirect(user ? "/acceso/onboarding" : "/acceso");
+  }
+
+  const onboarding = await getOnboardingState(tenant.churchId);
+  if (onboarding && !onboarding.completedAt) {
+    redirect("/acceso/onboarding");
   }
 
   const supabase = await createSupabaseServerClient();

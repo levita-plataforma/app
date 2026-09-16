@@ -395,6 +395,56 @@ export type Database = {
           },
         ]
       }
+      church_onboarding: {
+        Row: {
+          church_id: string
+          completed_at: string | null
+          completed_steps: Database["public"]["Enums"]["church_onboarding_step"][]
+          created_at: string
+          current_step: Database["public"]["Enums"]["church_onboarding_step"]
+          dismissed_at: string | null
+          id: string
+          metadata: Json
+          started_at: string
+          updated_at: string
+          version: number
+        }
+        Insert: {
+          church_id: string
+          completed_at?: string | null
+          completed_steps?: Database["public"]["Enums"]["church_onboarding_step"][]
+          created_at?: string
+          current_step?: Database["public"]["Enums"]["church_onboarding_step"]
+          dismissed_at?: string | null
+          id?: string
+          metadata?: Json
+          started_at?: string
+          updated_at?: string
+          version?: number
+        }
+        Update: {
+          church_id?: string
+          completed_at?: string | null
+          completed_steps?: Database["public"]["Enums"]["church_onboarding_step"][]
+          created_at?: string
+          current_step?: Database["public"]["Enums"]["church_onboarding_step"]
+          dismissed_at?: string | null
+          id?: string
+          metadata?: Json
+          started_at?: string
+          updated_at?: string
+          version?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "church_onboarding_church_id_fkey"
+            columns: ["church_id"]
+            isOneToOne: true
+            referencedRelation: "churches"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       church_people: {
         Row: {
           archived_at: string | null
@@ -563,7 +613,15 @@ export type Database = {
           timezone?: string
           updated_at?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "churches_subscription_id_fk"
+            columns: ["subscription_id"]
+            isOneToOne: false
+            referencedRelation: "subscriptions"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       custom_field_definitions: {
         Row: {
@@ -975,6 +1033,66 @@ export type Database = {
           },
         ]
       }
+      invitations: {
+        Row: {
+          accepted_at: string | null
+          accepted_by_person_id: string | null
+          church_id: string
+          created_at: string
+          email: string
+          expires_at: string
+          id: string
+          invited_by: string | null
+          revoked_at: string | null
+          role_key: string
+          status: Database["public"]["Enums"]["invitation_status"]
+          token_hash: string
+        }
+        Insert: {
+          accepted_at?: string | null
+          accepted_by_person_id?: string | null
+          church_id: string
+          created_at?: string
+          email: string
+          expires_at?: string
+          id?: string
+          invited_by?: string | null
+          revoked_at?: string | null
+          role_key: string
+          status?: Database["public"]["Enums"]["invitation_status"]
+          token_hash: string
+        }
+        Update: {
+          accepted_at?: string | null
+          accepted_by_person_id?: string | null
+          church_id?: string
+          created_at?: string
+          email?: string
+          expires_at?: string
+          id?: string
+          invited_by?: string | null
+          revoked_at?: string | null
+          role_key?: string
+          status?: Database["public"]["Enums"]["invitation_status"]
+          token_hash?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "invitations_church_id_fkey"
+            columns: ["church_id"]
+            isOneToOne: false
+            referencedRelation: "churches"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "invitations_role_key_fkey"
+            columns: ["role_key"]
+            isOneToOne: false
+            referencedRelation: "roles"
+            referencedColumns: ["key"]
+          },
+        ]
+      }
       modules: {
         Row: {
           description: string | null
@@ -1134,6 +1252,36 @@ export type Database = {
         }
         Relationships: []
       }
+      platform_operators: {
+        Row: {
+          created_at: string
+          granted_by: string | null
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          granted_by?: string | null
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          granted_by?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
+      reserved_slugs: {
+        Row: {
+          slug: string
+        }
+        Insert: {
+          slug: string
+        }
+        Update: {
+          slug?: string
+        }
+        Relationships: []
+      }
       role_capabilities: {
         Row: {
           capability_key: string
@@ -1184,6 +1332,65 @@ export type Database = {
           name?: string
         }
         Relationships: []
+      }
+      subscriptions: {
+        Row: {
+          billing_customer_external_id: string | null
+          billing_provider: string | null
+          cancel_at: string | null
+          cancelled_at: string | null
+          church_id: string
+          created_at: string
+          id: string
+          metadata: Json
+          plan_key: string
+          renews_at: string | null
+          started_at: string
+          status: Database["public"]["Enums"]["subscription_status"]
+          trial_ends_at: string | null
+          updated_at: string
+        }
+        Insert: {
+          billing_customer_external_id?: string | null
+          billing_provider?: string | null
+          cancel_at?: string | null
+          cancelled_at?: string | null
+          church_id: string
+          created_at?: string
+          id?: string
+          metadata?: Json
+          plan_key?: string
+          renews_at?: string | null
+          started_at?: string
+          status?: Database["public"]["Enums"]["subscription_status"]
+          trial_ends_at?: string | null
+          updated_at?: string
+        }
+        Update: {
+          billing_customer_external_id?: string | null
+          billing_provider?: string | null
+          cancel_at?: string | null
+          cancelled_at?: string | null
+          church_id?: string
+          created_at?: string
+          id?: string
+          metadata?: Json
+          plan_key?: string
+          renews_at?: string | null
+          started_at?: string
+          status?: Database["public"]["Enums"]["subscription_status"]
+          trial_ends_at?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "subscriptions_church_id_fkey"
+            columns: ["church_id"]
+            isOneToOne: true
+            referencedRelation: "churches"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       support_sessions: {
         Row: {
@@ -1363,6 +1570,35 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      accept_invitation: {
+        Args: {
+          p_first_name: string
+          p_last_name: string
+          p_phone?: string
+          p_token: string
+        }
+        Returns: {
+          church_id: string
+          person_id: string
+        }[]
+      }
+      assisted_provision_church: {
+        Args: {
+          p_country: string
+          p_currency: string
+          p_locale: string
+          p_module_keys?: string[]
+          p_name: string
+          p_owner_email: string
+          p_slug: string
+          p_timezone: string
+        }
+        Returns: {
+          church_id: string
+          invitation_id: string
+          invitation_token: string
+        }[]
+      }
       has_capability: {
         Args: {
           p_capability: string
@@ -1375,6 +1611,47 @@ export type Database = {
       module_enabled: {
         Args: { p_church_id: string; p_module_key: string }
         Returns: boolean
+      }
+      provision_church: {
+        Args: {
+          p_campus_address?: string
+          p_campus_city?: string
+          p_campus_name?: string
+          p_campus_postal_code?: string
+          p_campus_province?: string
+          p_country: string
+          p_currency: string
+          p_idempotency_key?: string
+          p_locale: string
+          p_module_keys?: string[]
+          p_name: string
+          p_owner_email: string
+          p_owner_first_name: string
+          p_owner_last_name: string
+          p_owner_phone?: string
+          p_slug: string
+          p_timezone: string
+        }
+        Returns: {
+          campus_id: string
+          church_id: string
+          onboarding_id: string
+          person_id: string
+        }[]
+      }
+      slug_available: { Args: { p_slug: string }; Returns: boolean }
+      slugify: { Args: { p_input: string }; Returns: string }
+      unaccent: { Args: { "": string }; Returns: string }
+      write_audit_log: {
+        Args: {
+          p_action: string
+          p_church_id: string
+          p_correlation_id?: string
+          p_entity_id: string
+          p_entity_type: string
+          p_metadata?: Json
+        }
+        Returns: string
       }
     }
     Enums: {
@@ -1394,6 +1671,14 @@ export type Database = {
         | "task"
         | "shift"
       church_module_status: "enabled" | "disabled" | "trial" | "suspended"
+      church_onboarding_step:
+        | "account"
+        | "church"
+        | "campus"
+        | "profile"
+        | "branding"
+        | "modules"
+        | "finish"
       church_people_relationship:
         | "visitor"
         | "connected"
@@ -1418,7 +1703,14 @@ export type Database = {
         | "select"
         | "multi_select"
       file_classification: "public" | "internal" | "personal" | "restricted"
+      invitation_status: "pending" | "accepted" | "expired" | "revoked"
       job_status: "queued" | "processing" | "succeeded" | "failed"
+      subscription_status:
+        | "trial"
+        | "active"
+        | "past_due"
+        | "suspended"
+        | "cancelled"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -1567,6 +1859,15 @@ export const Constants = {
         "shift",
       ],
       church_module_status: ["enabled", "disabled", "trial", "suspended"],
+      church_onboarding_step: [
+        "account",
+        "church",
+        "campus",
+        "profile",
+        "branding",
+        "modules",
+        "finish",
+      ],
       church_people_relationship: [
         "visitor",
         "connected",
@@ -1594,7 +1895,15 @@ export const Constants = {
         "multi_select",
       ],
       file_classification: ["public", "internal", "personal", "restricted"],
+      invitation_status: ["pending", "accepted", "expired", "revoked"],
       job_status: ["queued", "processing", "succeeded", "failed"],
+      subscription_status: [
+        "trial",
+        "active",
+        "past_due",
+        "suspended",
+        "cancelled",
+      ],
     },
   },
 } as const

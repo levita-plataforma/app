@@ -34,16 +34,22 @@ export default async function proxy(request: NextRequest) {
     data: { user },
   } = await supabase.auth.getUser();
 
-  const isAppRoute = request.nextUrl.pathname.startsWith("/app");
-  const isLoginRoute = request.nextUrl.pathname.startsWith("/acceso");
+  const pathname = request.nextUrl.pathname;
+  const isAppRoute = pathname.startsWith("/app");
+  const isLoginRoute = pathname === "/acceso";
+  // El wizard de onboarding y la aceptación de invitación son rutas de
+  // /acceso a propósito: un usuario ya autenticado pero sin iglesia
+  // todavía debe poder seguir en ellas, no rebotar a /app en bucle.
+  const isOnboardingFlowRoute =
+    pathname.startsWith("/acceso/onboarding") || pathname.startsWith("/acceso/invitacion");
 
   if (isAppRoute && !user) {
     const redirectUrl = new URL("/acceso", request.url);
-    redirectUrl.searchParams.set("siguiente", request.nextUrl.pathname);
+    redirectUrl.searchParams.set("siguiente", pathname);
     return NextResponse.redirect(redirectUrl);
   }
 
-  if (isLoginRoute && user) {
+  if ((isLoginRoute || pathname === "/acceso/registro") && user && !isOnboardingFlowRoute) {
     return NextResponse.redirect(new URL("/app", request.url));
   }
 
