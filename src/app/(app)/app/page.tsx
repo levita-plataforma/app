@@ -1,4 +1,4 @@
-import { Users, CalendarDays, UsersRound, TrendingUp } from "lucide-react";
+import { Users, CalendarDays, UsersRound, UserX } from "lucide-react";
 import ModuleGrid from "@/components/shell/ModuleGrid";
 import StatCard from "@/components/shell/StatCard";
 import { requireTenantContext } from "@/server/tenant/tenant-context";
@@ -8,24 +8,47 @@ export default async function InicioPage() {
   const tenant = await requireTenantContext();
   const supabase = await createSupabaseServerClient();
 
-  const [{ count: peopleCount }, { count: activitiesCount }, { data: enabledModules }] =
-    await Promise.all([
-      supabase
-        .from("church_people")
-        .select("id", { count: "exact", head: true })
-        .eq("church_id", tenant.churchId)
-        .is("archived_at", null),
-      supabase
-        .from("activities")
-        .select("id", { count: "exact", head: true })
-        .eq("church_id", tenant.churchId)
-        .is("archived_at", null),
-      supabase
-        .from("church_modules")
-        .select("module_key")
-        .eq("church_id", tenant.churchId)
-        .in("status", ["enabled", "trial"]),
-    ]);
+  const [
+    { count: peopleCount },
+    { count: activitiesCount },
+    { count: householdsCount },
+    { data: peopleWithoutAccount },
+    { data: enabledModules },
+  ] = await Promise.all([
+    supabase
+      .from("church_people")
+      .select("id", { count: "exact", head: true })
+      .eq("church_id", tenant.churchId)
+      .is("archived_at", null),
+    supabase
+      .from("activities")
+      .select("id", { count: "exact", head: true })
+      .eq("church_id", tenant.churchId)
+      .is("archived_at", null),
+    supabase
+      .from("households")
+      .select("id", { count: "exact", head: true })
+      .eq("church_id", tenant.churchId)
+      .is("archived_at", null),
+    // Personas sin cuenta: requiere el join a people porque user_id vive
+    // ahí, no en church_people. Se cuenta en aplicación, no via count()
+    // directo, porque el filtro atraviesa la relación.
+    supabase
+      .from("church_people")
+      .select("people!inner(user_id)")
+      .eq("church_id", tenant.churchId)
+      .is("archived_at", null),
+    supabase
+      .from("church_modules")
+      .select("module_key")
+      .eq("church_id", tenant.churchId)
+      .in("status", ["enabled", "trial"]),
+  ]);
+
+  const peopleWithoutAccountCount = (peopleWithoutAccount ?? []).filter((row) => {
+    const person = Array.isArray(row.people) ? row.people[0] : row.people;
+    return !person?.user_id;
+  }).length;
 
   const enabledModuleKeys = new Set((enabledModules ?? []).map((m) => m.module_key as string));
 
@@ -57,15 +80,15 @@ export default async function InicioPage() {
         />
         <StatCard
           icon={UsersRound}
-          value="0"
-          label="Voluntarios activos"
-          accentBg="var(--mod-serving-bg)"
-          accentFg="var(--mod-serving-fg)"
+          value={String(householdsCount ?? 0)}
+          label="Familias"
+          accentBg="var(--mod-families-bg)"
+          accentFg="var(--mod-families-fg)"
         />
         <StatCard
-          icon={TrendingUp}
-          value="—"
-          label="Cobertura de turnos"
+          icon={UserX}
+          value={String(peopleWithoutAccountCount)}
+          label="Personas sin cuenta"
           accentBg="var(--mod-analytics-bg)"
           accentFg="var(--mod-analytics-fg)"
         />

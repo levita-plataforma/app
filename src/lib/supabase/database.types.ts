@@ -457,6 +457,7 @@ export type Database = {
           person_id: string
           primary_campus_id: string | null
           relationship: Database["public"]["Enums"]["church_people_relationship"]
+          source: Database["public"]["Enums"]["person_source"]
           updated_at: string
         }
         Insert: {
@@ -470,6 +471,7 @@ export type Database = {
           person_id: string
           primary_campus_id?: string | null
           relationship?: Database["public"]["Enums"]["church_people_relationship"]
+          source?: Database["public"]["Enums"]["person_source"]
           updated_at?: string
         }
         Update: {
@@ -483,6 +485,7 @@ export type Database = {
           person_id?: string
           primary_campus_id?: string | null
           relationship?: Database["public"]["Enums"]["church_people_relationship"]
+          source?: Database["public"]["Enums"]["person_source"]
           updated_at?: string
         }
         Relationships: [
@@ -1043,6 +1046,7 @@ export type Database = {
           expires_at: string
           id: string
           invited_by: string | null
+          person_id: string | null
           revoked_at: string | null
           role_key: string
           status: Database["public"]["Enums"]["invitation_status"]
@@ -1057,6 +1061,7 @@ export type Database = {
           expires_at?: string
           id?: string
           invited_by?: string | null
+          person_id?: string | null
           revoked_at?: string | null
           role_key: string
           status?: Database["public"]["Enums"]["invitation_status"]
@@ -1071,6 +1076,7 @@ export type Database = {
           expires_at?: string
           id?: string
           invited_by?: string | null
+          person_id?: string | null
           revoked_at?: string | null
           role_key?: string
           status?: Database["public"]["Enums"]["invitation_status"]
@@ -1082,6 +1088,13 @@ export type Database = {
             columns: ["church_id"]
             isOneToOne: false
             referencedRelation: "churches"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "invitations_person_id_fk"
+            columns: ["person_id"]
+            isOneToOne: false
+            referencedRelation: "people"
             referencedColumns: ["id"]
           },
           {
@@ -1126,13 +1139,16 @@ export type Database = {
           created_at: string
           directory_visible: boolean
           email: string | null
+          email_normalized: string | null
           first_name: string
           id: string
           last_name: string | null
           locale: string | null
           notes: string | null
           phone: string | null
+          phone_normalized: string | null
           preferred_name: string | null
+          source: Database["public"]["Enums"]["person_source"]
           updated_at: string
           user_id: string | null
         }
@@ -1144,13 +1160,16 @@ export type Database = {
           created_at?: string
           directory_visible?: boolean
           email?: string | null
+          email_normalized?: string | null
           first_name: string
           id?: string
           last_name?: string | null
           locale?: string | null
           notes?: string | null
           phone?: string | null
+          phone_normalized?: string | null
           preferred_name?: string | null
+          source?: Database["public"]["Enums"]["person_source"]
           updated_at?: string
           user_id?: string | null
         }
@@ -1162,13 +1181,16 @@ export type Database = {
           created_at?: string
           directory_visible?: boolean
           email?: string | null
+          email_normalized?: string | null
           first_name?: string
           id?: string
           last_name?: string | null
           locale?: string | null
           notes?: string | null
           phone?: string | null
+          phone_normalized?: string | null
           preferred_name?: string | null
+          source?: Database["public"]["Enums"]["person_source"]
           updated_at?: string
           user_id?: string | null
         }
@@ -1582,6 +1604,13 @@ export type Database = {
           person_id: string
         }[]
       }
+      accept_person_invitation: {
+        Args: { p_token: string }
+        Returns: {
+          out_church_id: string
+          out_person_id: string
+        }[]
+      }
       assisted_provision_church: {
         Args: {
           p_country: string
@@ -1599,6 +1628,39 @@ export type Database = {
           invitation_token: string
         }[]
       }
+      create_person: {
+        Args: {
+          p_birth_date?: string
+          p_campus_id?: string
+          p_church_id: string
+          p_email?: string
+          p_first_name: string
+          p_last_name?: string
+          p_phone?: string
+          p_preferred_name?: string
+          p_relationship?: string
+          p_tag_ids?: string[]
+        }
+        Returns: string
+      }
+      find_potential_duplicate_people: {
+        Args: {
+          p_birth_date?: string
+          p_church_id: string
+          p_email?: string
+          p_first_name?: string
+          p_last_name?: string
+          p_phone?: string
+        }
+        Returns: {
+          out_email: string
+          out_first_name: string
+          out_last_name: string
+          out_match_type: string
+          out_person_id: string
+          out_phone: string
+        }[]
+      }
       has_capability: {
         Args: {
           p_capability: string
@@ -1607,6 +1669,18 @@ export type Database = {
           p_scope_type?: string
         }
         Returns: boolean
+      }
+      invite_existing_person: {
+        Args: {
+          p_church_id: string
+          p_email: string
+          p_person_id: string
+          p_role_key?: string
+        }
+        Returns: {
+          out_invitation_id: string
+          out_invitation_token: string
+        }[]
       }
       module_enabled: {
         Args: { p_church_id: string; p_module_key: string }
@@ -1639,6 +1713,8 @@ export type Database = {
           person_id: string
         }[]
       }
+      show_limit: { Args: never; Returns: number }
+      show_trgm: { Args: { "": string }; Returns: string[] }
       slug_available: { Args: { p_slug: string }; Returns: boolean }
       slugify: { Args: { p_input: string }; Returns: string }
       unaccent: { Args: { "": string }; Returns: string }
@@ -1705,6 +1781,12 @@ export type Database = {
       file_classification: "public" | "internal" | "personal" | "restricted"
       invitation_status: "pending" | "accepted" | "expired" | "revoked"
       job_status: "queued" | "processing" | "succeeded" | "failed"
+      person_source:
+        | "manual"
+        | "import"
+        | "registration"
+        | "invitation"
+        | "integration"
       subscription_status:
         | "trial"
         | "active"
@@ -1726,12 +1808,12 @@ export type Tables<
   DefaultSchemaTableNameOrOptions extends
     | keyof (DefaultSchema["Tables"] & DefaultSchema["Views"])
     | { schema: keyof DatabaseWithoutInternals },
-  TableName extends DefaultSchemaTableNameOrOptions extends {
+  TableName extends (DefaultSchemaTableNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
     ? keyof (DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"] &
         DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Views"])
-    : never = never,
+    : never) = never,
 > = DefaultSchemaTableNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
@@ -1755,11 +1837,11 @@ export type TablesInsert<
   DefaultSchemaTableNameOrOptions extends
     | keyof DefaultSchema["Tables"]
     | { schema: keyof DatabaseWithoutInternals },
-  TableName extends DefaultSchemaTableNameOrOptions extends {
+  TableName extends (DefaultSchemaTableNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
     ? keyof DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"]
-    : never = never,
+    : never) = never,
 > = DefaultSchemaTableNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
@@ -1780,11 +1862,11 @@ export type TablesUpdate<
   DefaultSchemaTableNameOrOptions extends
     | keyof DefaultSchema["Tables"]
     | { schema: keyof DatabaseWithoutInternals },
-  TableName extends DefaultSchemaTableNameOrOptions extends {
+  TableName extends (DefaultSchemaTableNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
     ? keyof DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"]
-    : never = never,
+    : never) = never,
 > = DefaultSchemaTableNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
@@ -1805,11 +1887,11 @@ export type Enums<
   DefaultSchemaEnumNameOrOptions extends
     | keyof DefaultSchema["Enums"]
     | { schema: keyof DatabaseWithoutInternals },
-  EnumName extends DefaultSchemaEnumNameOrOptions extends {
+  EnumName extends (DefaultSchemaEnumNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
     ? keyof DatabaseWithoutInternals[DefaultSchemaEnumNameOrOptions["schema"]]["Enums"]
-    : never = never,
+    : never) = never,
 > = DefaultSchemaEnumNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
@@ -1822,11 +1904,11 @@ export type CompositeTypes<
   PublicCompositeTypeNameOrOptions extends
     | keyof DefaultSchema["CompositeTypes"]
     | { schema: keyof DatabaseWithoutInternals },
-  CompositeTypeName extends PublicCompositeTypeNameOrOptions extends {
+  CompositeTypeName extends (PublicCompositeTypeNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
     ? keyof DatabaseWithoutInternals[PublicCompositeTypeNameOrOptions["schema"]]["CompositeTypes"]
-    : never = never,
+    : never) = never,
 > = PublicCompositeTypeNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
@@ -1897,6 +1979,13 @@ export const Constants = {
       file_classification: ["public", "internal", "personal", "restricted"],
       invitation_status: ["pending", "accepted", "expired", "revoked"],
       job_status: ["queued", "processing", "succeeded", "failed"],
+      person_source: [
+        "manual",
+        "import",
+        "registration",
+        "invitation",
+        "integration",
+      ],
       subscription_status: [
         "trial",
         "active",
