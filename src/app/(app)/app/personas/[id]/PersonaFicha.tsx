@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
+import Link from "next/link";
 import {
   actualizarDatosAction,
   archivarAction,
@@ -38,8 +39,59 @@ type Membership = {
 
 type Tag = { id: string; name: string; color: string | null };
 
-const TABS = ["Resumen", "Datos personales", "Familia", "Etiquetas", "Campos personalizados", "Acceso", "Actividad"] as const;
+const TABS = ["Resumen", "Datos personales", "Familia", "Etiquetas", "Campos personalizados", "Acceso", "Actividad", "Servicio"] as const;
 type Tab = (typeof TABS)[number];
+
+/**
+ * Datos de servicio de la persona (Fase 3). Los tipos se declaran aquí en
+ * forma plana porque este componente es de cliente: los servicios de
+ * `src/server/serving` son server-only y no pueden importarse en el bundle.
+ */
+export type ServingInfo = {
+  enabled: boolean;
+  areas: { areaId: string; areaName: string; status: string; level: string }[];
+  teams: { teamId: string; teamName: string; areaName: string; isLeader: boolean }[];
+  qualifications: {
+    id: string;
+    name: string;
+    level: string;
+    verified: boolean;
+    expiresAt: string | null;
+  }[];
+  credentials: {
+    id: string;
+    typeName: string;
+    sensitive: boolean;
+    status: string;
+    expiresAt: string | null;
+  }[];
+};
+
+const AREA_STATUS_LABELS: Record<string, string> = {
+  active: "Activo",
+  training: "En formación",
+  inactive: "Inactivo",
+  suspended: "Suspendido",
+};
+
+const LEVEL_LABELS: Record<string, string> = {
+  trainee: "En formación",
+  assisted: "Asistido",
+  autonomous: "Autónomo",
+  leader: "Responsable",
+  basic: "Básico",
+  intermediate: "Intermedio",
+  advanced: "Avanzado",
+  expert: "Experto",
+};
+
+const CREDENTIAL_STATUS_LABELS: Record<string, string> = {
+  pending: "Pendiente",
+  valid: "Válida",
+  expired: "Vencida",
+  rejected: "Rechazada",
+  revoked: "Revocada",
+};
 
 export default function PersonaFicha(props: {
   canManage: boolean;
@@ -53,6 +105,7 @@ export default function PersonaFicha(props: {
   customFieldDefinitions: CustomFieldDefinition[];
   customFieldValues: { fieldId: string; value: unknown }[];
   auditEvents: { id: string; action: string; createdAt: string; metadata: Record<string, unknown> }[];
+  serving: ServingInfo;
 }) {
   const { person, membership, canManage } = props;
   const [tab, setTab] = useState<Tab>("Resumen");
@@ -151,6 +204,7 @@ export default function PersonaFicha(props: {
       )}
       {tab === "Acceso" && <AccesoTab person={person} />}
       {tab === "Actividad" && <ActividadTab events={props.auditEvents} />}
+      {tab === "Servicio" && <ServicioTab serving={props.serving} />}
     </>
   );
 }
@@ -530,6 +584,151 @@ function AccesoTab({ person }: { person: Person }) {
       >
         {pending ? "Enviando…" : "Invitar a LEVITA"}
       </button>
+    </div>
+  );
+}
+
+function ServicioTab({ serving }: { serving: ServingInfo }) {
+  if (!serving.enabled) {
+    return (
+      <div className="shell-card shell-empty-state">
+        <h3>El módulo Servicios no está activo</h3>
+        <p>Actívalo desde Configuración para ver áreas, equipos y cualificaciones de esta persona.</p>
+      </div>
+    );
+  }
+
+  const hasAnything =
+    serving.areas.length > 0 ||
+    serving.teams.length > 0 ||
+    serving.qualifications.length > 0 ||
+    serving.credentials.length > 0;
+
+  if (!hasAnything) {
+    return (
+      <div className="shell-card shell-empty-state">
+        <h3>Esta persona todavía no sirve en ningún área</h3>
+        <p>Añádela a un área de servicio desde la ficha del área correspondiente.</p>
+        <Link
+          href="/app/servicios/areas"
+          style={{ fontSize: 12.5, fontWeight: 600, color: "var(--shell-brand)", textDecoration: "none", marginTop: 8 }}
+        >
+          Ir a Áreas de servicio →
+        </Link>
+      </div>
+    );
+  }
+
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+      <div className="shell-card" style={{ padding: 20, display: "flex", flexDirection: "column", gap: 10 }}>
+        <p style={{ fontSize: 13.5, fontWeight: 600 }}>Áreas de servicio</p>
+        {serving.areas.length === 0 ? (
+          <p style={{ fontSize: 12.5, color: "var(--shell-text-muted)" }}>No pertenece a ningún área.</p>
+        ) : (
+          <ul style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+            {serving.areas.map((a) => (
+              <li
+                key={a.areaId}
+                style={{ display: "flex", justifyContent: "space-between", gap: 10, flexWrap: "wrap", fontSize: 13 }}
+              >
+                <Link
+                  href={`/app/servicios/areas/${a.areaId}`}
+                  style={{ fontWeight: 600, color: "var(--shell-text)", textDecoration: "none" }}
+                >
+                  {a.areaName}
+                </Link>
+                <span style={{ display: "flex", gap: 6 }}>
+                  <span className="serving-chip is-muted">{LEVEL_LABELS[a.level] ?? a.level}</span>
+                  <span className={`serving-chip ${a.status === "active" ? "is-success" : "is-warning"}`}>
+                    {AREA_STATUS_LABELS[a.status] ?? a.status}
+                  </span>
+                </span>
+              </li>
+            ))}
+          </ul>
+        )}
+      </div>
+
+      <div className="shell-card" style={{ padding: 20, display: "flex", flexDirection: "column", gap: 10 }}>
+        <p style={{ fontSize: 13.5, fontWeight: 600 }}>Equipos</p>
+        {serving.teams.length === 0 ? (
+          <p style={{ fontSize: 12.5, color: "var(--shell-text-muted)" }}>No forma parte de ningún equipo.</p>
+        ) : (
+          <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
+            {serving.teams.map((t) => (
+              <span key={t.teamId} className={`serving-chip ${t.isLeader ? "is-success" : ""}`}>
+                {t.teamName} · {t.areaName}
+                {t.isLeader ? " · Líder" : ""}
+              </span>
+            ))}
+          </div>
+        )}
+      </div>
+
+      <div className="shell-card" style={{ padding: 20, display: "flex", flexDirection: "column", gap: 10 }}>
+        <p style={{ fontSize: 13.5, fontWeight: 600 }}>Cualificaciones</p>
+        {serving.qualifications.length === 0 ? (
+          <p style={{ fontSize: 12.5, color: "var(--shell-text-muted)" }}>Sin cualificaciones registradas.</p>
+        ) : (
+          <ul style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+            {serving.qualifications.map((q) => (
+              <li
+                key={q.id}
+                style={{ display: "flex", justifyContent: "space-between", gap: 10, flexWrap: "wrap", fontSize: 13 }}
+              >
+                <span style={{ fontWeight: 600 }}>{q.name}</span>
+                <span style={{ display: "flex", gap: 6, alignItems: "center" }}>
+                  <span className="serving-chip is-muted">{LEVEL_LABELS[q.level] ?? q.level}</span>
+                  <span className={`serving-chip ${q.verified ? "is-success" : "is-warning"}`}>
+                    {q.verified ? "Verificada" : "Sin verificar"}
+                  </span>
+                  {q.expiresAt ? (
+                    <span style={{ fontSize: 12, color: "var(--shell-text-muted)" }}>
+                      Vence {new Date(q.expiresAt).toLocaleDateString("es-ES")}
+                    </span>
+                  ) : null}
+                </span>
+              </li>
+            ))}
+          </ul>
+        )}
+      </div>
+
+      <div className="shell-card" style={{ padding: 20, display: "flex", flexDirection: "column", gap: 10 }}>
+        <p style={{ fontSize: 13.5, fontWeight: 600 }}>Credenciales</p>
+        <p style={{ fontSize: 11.5, color: "var(--shell-text-subtle)" }}>
+          LEVITA guarda el estado y la vigencia, nunca el documento. Las credenciales sensibles solo
+          son visibles con el permiso correspondiente.
+        </p>
+        {serving.credentials.length === 0 ? (
+          <p style={{ fontSize: 12.5, color: "var(--shell-text-muted)" }}>Sin credenciales visibles.</p>
+        ) : (
+          <ul style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+            {serving.credentials.map((c) => (
+              <li
+                key={c.id}
+                style={{ display: "flex", justifyContent: "space-between", gap: 10, flexWrap: "wrap", fontSize: 13 }}
+              >
+                <span style={{ fontWeight: 600 }}>
+                  {c.typeName}
+                  {c.sensitive ? " 🔒" : ""}
+                </span>
+                <span style={{ display: "flex", gap: 6, alignItems: "center" }}>
+                  <span className={`serving-chip ${c.status === "valid" ? "is-success" : c.status === "pending" ? "is-warning" : "is-danger"}`}>
+                    {CREDENTIAL_STATUS_LABELS[c.status] ?? c.status}
+                  </span>
+                  {c.expiresAt ? (
+                    <span style={{ fontSize: 12, color: "var(--shell-text-muted)" }}>
+                      Vence {new Date(c.expiresAt).toLocaleDateString("es-ES")}
+                    </span>
+                  ) : null}
+                </span>
+              </li>
+            ))}
+          </ul>
+        )}
+      </div>
     </div>
   );
 }

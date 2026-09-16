@@ -4,6 +4,11 @@ import { createSupabaseServerClient } from "@/server/supabase/server-client";
 import { hasCapability } from "@/server/tenant/authorize";
 import { listCustomFieldDefinitions, getCustomFieldValues } from "@/server/people/custom-fields-service";
 import { listHouseholds } from "@/server/people/households-service";
+import { isModuleEnabled } from "@/server/tenant/authorize";
+import { listAreasForPerson } from "@/server/serving/service-area-members-service";
+import { listTeamsForPerson } from "@/server/serving/service-teams-service";
+import { listPersonQualifications } from "@/server/serving/qualifications-service";
+import { listPersonCredentials } from "@/server/serving/credentials-service";
 import PersonaFicha from "./PersonaFicha";
 
 export default async function PersonaPage({
@@ -49,6 +54,18 @@ export default async function PersonaPage({
         .limit(20),
     ]);
 
+  // Datos de servicio (Fase 3): solo si el módulo está habilitado. Reutiliza
+  // los servicios de src/server/serving, sin duplicar lógica de acceso.
+  const servingEnabled = await isModuleEnabled(tenant.churchId, "serving");
+  const [servingAreas, servingTeams, servingQualifications, servingCredentials] = servingEnabled
+    ? await Promise.all([
+        listAreasForPerson(tenant.churchId, id),
+        listTeamsForPerson(tenant.churchId, id),
+        listPersonQualifications(tenant.churchId, id),
+        listPersonCredentials(tenant.churchId, id),
+      ])
+    : [[], [], [], []];
+
   const campus = Array.isArray(churchPerson.campuses) ? churchPerson.campuses[0] : churchPerson.campuses;
   const personTags = (tags ?? [])
     .map((t) => (Array.isArray(t.tags) ? t.tags[0] : t.tags))
@@ -84,6 +101,30 @@ export default async function PersonaPage({
       customFieldDefinitions={customFieldDefs}
       customFieldValues={customFieldValues}
       auditEvents={(auditEvents ?? []).map((e) => ({ id: e.id, action: e.action, createdAt: e.created_at, metadata: e.metadata as Record<string, unknown> }))}
+      serving={{
+        enabled: servingEnabled,
+        areas: servingAreas.map((a) => ({
+          areaId: a.areaId,
+          areaName: a.areaName,
+          status: a.status,
+          level: a.level,
+        })),
+        teams: servingTeams,
+        qualifications: servingQualifications.map((q) => ({
+          id: q.id,
+          name: q.qualificationName,
+          level: q.level,
+          verified: q.verified,
+          expiresAt: q.expiresAt,
+        })),
+        credentials: servingCredentials.map((c) => ({
+          id: c.id,
+          typeName: c.credentialTypeName,
+          sensitive: c.sensitive,
+          status: c.status,
+          expiresAt: c.expiresAt,
+        })),
+      }}
     />
   );
 }

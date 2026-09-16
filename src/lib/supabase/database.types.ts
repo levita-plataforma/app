@@ -626,6 +626,53 @@ export type Database = {
           },
         ]
       }
+      credential_types: {
+        Row: {
+          active: boolean
+          archived_at: string | null
+          church_id: string
+          created_at: string
+          description: string | null
+          id: string
+          name: string
+          requires_expiry: boolean
+          sensitive: boolean
+          updated_at: string
+        }
+        Insert: {
+          active?: boolean
+          archived_at?: string | null
+          church_id: string
+          created_at?: string
+          description?: string | null
+          id?: string
+          name: string
+          requires_expiry?: boolean
+          sensitive?: boolean
+          updated_at?: string
+        }
+        Update: {
+          active?: boolean
+          archived_at?: string | null
+          church_id?: string
+          created_at?: string
+          description?: string | null
+          id?: string
+          name?: string
+          requires_expiry?: boolean
+          sensitive?: boolean
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "credential_types_church_id_fkey"
+            columns: ["church_id"]
+            isOneToOne: false
+            referencedRelation: "churches"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       custom_field_definitions: {
         Row: {
           archived_at: string | null
@@ -1204,6 +1251,140 @@ export type Database = {
           },
         ]
       }
+      person_credentials: {
+        Row: {
+          church_id: string
+          created_at: string
+          credential_type_id: string
+          expires_at: string | null
+          id: string
+          issued_at: string | null
+          person_id: string
+          reference: string | null
+          status: Database["public"]["Enums"]["credential_status"]
+          updated_at: string
+          verified_at: string | null
+          verified_by: string | null
+        }
+        Insert: {
+          church_id: string
+          created_at?: string
+          credential_type_id: string
+          expires_at?: string | null
+          id?: string
+          issued_at?: string | null
+          person_id: string
+          reference?: string | null
+          status?: Database["public"]["Enums"]["credential_status"]
+          updated_at?: string
+          verified_at?: string | null
+          verified_by?: string | null
+        }
+        Update: {
+          church_id?: string
+          created_at?: string
+          credential_type_id?: string
+          expires_at?: string | null
+          id?: string
+          issued_at?: string | null
+          person_id?: string
+          reference?: string | null
+          status?: Database["public"]["Enums"]["credential_status"]
+          updated_at?: string
+          verified_at?: string | null
+          verified_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "person_credentials_church_id_fkey"
+            columns: ["church_id"]
+            isOneToOne: false
+            referencedRelation: "churches"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "person_credentials_credential_type_id_church_id_fkey"
+            columns: ["credential_type_id", "church_id"]
+            isOneToOne: false
+            referencedRelation: "credential_types"
+            referencedColumns: ["id", "church_id"]
+          },
+          {
+            foreignKeyName: "person_credentials_person_id_fkey"
+            columns: ["person_id"]
+            isOneToOne: false
+            referencedRelation: "people"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      person_qualifications: {
+        Row: {
+          church_id: string
+          created_at: string
+          expires_at: string | null
+          id: string
+          level: Database["public"]["Enums"]["qualification_level"]
+          notes: string | null
+          person_id: string
+          qualification_id: string
+          updated_at: string
+          verified: boolean
+          verified_at: string | null
+          verified_by: string | null
+        }
+        Insert: {
+          church_id: string
+          created_at?: string
+          expires_at?: string | null
+          id?: string
+          level?: Database["public"]["Enums"]["qualification_level"]
+          notes?: string | null
+          person_id: string
+          qualification_id: string
+          updated_at?: string
+          verified?: boolean
+          verified_at?: string | null
+          verified_by?: string | null
+        }
+        Update: {
+          church_id?: string
+          created_at?: string
+          expires_at?: string | null
+          id?: string
+          level?: Database["public"]["Enums"]["qualification_level"]
+          notes?: string | null
+          person_id?: string
+          qualification_id?: string
+          updated_at?: string
+          verified?: boolean
+          verified_at?: string | null
+          verified_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "person_qualifications_church_id_fkey"
+            columns: ["church_id"]
+            isOneToOne: false
+            referencedRelation: "churches"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "person_qualifications_person_id_fkey"
+            columns: ["person_id"]
+            isOneToOne: false
+            referencedRelation: "people"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "person_qualifications_qualification_id_church_id_fkey"
+            columns: ["qualification_id", "church_id"]
+            isOneToOne: false
+            referencedRelation: "qualifications"
+            referencedColumns: ["id", "church_id"]
+          },
+        ]
+      }
       person_tags: {
         Row: {
           church_id: string
@@ -1292,6 +1473,130 @@ export type Database = {
         }
         Relationships: []
       }
+      position_requirements: {
+        Row: {
+          church_id: string
+          created_at: string
+          credential_type_id: string | null
+          id: string
+          min_level: Database["public"]["Enums"]["qualification_level"] | null
+          min_operational_level:
+            | Database["public"]["Enums"]["service_operational_level"]
+            | null
+          qualification_id: string | null
+          requirement_type: Database["public"]["Enums"]["position_requirement_type"]
+          requires_current_validity: boolean
+          service_position_id: string
+          strictness: Database["public"]["Enums"]["position_requirement_strictness"]
+        }
+        Insert: {
+          church_id: string
+          created_at?: string
+          credential_type_id?: string | null
+          id?: string
+          min_level?: Database["public"]["Enums"]["qualification_level"] | null
+          min_operational_level?:
+            | Database["public"]["Enums"]["service_operational_level"]
+            | null
+          qualification_id?: string | null
+          requirement_type: Database["public"]["Enums"]["position_requirement_type"]
+          requires_current_validity?: boolean
+          service_position_id: string
+          strictness?: Database["public"]["Enums"]["position_requirement_strictness"]
+        }
+        Update: {
+          church_id?: string
+          created_at?: string
+          credential_type_id?: string | null
+          id?: string
+          min_level?: Database["public"]["Enums"]["qualification_level"] | null
+          min_operational_level?:
+            | Database["public"]["Enums"]["service_operational_level"]
+            | null
+          qualification_id?: string | null
+          requirement_type?: Database["public"]["Enums"]["position_requirement_type"]
+          requires_current_validity?: boolean
+          service_position_id?: string
+          strictness?: Database["public"]["Enums"]["position_requirement_strictness"]
+        }
+        Relationships: [
+          {
+            foreignKeyName: "position_requirements_church_id_fkey"
+            columns: ["church_id"]
+            isOneToOne: false
+            referencedRelation: "churches"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "position_requirements_credential_type_id_church_id_fkey"
+            columns: ["credential_type_id", "church_id"]
+            isOneToOne: false
+            referencedRelation: "credential_types"
+            referencedColumns: ["id", "church_id"]
+          },
+          {
+            foreignKeyName: "position_requirements_qualification_id_church_id_fkey"
+            columns: ["qualification_id", "church_id"]
+            isOneToOne: false
+            referencedRelation: "qualifications"
+            referencedColumns: ["id", "church_id"]
+          },
+          {
+            foreignKeyName: "position_requirements_service_position_id_church_id_fkey"
+            columns: ["service_position_id", "church_id"]
+            isOneToOne: false
+            referencedRelation: "service_positions"
+            referencedColumns: ["id", "church_id"]
+          },
+        ]
+      }
+      qualifications: {
+        Row: {
+          active: boolean
+          archived_at: string | null
+          category: string | null
+          church_id: string
+          created_at: string
+          description: string | null
+          expiry_required: boolean
+          id: string
+          name: string
+          updated_at: string
+        }
+        Insert: {
+          active?: boolean
+          archived_at?: string | null
+          category?: string | null
+          church_id: string
+          created_at?: string
+          description?: string | null
+          expiry_required?: boolean
+          id?: string
+          name: string
+          updated_at?: string
+        }
+        Update: {
+          active?: boolean
+          archived_at?: string | null
+          category?: string | null
+          church_id?: string
+          created_at?: string
+          description?: string | null
+          expiry_required?: boolean
+          id?: string
+          name?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "qualifications_church_id_fkey"
+            columns: ["church_id"]
+            isOneToOne: false
+            referencedRelation: "churches"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       reserved_slugs: {
         Row: {
           slug: string
@@ -1354,6 +1659,432 @@ export type Database = {
           name?: string
         }
         Relationships: []
+      }
+      service_area_leaders: {
+        Row: {
+          campus_id: string | null
+          church_id: string
+          created_at: string
+          ends_at: string | null
+          id: string
+          is_primary: boolean
+          person_id: string
+          service_area_id: string
+          starts_at: string
+        }
+        Insert: {
+          campus_id?: string | null
+          church_id: string
+          created_at?: string
+          ends_at?: string | null
+          id?: string
+          is_primary?: boolean
+          person_id: string
+          service_area_id: string
+          starts_at?: string
+        }
+        Update: {
+          campus_id?: string | null
+          church_id?: string
+          created_at?: string
+          ends_at?: string | null
+          id?: string
+          is_primary?: boolean
+          person_id?: string
+          service_area_id?: string
+          starts_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "service_area_leaders_campus_id_church_id_fkey"
+            columns: ["campus_id", "church_id"]
+            isOneToOne: false
+            referencedRelation: "campuses"
+            referencedColumns: ["id", "church_id"]
+          },
+          {
+            foreignKeyName: "service_area_leaders_church_id_fkey"
+            columns: ["church_id"]
+            isOneToOne: false
+            referencedRelation: "churches"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "service_area_leaders_person_id_fkey"
+            columns: ["person_id"]
+            isOneToOne: false
+            referencedRelation: "people"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "service_area_leaders_service_area_id_church_id_fkey"
+            columns: ["service_area_id", "church_id"]
+            isOneToOne: false
+            referencedRelation: "service_areas"
+            referencedColumns: ["id", "church_id"]
+          },
+        ]
+      }
+      service_area_members: {
+        Row: {
+          church_id: string
+          created_at: string
+          id: string
+          joined_at: string
+          left_at: string | null
+          level: Database["public"]["Enums"]["service_operational_level"]
+          notes: string | null
+          person_id: string
+          service_area_id: string
+          status: Database["public"]["Enums"]["service_area_member_status"]
+          updated_at: string
+        }
+        Insert: {
+          church_id: string
+          created_at?: string
+          id?: string
+          joined_at?: string
+          left_at?: string | null
+          level?: Database["public"]["Enums"]["service_operational_level"]
+          notes?: string | null
+          person_id: string
+          service_area_id: string
+          status?: Database["public"]["Enums"]["service_area_member_status"]
+          updated_at?: string
+        }
+        Update: {
+          church_id?: string
+          created_at?: string
+          id?: string
+          joined_at?: string
+          left_at?: string | null
+          level?: Database["public"]["Enums"]["service_operational_level"]
+          notes?: string | null
+          person_id?: string
+          service_area_id?: string
+          status?: Database["public"]["Enums"]["service_area_member_status"]
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "service_area_members_church_id_fkey"
+            columns: ["church_id"]
+            isOneToOne: false
+            referencedRelation: "churches"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "service_area_members_person_id_fkey"
+            columns: ["person_id"]
+            isOneToOne: false
+            referencedRelation: "people"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "service_area_members_service_area_id_church_id_fkey"
+            columns: ["service_area_id", "church_id"]
+            isOneToOne: false
+            referencedRelation: "service_areas"
+            referencedColumns: ["id", "church_id"]
+          },
+        ]
+      }
+      service_area_templates: {
+        Row: {
+          description: string | null
+          icon: string | null
+          key: string
+          name: string
+          sort_order: number
+        }
+        Insert: {
+          description?: string | null
+          icon?: string | null
+          key: string
+          name: string
+          sort_order?: number
+        }
+        Update: {
+          description?: string | null
+          icon?: string | null
+          key?: string
+          name?: string
+          sort_order?: number
+        }
+        Relationships: []
+      }
+      service_areas: {
+        Row: {
+          accent_color: string | null
+          active: boolean
+          archived_at: string | null
+          archived_by: string | null
+          campus_id: string | null
+          church_id: string
+          created_at: string
+          description: string | null
+          icon: string | null
+          id: string
+          name: string
+          slug: string
+          sort_order: number
+          updated_at: string
+        }
+        Insert: {
+          accent_color?: string | null
+          active?: boolean
+          archived_at?: string | null
+          archived_by?: string | null
+          campus_id?: string | null
+          church_id: string
+          created_at?: string
+          description?: string | null
+          icon?: string | null
+          id?: string
+          name: string
+          slug: string
+          sort_order?: number
+          updated_at?: string
+        }
+        Update: {
+          accent_color?: string | null
+          active?: boolean
+          archived_at?: string | null
+          archived_by?: string | null
+          campus_id?: string | null
+          church_id?: string
+          created_at?: string
+          description?: string | null
+          icon?: string | null
+          id?: string
+          name?: string
+          slug?: string
+          sort_order?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "service_areas_campus_id_church_id_fkey"
+            columns: ["campus_id", "church_id"]
+            isOneToOne: false
+            referencedRelation: "campuses"
+            referencedColumns: ["id", "church_id"]
+          },
+          {
+            foreignKeyName: "service_areas_church_id_fkey"
+            columns: ["church_id"]
+            isOneToOne: false
+            referencedRelation: "churches"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      service_positions: {
+        Row: {
+          active: boolean
+          archived_at: string | null
+          archived_by: string | null
+          campus_id: string | null
+          church_id: string
+          created_at: string
+          critical: boolean
+          description: string | null
+          id: string
+          max_people: number | null
+          min_people: number
+          name: string
+          requires_autonomous_person: boolean
+          service_area_id: string
+          sort_order: number
+          updated_at: string
+        }
+        Insert: {
+          active?: boolean
+          archived_at?: string | null
+          archived_by?: string | null
+          campus_id?: string | null
+          church_id: string
+          created_at?: string
+          critical?: boolean
+          description?: string | null
+          id?: string
+          max_people?: number | null
+          min_people?: number
+          name: string
+          requires_autonomous_person?: boolean
+          service_area_id: string
+          sort_order?: number
+          updated_at?: string
+        }
+        Update: {
+          active?: boolean
+          archived_at?: string | null
+          archived_by?: string | null
+          campus_id?: string | null
+          church_id?: string
+          created_at?: string
+          critical?: boolean
+          description?: string | null
+          id?: string
+          max_people?: number | null
+          min_people?: number
+          name?: string
+          requires_autonomous_person?: boolean
+          service_area_id?: string
+          sort_order?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "service_positions_campus_id_church_id_fkey"
+            columns: ["campus_id", "church_id"]
+            isOneToOne: false
+            referencedRelation: "campuses"
+            referencedColumns: ["id", "church_id"]
+          },
+          {
+            foreignKeyName: "service_positions_church_id_fkey"
+            columns: ["church_id"]
+            isOneToOne: false
+            referencedRelation: "churches"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "service_positions_service_area_id_church_id_fkey"
+            columns: ["service_area_id", "church_id"]
+            isOneToOne: false
+            referencedRelation: "service_areas"
+            referencedColumns: ["id", "church_id"]
+          },
+        ]
+      }
+      service_team_members: {
+        Row: {
+          church_id: string
+          created_at: string
+          id: string
+          is_leader: boolean
+          joined_at: string
+          left_at: string | null
+          person_id: string
+          service_team_id: string
+          sort_order: number
+          status: Database["public"]["Enums"]["service_area_member_status"]
+        }
+        Insert: {
+          church_id: string
+          created_at?: string
+          id?: string
+          is_leader?: boolean
+          joined_at?: string
+          left_at?: string | null
+          person_id: string
+          service_team_id: string
+          sort_order?: number
+          status?: Database["public"]["Enums"]["service_area_member_status"]
+        }
+        Update: {
+          church_id?: string
+          created_at?: string
+          id?: string
+          is_leader?: boolean
+          joined_at?: string
+          left_at?: string | null
+          person_id?: string
+          service_team_id?: string
+          sort_order?: number
+          status?: Database["public"]["Enums"]["service_area_member_status"]
+        }
+        Relationships: [
+          {
+            foreignKeyName: "service_team_members_church_id_fkey"
+            columns: ["church_id"]
+            isOneToOne: false
+            referencedRelation: "churches"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "service_team_members_person_id_fkey"
+            columns: ["person_id"]
+            isOneToOne: false
+            referencedRelation: "people"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "service_team_members_service_team_id_church_id_fkey"
+            columns: ["service_team_id", "church_id"]
+            isOneToOne: false
+            referencedRelation: "service_teams"
+            referencedColumns: ["id", "church_id"]
+          },
+        ]
+      }
+      service_teams: {
+        Row: {
+          active: boolean
+          archived_at: string | null
+          archived_by: string | null
+          campus_id: string | null
+          church_id: string
+          created_at: string
+          description: string | null
+          id: string
+          name: string
+          service_area_id: string
+          sort_order: number
+          updated_at: string
+        }
+        Insert: {
+          active?: boolean
+          archived_at?: string | null
+          archived_by?: string | null
+          campus_id?: string | null
+          church_id: string
+          created_at?: string
+          description?: string | null
+          id?: string
+          name: string
+          service_area_id: string
+          sort_order?: number
+          updated_at?: string
+        }
+        Update: {
+          active?: boolean
+          archived_at?: string | null
+          archived_by?: string | null
+          campus_id?: string | null
+          church_id?: string
+          created_at?: string
+          description?: string | null
+          id?: string
+          name?: string
+          service_area_id?: string
+          sort_order?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "service_teams_campus_id_church_id_fkey"
+            columns: ["campus_id", "church_id"]
+            isOneToOne: false
+            referencedRelation: "campuses"
+            referencedColumns: ["id", "church_id"]
+          },
+          {
+            foreignKeyName: "service_teams_church_id_fkey"
+            columns: ["church_id"]
+            isOneToOne: false
+            referencedRelation: "churches"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "service_teams_service_area_id_church_id_fkey"
+            columns: ["service_area_id", "church_id"]
+            isOneToOne: false
+            referencedRelation: "service_areas"
+            referencedColumns: ["id", "church_id"]
+          },
+        ]
       }
       subscriptions: {
         Row: {
@@ -1643,6 +2374,25 @@ export type Database = {
         }
         Returns: string
       }
+      eligible_people_for_position: {
+        Args: { p_church_id: string; p_service_position_id: string }
+        Returns: {
+          person_id: string
+          reasons: string[]
+          status: Database["public"]["Enums"]["eligibility_status"]
+        }[]
+      }
+      evaluate_person_eligibility: {
+        Args: {
+          p_church_id: string
+          p_person_id: string
+          p_service_position_id: string
+        }
+        Returns: {
+          reasons: string[]
+          status: Database["public"]["Enums"]["eligibility_status"]
+        }[]
+      }
       find_potential_duplicate_people: {
         Args: {
           p_birth_date?: string
@@ -1771,6 +2521,12 @@ export type Database = {
         | "suspended"
         | "cancelling"
         | "archived"
+      credential_status:
+        | "pending"
+        | "valid"
+        | "expired"
+        | "rejected"
+        | "revoked"
       custom_field_type:
         | "text"
         | "number"
@@ -1778,6 +2534,7 @@ export type Database = {
         | "boolean"
         | "select"
         | "multi_select"
+      eligibility_status: "eligible" | "eligible_with_warning" | "not_eligible"
       file_classification: "public" | "internal" | "personal" | "restricted"
       invitation_status: "pending" | "accepted" | "expired" | "revoked"
       job_status: "queued" | "processing" | "succeeded" | "failed"
@@ -1787,6 +2544,22 @@ export type Database = {
         | "registration"
         | "invitation"
         | "integration"
+      position_requirement_strictness: "required" | "recommended"
+      position_requirement_type:
+        | "qualification"
+        | "credential"
+        | "minimum_level"
+      qualification_level: "basic" | "intermediate" | "advanced" | "expert"
+      service_area_member_status:
+        | "active"
+        | "training"
+        | "inactive"
+        | "suspended"
+      service_operational_level:
+        | "trainee"
+        | "assisted"
+        | "autonomous"
+        | "leader"
       subscription_status:
         | "trial"
         | "active"
@@ -1968,6 +2741,7 @@ export const Constants = {
         "cancelling",
         "archived",
       ],
+      credential_status: ["pending", "valid", "expired", "rejected", "revoked"],
       custom_field_type: [
         "text",
         "number",
@@ -1976,6 +2750,7 @@ export const Constants = {
         "select",
         "multi_select",
       ],
+      eligibility_status: ["eligible", "eligible_with_warning", "not_eligible"],
       file_classification: ["public", "internal", "personal", "restricted"],
       invitation_status: ["pending", "accepted", "expired", "revoked"],
       job_status: ["queued", "processing", "succeeded", "failed"],
@@ -1985,6 +2760,25 @@ export const Constants = {
         "registration",
         "invitation",
         "integration",
+      ],
+      position_requirement_strictness: ["required", "recommended"],
+      position_requirement_type: [
+        "qualification",
+        "credential",
+        "minimum_level",
+      ],
+      qualification_level: ["basic", "intermediate", "advanced", "expert"],
+      service_area_member_status: [
+        "active",
+        "training",
+        "inactive",
+        "suspended",
+      ],
+      service_operational_level: [
+        "trainee",
+        "assisted",
+        "autonomous",
+        "leader",
       ],
       subscription_status: [
         "trial",
