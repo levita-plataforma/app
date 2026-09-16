@@ -1,10 +1,12 @@
 # Aplicaciones, navegación y superficies
 
-Revisión: **15 de septiembre de 2026**.
+Revisión: **16 de septiembre de 2026**.
 
 ## 1. Estrategia
 
-LEVITA debe sentirse como una sola plataforma aunque internamente sea modular. La UI/UX común procede de Calserv / LFY Worship. Evitar aplicaciones visualmente independientes por módulo.
+LEVITA debe sentirse como una sola plataforma aunque internamente sea modular. La UI/UX común procedía de Calserv / LFY Worship como referencia visual; desde el 16 de septiembre de 2026 la referencia visual vigente es `imagenes/layout*.png` (ver [ADR 0016](adr/0016-referencia-visual-layout.md)), conservando de Calserv el comportamiento común no visual. Evitar aplicaciones visualmente independientes por módulo.
+
+**Estado de implementación (Fase 0):** la shell autenticada vive en `src/app/(app)/app` del repositorio `levita-app`, un único proyecto Next.js con route groups en vez de dos aplicaciones separadas (ver [ADR 0015](adr/0015-repositorio-unico-monorepo.md)). Sidebar con navegación condicionada por módulo habilitado, header con búsqueda/sede/campana/perfil, responsive con toggle de sidebar en móvil (<860px). Ningún módulo funcional tiene CRUD real todavía: sus rutas muestran un placeholder de navegación.
 
 ## 2. Superficies
 

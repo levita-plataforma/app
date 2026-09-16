@@ -1,6 +1,8 @@
 # Arquitectura SaaS multi-tenant profesional
 
-Revisión: **15 de septiembre de 2026**.
+Revisión: **16 de septiembre de 2026**.
+
+**Estado de implementación (Fase 0):** el modelo de tenancy (§1-6), el `TenantContext` centralizado (§4) y el provisioning idempotente básico (§8, vía seed sintético) están implementados. Rate limiting (§10), caché tenant-aware (§12) y backup/restore probado (§14) quedan como trabajo de fases posteriores (Fase 13, hardening). Ver [13-plan-por-fases.md](13-plan-por-fases.md#estado--16-de-septiembre-de-2026).
 
 ## 1. Modelo de tenancy
 

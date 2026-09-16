@@ -1,0 +1,61 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+jobs:
+  app:
+    name: Lint, typecheck y build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: "npm"
+
+      - name: Instalar dependencias
+        run: npm ci
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Typecheck
+        run: npm run typecheck
+
+      - name: Build
+        run: npm run build
+        env:
+          # Valores dummy suficientes para que el build no falle por env
+          # faltante; ninguna ruta ejecuta lógica real de Supabase en build
+          # time. Nunca usar secretos reales en CI para el build estático.
+          NEXT_PUBLIC_SUPABASE_URL: "http://127.0.0.1:54321"
+          NEXT_PUBLIC_SUPABASE_ANON_KEY: "ci-placeholder-anon-key"
+
+  database:
+    name: Migraciones y tests de aislamiento (RLS)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: supabase/setup-cli@v1
+        with:
+          version: latest
+
+      - name: Levantar Supabase local (aplica migraciones)
+        run: supabase start
+
+      - name: Ejecutar tests de aislamiento y cobertura RLS (pgTAP)
+        run: supabase test db
+
+      - name: Comprobar que `supabase db diff` no detecta cambios sin migrar
+        run: |
+          diff_output=$(supabase db diff --local)
+          if [ -n "$diff_output" ]; then
+            echo "Hay cambios de esquema sin capturar en una migración:"
+            echo "$diff_output"
+            exit 1
+          fi

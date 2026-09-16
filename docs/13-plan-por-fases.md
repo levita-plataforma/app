@@ -32,7 +32,7 @@ Cada fase termina cuando cumple sus criterios de salida y pruebas, no cuando exi
 - Definir backup y restauración.
 - Definir soporte/impersonación.
 - Consolidar RLS, grants y constraints tenant-safe.
-- Reutilizar sistema visual, navegación, perfil, tema, campana y comportamiento común de Calserv.
+- Reutilizar sistema visual, navegación, perfil, tema, campana y comportamiento común de Calserv — **sustituido**: la referencia visual vigente es `imagenes/layout*.png` (ver [D18](07-decisiones.md) y [ADR 0016](adr/0016-referencia-visual-layout.md)); se conserva de Calserv el comportamiento común no visual.
 
 ### No incluye todavía
 
@@ -41,6 +41,20 @@ CRUD completo de todos los módulos ni migración de Alabanza.
 ### Criterio de salida
 
 Existe esquema/ADR aprobado para todas las entidades core, pruebas de aislamiento base y una shell de aplicación reconocible como continuación de Calserv.
+
+### Estado — 16 de septiembre de 2026
+
+**FASE 0: COMPLETADA** para el alcance de fundación descrito arriba. Implementado en el repositorio `levita-app` (ver [D17](07-decisiones.md)):
+
+- 16 ADR en `docs/adr/` cubriendo tenancy, People/Auth, multi-campus, Activity, RBAC, módulos/entitlements/flags, auditoría, archivos, soft-delete, jobs, observabilidad, soporte, RLS y FKs tenant-safe.
+- Esquema core en `supabase/migrations/` (churches, campuses, people, church_people, households, tags, custom fields, activities, modules/church_modules/entitlements/feature_flags, capabilities/roles/church_people_roles, funciones de contexto `app.*`, audit_logs, support_sessions, files, import/export jobs, webhooks).
+- RLS activo y forzado en las 20 tablas tenant-aware, con política fija (`select app.church_ids_for_user()::uuid[]`) y funciones `security definer` con `search_path` fijo.
+- Suite pgTAP (`supabase/tests/`): 20 tests de aislamiento cross-tenant + 20 tests de cobertura RLS automática (uno por tabla tenant-aware), 40/40 en verde.
+- `TenantContext` centralizado (`src/server/tenant/tenant-context.ts`), autorización (`authorize.ts`), auditoría (`audit-log.ts`), logger estructurado, convención de errores de dominio, clientes Supabase server/browser/service-role separados.
+- Shell de aplicación autenticada (`src/app/(app)/app`) siguiendo `imagenes/layout*.png`: sidebar con 13 módulos + Configuración/Ayuda (ocultos si el módulo no está habilitado), header con búsqueda/sede/campana/perfil, dashboard con stats reales del tenant, responsive con toggle de sidebar en móvil, probado con Playwright (login, aislamiento visual, mobile 390px).
+- CI (`.github/workflows/ci.yml`): lint, typecheck, build y suite RLS en cada PR.
+
+**Deuda explícita dejada para fases posteriores:** módulos funcionales son placeholders de navegación (sin CRUD); `import_jobs`/`export_jobs`/webhooks tienen esquema pero ningún worker real; `pg_cron` no tiene ningún job programado todavía; no hay proveedor de observabilidad externo conectado (solo el logger estructurado local); la consola de soporte/impersonación no tiene UI.
 
 ---
 

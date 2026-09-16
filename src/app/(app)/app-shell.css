@@ -1,0 +1,557 @@
+/*
+ * Sistema visual de la shell autenticada de LEVITA.
+ * Fuente de verdad: imagenes/layout0.png y layout1.png (ver docs/adr/0016).
+ * No reutiliza los tokens navy/gold de la landing (src/app/globals.css):
+ * son dos identidades visuales distintas por decisión explícita del
+ * promotor.
+ */
+
+:root {
+  --shell-bg: #faf9f6;
+  --shell-surface: #ffffff;
+  --shell-border: #ececE6;
+  --shell-text: #1f2a24;
+  --shell-text-muted: #6b7280;
+  --shell-text-subtle: #9aa2ac;
+
+  --shell-brand: #c89b4a;
+  --shell-brand-soft: #f5efe3;
+
+  --shell-active-bg: #f5efe3;
+  --shell-active-text: #1f2a24;
+
+  --shell-radius-lg: 20px;
+  --shell-radius-md: 14px;
+  --shell-radius-sm: 10px;
+
+  --shell-shadow-card: 0 1px 2px rgba(31, 42, 36, 0.04), 0 1px 12px rgba(31, 42, 36, 0.03);
+
+  --shell-success: #3f9d63;
+  --shell-warning: #d9a441;
+  --shell-danger: #c4626a;
+
+  /* Acentos por módulo: fondo pastel + color de icono saturado. */
+  --mod-people-bg: #eaf1fd;
+  --mod-people-fg: #4472ca;
+  --mod-families-bg: #fbf0e1;
+  --mod-families-fg: #c08a3e;
+  --mod-serving-bg: #e9f5ee;
+  --mod-serving-fg: #3f9d63;
+  --mod-worship-bg: #fbeaea;
+  --mod-worship-fg: #c4626a;
+  --mod-groups-bg: #f2ecf8;
+  --mod-groups-fg: #8b6bae;
+  --mod-discipleship-bg: #e9eff7;
+  --mod-discipleship-fg: #3e5c8a;
+  --mod-events-bg: #fceee3;
+  --mod-events-fg: #d97f3d;
+  --mod-kids-bg: #e6f5f2;
+  --mod-kids-fg: #3f9d8f;
+  --mod-communications-bg: #f0edfb;
+  --mod-communications-fg: #7a6bc9;
+  --mod-pastoral-bg: #fbeaf0;
+  --mod-pastoral-fg: #c46690;
+  --mod-giving-bg: #fdf3d9;
+  --mod-giving-fg: #c9a13a;
+  --mod-facilities-bg: #eaf1f5;
+  --mod-facilities-fg: #4a7d99;
+  --mod-analytics-bg: #eaf6ea;
+  --mod-analytics-fg: #4c9f70;
+  --mod-integrations-bg: #eef0f2;
+  --mod-integrations-fg: #6b7684;
+}
+
+.shell {
+  display: grid;
+  grid-template-columns: 264px 1fr;
+  min-height: 100svh;
+  background: var(--shell-bg);
+  color: var(--shell-text);
+  font-family: var(--font-sans), sans-serif;
+}
+
+/* Sidebar ------------------------------------------------------------- */
+
+.shell-sidebar {
+  background: var(--shell-surface);
+  border-right: 1px solid var(--shell-border);
+  display: flex;
+  flex-direction: column;
+  padding: 20px 16px;
+  position: sticky;
+  top: 0;
+  height: 100svh;
+}
+
+.shell-brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 8px 20px;
+}
+
+.shell-brand svg {
+  width: 26px;
+  height: 30px;
+  color: var(--shell-brand);
+  flex-shrink: 0;
+}
+
+.shell-brand span {
+  font-family: var(--font-serif), Georgia, serif;
+  font-size: 19px;
+  font-weight: 600;
+  letter-spacing: 0.14em;
+  color: var(--shell-text);
+}
+
+.shell-church {
+  padding: 10px 10px 18px;
+  border-bottom: 1px solid var(--shell-border);
+  margin-bottom: 10px;
+}
+
+.shell-church-name {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--shell-text);
+  line-height: 1.3;
+}
+
+.shell-church-location {
+  font-size: 11px;
+  color: var(--shell-text-muted);
+  margin-top: 2px;
+}
+
+.shell-nav {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  flex: 1;
+  overflow-y: auto;
+}
+
+.shell-nav-link {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 9px 12px;
+  border-radius: var(--shell-radius-sm);
+  color: var(--shell-text-muted);
+  font-size: 13.5px;
+  font-weight: 500;
+  text-decoration: none;
+  white-space: nowrap;
+  transition: background-color 120ms ease-out, color 120ms ease-out;
+}
+
+.shell-nav-link svg {
+  width: 18px;
+  height: 18px;
+  flex-shrink: 0;
+}
+
+.shell-nav-link:hover {
+  background: var(--shell-bg);
+  color: var(--shell-text);
+}
+
+.shell-nav-link[aria-current="page"] {
+  background: var(--shell-active-bg);
+  color: var(--shell-active-text);
+  font-weight: 600;
+}
+
+.shell-nav-link:focus-visible {
+  outline: 2px solid var(--shell-brand);
+  outline-offset: 2px;
+}
+
+.shell-sidebar-footer {
+  border-top: 1px solid var(--shell-border);
+  padding-top: 14px;
+  margin-top: 10px;
+}
+
+/* Header ------------------------------------------------------------- */
+
+.shell-header {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  padding: 16px 32px;
+  border-bottom: 1px solid var(--shell-border);
+  background: var(--shell-bg);
+  position: sticky;
+  top: 0;
+  z-index: 10;
+}
+
+.shell-mobile-toggle {
+  display: none;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border-radius: var(--shell-radius-sm);
+  border: 1px solid var(--shell-border);
+  background: var(--shell-surface);
+  color: var(--shell-text);
+  flex-shrink: 0;
+}
+
+.shell-mobile-toggle svg {
+  width: 18px;
+  height: 18px;
+}
+
+.shell-search {
+  flex: 1;
+  max-width: 480px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background: var(--shell-surface);
+  border: 1px solid var(--shell-border);
+  border-radius: var(--shell-radius-md);
+  padding: 9px 14px;
+  color: var(--shell-text-subtle);
+}
+
+.shell-search svg {
+  width: 16px;
+  height: 16px;
+  flex-shrink: 0;
+}
+
+.shell-search input {
+  border: 0;
+  outline: 0;
+  background: transparent;
+  font-size: 13.5px;
+  color: var(--shell-text);
+  width: 100%;
+}
+
+.shell-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  margin-left: auto;
+}
+
+.shell-campus-select {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  border: 1px solid var(--shell-border);
+  border-radius: var(--shell-radius-md);
+  padding: 8px 12px;
+  font-size: 13px;
+  color: var(--shell-text);
+  background: var(--shell-surface);
+}
+
+.shell-bell {
+  position: relative;
+  display: grid;
+  place-items: center;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  color: var(--shell-text-muted);
+}
+
+.shell-bell svg {
+  width: 19px;
+  height: 19px;
+}
+
+.shell-bell-dot {
+  position: absolute;
+  top: 6px;
+  right: 7px;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--shell-danger);
+  border: 2px solid var(--shell-bg);
+}
+
+.shell-profile {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.shell-avatar {
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  background: var(--shell-active-bg);
+  color: var(--shell-brand);
+  display: grid;
+  place-items: center;
+  font-size: 13px;
+  font-weight: 600;
+  flex-shrink: 0;
+}
+
+.shell-profile-name {
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 1.3;
+}
+
+.shell-profile-role {
+  font-size: 11.5px;
+  color: var(--shell-text-muted);
+}
+
+/* Content -------------------------------------------------------------- */
+
+.shell-main {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.shell-content {
+  padding: 28px 32px 40px;
+  display: flex;
+  flex-direction: column;
+  gap: 28px;
+}
+
+/* Cards genéricos -------------------------------------------------------- */
+
+.shell-card {
+  background: var(--shell-surface);
+  border: 1px solid var(--shell-border);
+  border-radius: var(--shell-radius-lg);
+  box-shadow: var(--shell-shadow-card);
+}
+
+/* Stat cards ------------------------------------------------------------- */
+
+.stat-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 16px;
+}
+
+.stat-card {
+  padding: 18px 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.stat-icon {
+  width: 38px;
+  height: 38px;
+  border-radius: var(--shell-radius-sm);
+  display: grid;
+  place-items: center;
+}
+
+.stat-icon svg {
+  width: 19px;
+  height: 19px;
+}
+
+.stat-value {
+  font-family: var(--font-serif), Georgia, serif;
+  font-size: 26px;
+  font-weight: 600;
+  color: var(--shell-text);
+  line-height: 1.1;
+}
+
+.stat-label {
+  font-size: 12.5px;
+  color: var(--shell-text-muted);
+}
+
+.stat-delta {
+  font-size: 11.5px;
+  color: var(--shell-success);
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+/* Módulos de la plataforma ------------------------------------------------ */
+
+.module-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 14px;
+}
+
+.module-card {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 16px 18px;
+  text-decoration: none;
+  color: inherit;
+  transition: transform 120ms ease-out, box-shadow 120ms ease-out;
+}
+
+.module-card:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 16px rgba(31, 42, 36, 0.06);
+}
+
+.module-card:focus-visible {
+  outline: 2px solid var(--shell-brand);
+  outline-offset: 2px;
+}
+
+.module-icon {
+  width: 38px;
+  height: 38px;
+  border-radius: var(--shell-radius-sm);
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+}
+
+.module-icon svg {
+  width: 19px;
+  height: 19px;
+}
+
+.module-title {
+  font-size: 13.5px;
+  font-weight: 600;
+  color: var(--shell-text);
+}
+
+.module-subtitle {
+  font-size: 12px;
+  color: var(--shell-text-muted);
+  margin-top: 2px;
+}
+
+/* Listas de contenido (próximos eventos, actividad reciente) ------------- */
+
+.shell-two-col {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 20px;
+}
+
+.list-card {
+  padding: 20px;
+}
+
+.list-card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 14px;
+}
+
+.list-card-header h2 {
+  font-size: 15px;
+  font-weight: 600;
+}
+
+.list-card-header a {
+  font-size: 12.5px;
+  color: var(--shell-text-muted);
+  text-decoration: none;
+}
+
+/* Empty / loading / error states ----------------------------------------- */
+
+.shell-empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  gap: 8px;
+  padding: 48px 20px;
+  color: var(--shell-text-muted);
+}
+
+.shell-empty-state h3 {
+  color: var(--shell-text);
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.shell-empty-state p {
+  font-size: 13px;
+  max-width: 320px;
+}
+
+/* Responsive -------------------------------------------------------------- */
+
+@media (max-width: 1024px) {
+  .stat-grid,
+  .module-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .shell-two-col {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 860px) {
+  .shell {
+    grid-template-columns: 1fr;
+  }
+
+  .shell-sidebar {
+    position: fixed;
+    inset: 0 auto 0 0;
+    width: 264px;
+    transform: translateX(-100%);
+    transition: transform 160ms ease-out;
+    z-index: 30;
+  }
+
+  .shell-sidebar[data-open="true"] {
+    transform: translateX(0);
+    box-shadow: 0 0 0 100vmax rgba(31, 42, 36, 0.35);
+  }
+
+  .shell-mobile-toggle {
+    display: inline-flex;
+  }
+
+  .shell-header {
+    padding: 14px 16px;
+  }
+
+  .shell-content {
+    padding: 20px 16px 32px;
+  }
+
+  .stat-grid,
+  .module-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .shell-profile-name,
+  .shell-profile-role {
+    display: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .module-card,
+  .shell-nav-link,
+  .shell-sidebar {
+    transition: none;
+  }
+}

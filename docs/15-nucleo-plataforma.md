@@ -1,8 +1,10 @@
 # Núcleo de plataforma
 
-Revisión: **15 de septiembre de 2026**.
+Revisión: **16 de septiembre de 2026**.
 
 Este documento define las entidades transversales que deben existir antes de ampliar LEVITA a módulos de negocio. El objetivo es evitar que Serving, Alabanza, Grupos, Kids o Pastoral creen conceptos incompatibles entre sí.
+
+**Estado de implementación (Fase 0):** implementado en `supabase/migrations/` del repositorio `levita-app`. Ver el detalle de decisión en `docs/adr/0001` a `docs/adr/0014` y el resumen de estado en [13-plan-por-fases.md](13-plan-por-fases.md#estado--16-de-septiembre-de-2026). Los archivos (§10) tienen tabla de metadatos y políticas base, sin ningún flujo de subida de módulo concreto todavía.
 
 ## 1. Tenant e iglesia
 

@@ -1,12 +1,18 @@
 # Brief de diseño de LEVITA
 
-Revisión: **15 de septiembre de 2026**. Encargo para diseñar el producto;
+Revisión: **16 de septiembre de 2026**. Encargo para diseñar el producto;
 no acredita pantallas implementadas. Leer [Visión](00-vision.md),
 [Iglesias y tenants](12-iglesias-y-tenants.md) y [Plan por fases](13-plan-por-fases.md).
 
-## Referencia obligatoria
+## Referencia visual vigente — actualizado el 16 de septiembre de 2026
 
-Toda la UI, UX y funcionamiento común deben proceder de la app existente de Alabanza: acceso, perfil, preferencias, push, campana y demás recorridos compartidos. Su módulo específico y equipo se integrarán al final con LEVITA. Leer [Referencia UI/UX](14-referencia-uiux-alabanza.md) antes de dibujar. Reutilizar componentes, temas, navegación y comportamiento; la landing no es la referencia de la aplicación.
+**La referencia de paleta, tipografía, layout y estilo de componentes son las imágenes `imagenes/layout*.png`**, no los tokens de Calserv descritos más abajo en este documento y en [Referencia UI/UX](14-referencia-uiux-alabanza.md). Esta decisión sustituye la sección "Sistema visual que se hereda" de este brief. Ver [ADR 0016](adr/0016-referencia-visual-layout.md) y [D18](07-decisiones.md).
+
+De Calserv se conserva únicamente el **comportamiento común no visual**: acceso con contraseña e invitación, bandeja/campana de avisos, perfil con pestañas Tema/Avisos/Contraseña, activación de push por dispositivo. Ver sección siguiente.
+
+## Referencia de comportamiento común (no visual)
+
+Toda la UX de comportamiento común debe proceder de la app existente de Alabanza: acceso, perfil, preferencias, push, campana y demás recorridos compartidos. Su módulo específico y equipo se integrarán al final con LEVITA. Leer [Referencia UI/UX](14-referencia-uiux-alabanza.md) antes de implementar estos recorridos. La apariencia visual de esos recorridos sigue `imagenes/layout*.png`, no los tokens de Calserv.
 
 ## Objetivo
 

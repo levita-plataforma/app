@@ -1,6 +1,8 @@
 # Despliegue, entornos y operación
 
-Revisión: **15 de septiembre de 2026**.
+Revisión: **16 de septiembre de 2026**.
+
+**Decisión de repositorio (Fase 0):** el núcleo SaaS y la aplicación autenticada se implementan en el mismo repositorio que la landing (`levita-app`), con Next.js App Router y route groups (`(app)` para la app autenticada) en vez de la separación histórica en `apps/dashboard` + `apps/pwa`. Supabase corre localmente vía CLI (`supabase/migrations/`, `supabase/seed.sql`, `supabase/tests/`). Ver [ADR 0015](adr/0015-repositorio-unico-monorepo.md) y [D17](07-decisiones.md). El detalle de proveedores (Vercel, región `fra1`, `pg_cron`, etc.) descrito más abajo sigue siendo la referencia de despliegue en producción cuando llegue esa fase; no se ha desplegado nada de este núcleo fuera de local todavía.
 
 ## Entornos
 

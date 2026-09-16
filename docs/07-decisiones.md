@@ -1,6 +1,6 @@
 # Decisiones y cuestiones abiertas
 
-Revisión: **15 de septiembre de 2026**.
+Revisión: **16 de septiembre de 2026**.
 
 Este documento distingue decisiones confirmadas de asuntos que deben cerrarse antes de la fase correspondiente. Las decisiones más recientes prevalecen sobre propuestas históricas del backlog.
 
@@ -53,6 +53,12 @@ No existe un catálogo global mutable que renombre áreas ya creadas en clientes
 
 ### D16 · Notificación persistente antes de canal externo
 Push/email son transportes, no fuente de verdad.
+
+### D17 · Núcleo SaaS implementado en el mismo repositorio de la landing — confirmado el 16 de septiembre de 2026
+La Fase 0 se construye dentro de `levita-app` (route group `(app)`), no en una reconstrucción de la separación histórica `apps/dashboard` + `apps/pwa` + `packages/`. Ver [ADR 0015](adr/0015-repositorio-unico-monorepo.md).
+
+### D18 · Referencia visual: `imagenes/layout*.png` sustituye a Calserv — confirmado el 16 de septiembre de 2026
+Toda la shell de aplicación (paleta, tipografía, estructura, iconografía por módulo) sigue las imágenes de referencia aportadas, no los tokens documentados de Calserv / LFY Worship. Se conservan de Calserv únicamente los patrones de comportamiento común no visuales (acceso con contraseña, bandeja de avisos, perfil con pestañas). Ver [ADR 0016](adr/0016-referencia-visual-layout.md) y actualización de [10-brief-diseno.md](10-brief-diseno.md) y [14-referencia-uiux-alabanza.md](14-referencia-uiux-alabanza.md).
 
 ## Cuestiones abiertas antes de Fase 1
 

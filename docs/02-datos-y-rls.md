@@ -1,8 +1,10 @@
 # Datos, permisos y Row Level Security
 
-Revisión: **15 de septiembre de 2026**.
+Revisión: **16 de septiembre de 2026**.
 
 Este documento define la seguridad de datos objetivo. Las referencias históricas a migraciones de `Documents/Levitaapp` deben verificarse contra ese repositorio antes de considerarlas implementadas. La ampliación integral descrita aquí **no se considera construida** por existir en documentación.
+
+**Estado de implementación (Fase 0):** el núcleo descrito en este documento está implementado en `supabase/migrations/` del repositorio `levita-app`, con 20 tablas tenant-aware bajo RLS activo/forzado y 40 tests pgTAP en verde (`supabase/tests/`). Ver [ADR 0001](adr/0001-estrategia-multi-tenant.md) y [ADR 0013](adr/0013-estrategia-rls.md) para el detalle de decisión, y [13-plan-por-fases.md](13-plan-por-fases.md) para el estado exacto de la Fase 0. Los módulos funcionales (Serving, Worship, Kids, etc.) aún no tienen tablas propias: eso llega en sus fases correspondientes.
 
 ## 1. Estrategia
 

@@ -1,9 +1,11 @@
 # Referencia de UI, UX y funcionamiento: app de Alabanza
 
-Revisión de código local: **15 de septiembre de 2026**.
-El promotor indica que toda la UI y UX de LEVITA debe proceder de su app de
-Alabanza, que se integrará con el producto multiiglesia. Esta decisión sustituye
-la propuesta anterior de diseñar la aplicación a partir de la landing.
+Revisión de código local: **16 de septiembre de 2026**.
+
+**Cambio de referencia visual (16 de septiembre de 2026):** la paleta, tipografía, layout y estilo de componentes de LEVITA ya no proceden de esta app de Alabanza (Calserv), sino de las imágenes `imagenes/layout*.png`. Ver [ADR 0016](adr/0016-referencia-visual-layout.md) y [D18](07-decisiones.md). Este documento se conserva porque **el comportamiento común no visual descrito abajo** (acceso, perfil, push, campana, emisión de avisos) sigue siendo la referencia obligatoria; solo cambió la apariencia.
+
+El promotor indicaba originalmente que toda la UI y UX de LEVITA debía proceder de su app de
+Alabanza, que se integrará con el producto multiiglesia. Esa instrucción queda sustituida en su parte visual por la decisión anterior; se mantiene en su parte de comportamiento.
 
 ## Referencias localizadas
 
@@ -106,18 +108,11 @@ leer la campana, responder un turno y cerrar sesión. Anotar por recorrido qué
 se conserva y qué se adapta para separar iglesias. Las nuevas necesidades de
 pago o áreas amplían esta base; no crean otro sistema de perfil o avisos.
 
-## Valores de referencia, no una segunda paleta
+## Valores de referencia — histórico, no vigente desde el 16 de septiembre de 2026
 
-En la combinación inicial Negro + Escenario, el código define fondo `#0A0A0B`,
-tarjeta `#141416`, texto `#EDEDEE`, acción principal `#E6E7EA` con texto
-`#131315`, bordes `#2A2A2E` y barra lateral `#000000`. Usar los tokens
-correspondientes al tema, no incrustar estos valores en componentes nuevos.
-Los colores semánticos proceden igualmente de los tokens existentes.
+Los valores de esta sección documentaban la combinación inicial Negro + Escenario de Calserv (fondo `#0A0A0B`, tarjeta `#141416`, texto `#EDEDEE`, acción principal `#E6E7EA` con texto `#131315`, bordes `#2A2A2E`, barra lateral `#000000`). **Ya no son la paleta de referencia de LEVITA**: la paleta vigente (fondo crema `#faf9f6`, marca dorada `#c89b4a`, acentos pastel por módulo) está definida en `src/app/(app)/app-shell.css` y descrita en [ADR 0016](adr/0016-referencia-visual-layout.md). Se conservan aquí solo como registro histórico de lo que se inspeccionó en Calserv.
 
-Los colores y fuentes marfil/azul/dorado de la landing no son la referencia
-de la aplicación. El encaje del nombre LEVITA y el logotipo de la iglesia se
-resuelve sin cambiar los patrones de interacción. No fijar LFY como identidad
-obligatoria de todas las iglesias.
+Los colores y fuentes marfil/azul/dorado de la landing tampoco son la referencia de la aplicación autenticada: son la identidad de marca comercial de `src/app/globals.css`, un sistema distinto por decisión explícita ([ADR 0016](adr/0016-referencia-visual-layout.md)). El encaje del nombre LEVITA y el logotipo de la iglesia se resuelve sin cambiar los patrones de interacción. No fijar LFY como identidad obligatoria de todas las iglesias.
 
 ## Cómo ampliar la navegación
 

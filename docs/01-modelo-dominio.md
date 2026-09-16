@@ -1,8 +1,10 @@
 # Modelo de dominio integral
 
-Revisión: **15 de septiembre de 2026**.
+Revisión: **16 de septiembre de 2026**.
 
 LEVITA utiliza un modelo de dominio compartido por todos los módulos. Serving es el primer dominio profundo, pero no gobierna el resto de la plataforma.
+
+**Estado de implementación (Fase 0):** `churches`, `campuses`, `people`, `church_people`, `households`/`household_members`, `tags`/`custom_field_definitions`, `activities` (raíz genérica) y `modules`/`church_modules` están implementados en `supabase/migrations/`. El vocabulario específico de Serving (§6-7 de este documento) sigue siendo especificación: sus tablas (`ministries`, `positions`, `event_positions`, `assignments`, `blockouts`) llegan en la Fase 3-5. Ver [15-nucleo-plataforma.md](15-nucleo-plataforma.md) y [ADR 0004](adr/0004-activity-raiz-generica.md).
 
 ## 1. Jerarquía principal
 

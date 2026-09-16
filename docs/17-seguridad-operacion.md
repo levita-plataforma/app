@@ -1,8 +1,10 @@
 # Seguridad, privacidad y operación de plataforma
 
-Revisión: **15 de septiembre de 2026**.
+Revisión: **16 de septiembre de 2026**.
 
 Este documento complementa [Datos y RLS](02-datos-y-rls.md), [RGPD y LOPIVI](08-rgpd-y-lopivi.md) y [Arquitectura multi-tenant](16-arquitectura-multitenant.md).
+
+**Estado de implementación (Fase 0):** auditoría (§5) y sesiones de soporte con expiración obligatoria (§10) están implementadas a nivel de esquema y función (`app.write_audit_log`, `support_sessions`), sin consola de UI. Secure SDLC (§12) se cubre parcialmente con el CI mínimo (`.github/workflows/ci.yml`: lint, typecheck, build, tests RLS). El resto de este documento (exportaciones cifradas, incidentes, SBOM, runbooks de continuidad) es especificación para fases posteriores.
 
 ## 1. Modelo de amenazas mínimo
 
