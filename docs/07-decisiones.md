@@ -60,6 +60,9 @@ La Fase 0 se construye dentro de `levita-app` (route group `(app)`), no en una r
 ### D18 · Referencia visual: `imagenes/layout*.png` sustituye a Calserv — confirmado el 16 de septiembre de 2026
 Toda la shell de aplicación (paleta, tipografía, estructura, iconografía por módulo) sigue las imágenes de referencia aportadas, no los tokens documentados de Calserv / LFY Worship. Se conservan de Calserv únicamente los patrones de comportamiento común no visuales (acceso con contraseña, bandeja de avisos, perfil con pestañas). Ver [ADR 0016](adr/0016-referencia-visual-layout.md) y actualización de [10-brief-diseno.md](10-brief-diseno.md) y [14-referencia-uiux-alabanza.md](14-referencia-uiux-alabanza.md).
 
+### D19 · Fase 4 = actividades, plantillas, estructura de servicio y planificación; asignaciones pasan a Fase 5 — propuesto el 16 de septiembre de 2026, pendiente de validación de Carlos
+`activities` sigue siendo la raíz sin tabla de extensión; se añaden el estado `planned`, visibilidad por audiencias, horario `timed`/`flexible`, series recurrentes acotadas, plantillas que copian estructura, áreas/puestos/requisitos por actividad con snapshots y overrides, y orden del servicio. La escritura pasa solo por RPC y se sustituyen las políticas RLS de `activities`. Asignaciones, conflicto de persona, huecos con personas y composición se construyen en Fase 5. Ver [ADR 0017](adr/0017-actividades-planificacion-fase-4.md), [FASE-4-ACTIVIDADES.md](FASE-4-ACTIVIDADES.md) y [13-plan-por-fases.md](13-plan-por-fases.md).
+
 ## Cuestiones abiertas antes de Fase 1
 
 ### A1 · Pricing
@@ -94,9 +97,11 @@ Nivel de reversibilidad y criterio de detección de duplicados.
 
 ### A7 · Implementación física de Activity
 Una tabla base con extensiones vs entidades especializadas conectadas. Debe resolverse con el esquema real y consultas esperadas.
+Propuesta (D19, pendiente de validación): tabla base `activities` sin extensión 1:1; datos no transversales en tablas 1:N propias.
 
 ### A8 · Publicación multiárea
 Definir quién puede publicar una actividad con varias áreas y si el líder puede publicar solo su parte.
+Propuesta (D19, pendiente de validación): solo quien tiene `activity.publish` en el ámbito de la actividad publica la actividad completa; el líder de área gestiona los puestos de su área pero no publica una parte.
 
 ### A9 · Ventana de respuesta
 Hasta qué momento se puede aceptar/rechazar/cambiar respuesta.

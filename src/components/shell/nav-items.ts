@@ -8,6 +8,8 @@ import {
   UserRound,
   GraduationCap,
   CalendarDays,
+  Calendar,
+  ListChecks,
   Baby,
   MessageCircle,
   HeartHandshake,
@@ -37,6 +39,10 @@ export const NAV_ITEMS: NavItem[] = [
   { href: "/app", label: "Inicio", icon: Home, moduleKey: null, accent: "brand" },
   { href: "/app/personas", label: "Personas", icon: Users, moduleKey: "people", accent: "people" },
   { href: "/app/familias", label: "Familias", icon: UsersRound, moduleKey: "people", accent: "families" },
+  // Calendario y actividades son núcleo (Fase 4, ADR 0017): no dependen de un módulo.
+  // "Eventos" (más abajo) es el módulo de Fase 6 y tiene su propia ruta.
+  { href: "/app/calendario", label: "Calendario", icon: Calendar, moduleKey: null, accent: "events" },
+  { href: "/app/actividades", label: "Actividades", icon: ListChecks, moduleKey: null, accent: "events" },
   { href: "/app/servicios", label: "Servicios", icon: CalendarClock, moduleKey: "serving", accent: "serving" },
   { href: "/app/alabanza", label: "Alabanza", icon: Music4, moduleKey: "worship", accent: "worship" },
   { href: "/app/grupos", label: "Grupos", icon: UserRound, moduleKey: "groups", accent: "groups" },

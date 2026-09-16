@@ -139,30 +139,46 @@ Un líder administra solo sus áreas; una iglesia puede adaptar la estructura si
 
 ---
 
-## Fase 4 · Actividades, cultos, plantillas y programación
+## Fase 4 · Actividades, plantillas, estructura de servicio y planificación
 
-**Resultado:** programar servicios y otras actividades sin encerrar el producto en “cultos”.
+**Resultado:** programar servicios y otras actividades sin encerrar el producto en “cultos”, y dejar cada actividad preparada (áreas, puestos, requisitos y orden del servicio) para que la Fase 5 asigne personas.
+
+### Nota de alcance — 16 de septiembre de 2026
+
+El alcance de esta fase se ha dividido (ver [ADR 0017](adr/0017-actividades-planificacion-fase-4.md), propuesto y pendiente de validación). Asignaciones, conflicto de persona, cálculo de huecos con personas y composición pasan a la Fase 5, porque dependen de disponibilidad y respuestas. **El alcance anterior de la Fase 4 no se completó como tal**: no se construyeron asignaciones, conflictos de persona ni composición. El detalle técnico está en [FASE-4-ACTIVIDADES.md](FASE-4-ACTIVIDADES.md).
 
 ### Alcance
 
-- Activity;
-- tipos/plantillas;
-- cultos recurrentes;
-- actividades puntuales;
-- tareas/turnos sin culto;
-- puestos necesarios;
-- asignaciones;
-- duplicar programación;
-- recurrencia DST-safe;
+- Activity como raíz (sin tabla de extensión);
+- tipos y plantillas con copia de estructura;
+- actividades puntuales con horario;
+- tareas sin hora fija;
+- series recurrentes DST-safe con edición de esta, siguientes o toda la serie;
+- duplicar actividad;
+- áreas, puestos (de catálogo o ad-hoc) y requisitos por actividad, con snapshots del catálogo y overrides;
+- cobertura por puesto (mínimos/máximos, sin personas);
+- incidencias de estructura (bloqueantes y avisos);
+- compatibilidad de sede entre actividad, áreas y puestos;
+- orden del servicio (planning);
+- borrador/planificada/publicación/cancelación/completada/archivado;
+- visibilidad por audiencias y notas administrativas separadas;
+- permisos por capability y scope, RLS, escritura solo por RPC y auditoría;
+- contrato para la Fase 5 (requisitos efectivos y actividades que admiten asignaciones).
+
+### No incluye
+
+- asignaciones de personas;
 - conflicto de persona;
-- conflicto de recurso cuando aplique;
-- cobertura;
-- borrador/publicación/cancelación;
-- resumen previo a publicación.
+- cálculo de huecos con personas reales;
+- composición de equipos;
+- elegibilidad por fecha de actividad y con overrides por actividad;
+- notificaciones;
+- conflicto de recurso (Fase 10);
+- formularios, inscripciones, aforo o entradas (Fase 6).
 
 ### Criterio de salida
 
-El coordinador prepara y publica una actividad con varias áreas y el sistema calcula correctamente huecos, conflictos y composición.
+El coordinador prepara y publica una actividad —puntual o recurrente, desde cero o desde plantilla— con varias áreas, puestos y orden del servicio; la publicación solo se permite con estructura válida; cada actividad muestra su cobertura por puesto sin personas; y un líder de área solo gestiona los puestos de su área.
 
 ---
 
@@ -172,6 +188,11 @@ El coordinador prepara y publica una actividad con varias áreas y el sistema ca
 
 ### Alcance
 
+- asignaciones de personas a puestos de actividad (movido desde la Fase 4 el 16 de septiembre de 2026);
+- conflicto de persona;
+- cálculo de huecos con personas;
+- composición de equipos;
+- elegibilidad por fecha de actividad y con los requisitos efectivos por actividad (contrato de la Fase 4);
 - mis turnos;
 - aceptar/rechazar;
 - notas privadas de respuesta;
@@ -192,7 +213,7 @@ El coordinador prepara y publica una actividad con varias áreas y el sistema ca
 
 ### Criterio de salida
 
-Una propuesta llega, se responde y actualiza cobertura sin duplicar avisos ni perder estado cuando falla un canal.
+El coordinador asigna personas a una actividad publicada con varias áreas y el sistema calcula correctamente huecos, conflictos de persona y composición, con elegibilidad evaluada en la fecha de la actividad. Una propuesta llega, se responde y actualiza cobertura sin duplicar avisos ni perder estado cuando falla un canal.
 
 ---
 
@@ -213,6 +234,8 @@ Una propuesta llega, se responde y actualiza cobertura sin duplicar avisos ni pe
 - exportación;
 - comunicaciones del evento;
 - ICS.
+
+Nota (16 de septiembre de 2026): el calendario operativo de actividades de la Fase 4 no cubre formularios públicos, inscripciones, aforo ni entradas; la visibilidad `public_future` no concede acceso anónimo. Todo ello sigue en esta fase.
 
 ### Criterio de salida
 

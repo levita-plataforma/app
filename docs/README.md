@@ -95,8 +95,8 @@ LEVITA SaaS
 - **F1:** tenant, sedes, suscripción y onboarding.
 - **F2:** personas, familias e importación.
 - **F3:** áreas, puestos y equipos.
-- **F4:** actividades y programación.
-- **F5:** disponibilidad, respuestas y notificaciones.
+- **F4:** actividades, plantillas, estructura de servicio y planificación.
+- **F5:** asignaciones, disponibilidad, respuestas y notificaciones.
 - **F6:** eventos, calendario, formularios e inscripciones.
 - **F7:** grupos y discipulado.
 - **F8:** Kids.
