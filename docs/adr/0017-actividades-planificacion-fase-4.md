@@ -2,9 +2,9 @@
 
 ## Estado
 
-Propuesto — pendiente de validación de Carlos, 16 de septiembre de 2026.
+Aceptado — validado por Carlos el 17 de septiembre de 2026 (PR #2, commit `93eb369`); integrado en `main` (`b3f5add`), con las migraciones aplicadas en producción. Propuesto el 16 de septiembre de 2026.
 
-Fuente de verdad: migraciones `supabase/migrations/20260920000100_activity_status_planned.sql` a `20260920000800_recurrencia_actividades.sql` de la rama `feature/carlos-fase-4-actividades`. Este ADR solo describe lo que ese SQL hace. Nada de lo descrito se ha aplicado en ningún entorno remoto. La interfaz está en desarrollo en esta rama y no forma parte de esta decisión.
+Fuente de verdad: migraciones `supabase/migrations/20260920000100_activity_status_planned.sql` a `20260920000800_recurrencia_actividades.sql` de la rama `feature/carlos-fase-4-actividades`. Este ADR solo describe lo que ese SQL hace. Verificación de cierre en producción: [FASE-4-ACTIVIDADES.md §9](../FASE-4-ACTIVIDADES.md). La interfaz no forma parte de esta decisión.
 
 Detalle técnico, contrato RPC y plan de despliegue: [FASE-4-ACTIVIDADES.md](../FASE-4-ACTIVIDADES.md).
 
@@ -291,13 +291,13 @@ Los metadatos registran campos cambiados, no contenido: el motivo de cancelació
 - La Fase 5 parte de actividades con estructura y un contrato explícito, sin asignaciones previas que migrar.
 - Los miembros sin rol dejan de ver borradores; el seed sintético publica su actividad de ejemplo para que los tests de aislamiento sigan viendo una fila.
 - La aplicación desplegada solo cuenta `activities` en el panel; el recuento pasa a respetar el nuevo modelo de lectura.
-- Los tipos TypeScript (`src/lib/supabase/database.types.ts`) quedan desactualizados hasta regenerarlos.
+- Los tipos TypeScript (`src/lib/supabase/database.types.ts`) se regeneraron con el motor de postgres-meta; conviene contrastarlos con `supabase gen types`.
 
 ## Riesgos
 
 - Filas heredadas que incumplan constraints `NOT VALID` quedan bloqueadas para `UPDATE`.
 - La normalización rellena `archived_at`/`cancelled_at` con el `updated_at` original (la migración desactiva `activities_set_updated_at` durante los rellenos); es una aproximación, no la fecha real de archivado o cancelación.
 - Elegibilidad por fecha de actividad y overrides pendiente para Fase 5.
-- Riesgo previo de invitaciones con scope `church`.
+- Riesgo previo de invitaciones con scope `church`: corregido en la PR #1 y aplicado en producción antes de esta fase.
 - `planned` no se puede retirar con una simple reversión.
-- Pruebas: existen las suites `supabase/tests/fase4_actividades_test.sql` (135), `fase4_permisos_test.sql` (71) y `fase4_recurrencia_test.sql` (74). Según el responsable de la rama, pasan en local (450/450 con las suites anteriores) con un arnés PostgreSQL 17 sin Docker que emula los roles y `auth` de Supabase. **No se ejecutó `supabase test db`** (Docker no disponible); debe confirmarlo el CI de la PR.
+- Pruebas: existen las suites `supabase/tests/fase4_actividades_test.sql` (135), `fase4_permisos_test.sql` (71) y `fase4_recurrencia_test.sql` (74). Según el responsable de la rama, pasan en local (450/450 con las suites anteriores) con un arnés PostgreSQL 17 sin Docker que emula los roles y `auth` de Supabase. Confirmado en el CI de la PR con `supabase test db` y `supabase db diff --local`.

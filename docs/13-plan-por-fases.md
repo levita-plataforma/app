@@ -145,7 +145,7 @@ Un líder administra solo sus áreas; una iglesia puede adaptar la estructura si
 
 ### Nota de alcance — 16 de septiembre de 2026
 
-El alcance de esta fase se ha dividido (ver [ADR 0017](adr/0017-actividades-planificacion-fase-4.md), propuesto y pendiente de validación). Asignaciones, conflicto de persona, cálculo de huecos con personas y composición pasan a la Fase 5, porque dependen de disponibilidad y respuestas. **El alcance anterior de la Fase 4 no se completó como tal**: no se construyeron asignaciones, conflictos de persona ni composición. El detalle técnico está en [FASE-4-ACTIVIDADES.md](FASE-4-ACTIVIDADES.md).
+El alcance de esta fase se ha dividido (ver [ADR 0017](adr/0017-actividades-planificacion-fase-4.md), aceptado el 17 de septiembre de 2026). Asignaciones, conflicto de persona, cálculo de huecos con personas y composición pasan a la Fase 5, porque dependen de disponibilidad y respuestas. **El alcance anterior de la Fase 4 no se completó como tal**: no se construyeron asignaciones, conflictos de persona ni composición. El detalle técnico está en [FASE-4-ACTIVIDADES.md](FASE-4-ACTIVIDADES.md).
 
 ### Alcance
 
@@ -179,6 +179,17 @@ El alcance de esta fase se ha dividido (ver [ADR 0017](adr/0017-actividades-plan
 ### Criterio de salida
 
 El coordinador prepara y publica una actividad —puntual o recurrente, desde cero o desde plantilla— con varias áreas, puestos y orden del servicio; la publicación solo se permite con estructura válida; cada actividad muestra su cobertura por puesto sin personas; y un líder de área solo gestiona los puestos de su área.
+
+### Estado — 17 de septiembre de 2026
+
+**FASE 4: CERRADA** para el alcance descrito arriba.
+
+- Validada por Carlos en la PR #2 (commit `93eb369`) e integrada en `main` (`b3f5add`).
+- Migraciones `20260920000100`–`20260920000900` aplicadas en producción antes del código y verificadas en solo lectura.
+- CI en verde (`supabase test db` incluido) y despliegue de producción en Vercel correcto.
+- Smoke en producción: enrutado y protección de las rutas nuevas sin sesión, y flujo funcional completo en la base de producción dentro de una transacción con `ROLLBACK` sin dejar datos. Detalle en [FASE-4-ACTIVIDADES.md §9](FASE-4-ACTIVIDADES.md).
+
+**Deuda explícita:** navegación autenticada en navegador no verificada en el cierre; contrastar `database.types.ts` con `supabase gen types`; fijar la versión del CLI de Supabase en el CI; acordar con Diogo el contrato F4/F5 (CO-01, [CONTRATO-F4-F5.md](CONTRATO-F4-F5.md)); elegibilidad por fecha de actividad en Fase 5.
 
 ---
 

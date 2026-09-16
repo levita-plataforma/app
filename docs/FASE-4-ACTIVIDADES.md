@@ -1,18 +1,17 @@
 # Fase 4 — Actividades, plantillas, estructura de servicio y planificación
 
-Fecha: **16 de septiembre de 2026**. Rama: `feature/carlos-fase-4-actividades`.
+Fecha: **16 de septiembre de 2026**; cierre: **17 de septiembre de 2026**. Rama: `feature/carlos-fase-4-actividades` (integrada en `main` con la PR #2).
 
 ## Estado
 
 ```
-FASE 4: EN REVISIÓN — PENDIENTE DE VALIDACIÓN DE CARLOS
-NADA DE ESTE DOCUMENTO SE HA APLICADO EN NINGÚN ENTORNO REMOTO
+FASE 4: CERRADA — VALIDADA POR CARLOS (commit 93eb369), INTEGRADA (b3f5add), MIGRADA Y DESPLEGADA EN PRODUCCIÓN
 ```
 
-- Decisión de arquitectura: [ADR 0017](adr/0017-actividades-planificacion-fase-4.md) (Propuesto).
+- Decisión de arquitectura: [ADR 0017](adr/0017-actividades-planificacion-fase-4.md) (Aceptado).
 - Fuente de verdad: migraciones `20260920000100` a `20260920000800` (contrato) y `20260920000900` (lecturas para la UI). Este documento solo describe lo que hace ese SQL.
-- La interfaz está en desarrollo en esta rama; este documento no describe pantallas.
-- Pruebas: suites `supabase/tests/fase4_actividades_test.sql` (135 aserciones), `fase4_permisos_test.sql` (71) y `fase4_recurrencia_test.sql` (74). Según el responsable de la rama, pasan en local (450/450 junto con las suites anteriores) con un arnés PostgreSQL 17 **sin Docker** que emula los roles y `auth` de Supabase. **No es una ejecución de `supabase test db`** (Docker no disponible en esa máquina); debe confirmarlo el CI de la PR.
+- Interfaz integrada: `/app/actividades` (listado, alta y ficha), `/app/actividades/plantillas`, `/app/calendario` y dashboard. Este documento no describe pantallas.
+- Pruebas: suites `supabase/tests/fase4_actividades_test.sql` (135 aserciones), `fase4_permisos_test.sql` (71) y `fase4_recurrencia_test.sql` (74). Según el responsable de la rama, pasan en local (450/450 junto con las suites anteriores) con un arnés PostgreSQL 17 **sin Docker** que emula los roles y `auth` de Supabase. Confirmado después en el CI de la PR con `supabase test db` y `supabase db diff --local` (en verde). Verificación en producción: §9.
 
 ---
 
@@ -60,7 +59,7 @@ NADA DE ESTE DOCUMENTO SE HA APLICADO EN NINGÚN ENTORNO REMOTO
 | 6 | `20260920000600_rls_actividades.sql` | Sustituye las políticas de `activities`, revoca escrituras directas y crea políticas de lectura. |
 | 7 | `20260920000700_rpc_actividades.sql` | RPC de actividades, estructura, planning y plantillas; lecturas derivadas. |
 | 8 | `20260920000800_recurrencia_actividades.sql` | Cálculo de fechas, series, expansión, división y edición de series; vista previa. |
-| 9 | `20260920000900_permisos_actividades_ui.sql` | Solo lecturas para la interfaz en desarrollo: `activity_capabilities`, `activity_creation_scopes`, `activity_dashboard`, `activities_structure_status`. No cambia esquema, permisos ni reglas (ver §4.7). |
+| 9 | `20260920000900_permisos_actividades_ui.sql` | Solo lecturas para la interfaz: `activity_capabilities`, `activity_creation_scopes`, `activity_dashboard`, `activities_structure_status`. No cambia esquema, permisos ni reglas (ver §4.7). |
 
 **Dependencia de orden:** `0100` debe **confirmarse (commit) antes** de ejecutar `0200` y siguientes. PostgreSQL no permite usar un valor de enum añadido en la misma transacción; `0500` crea funciones `language sql` que usan `'planned'` y se validan al crearse. Si la herramienta de despliegue agrupa varias migraciones pendientes en una sola transacción, aplicar `0100` por separado.
 
@@ -353,7 +352,7 @@ Se comprueba al añadir (triggers de estructura y de plantilla), al cambiar la s
 
 ### 6.2 Ejemplos
 
-Casos cubiertos por aserciones de `supabase/tests/fase4_recurrencia_test.sql` (resultado según el arnés local descrito en "Estado"; pendiente de CI):
+Casos cubiertos por aserciones de `supabase/tests/fase4_recurrencia_test.sql` (en verde en local y en el CI de la PR):
 
 **Nueva York, domingo 11:00, semanal** (fin de horario de verano el 3 de noviembre de 2030):
 
@@ -396,7 +395,7 @@ Reconciliación de regla: fecha nueva → ocurrencia nueva con copia exacta de e
 
 ## 7. Plan de migración y despliegue (para revisión de Carlos)
 
-> **Nada se ha aplicado en ningún entorno remoto.** Este plan es una propuesta para revisar. Las consultas y el SQL de recuperación no se han ejecutado contra ninguna base de datos.
+> **Ejecutado el 17 de septiembre de 2026:** las consultas previas (§7.1) se lanzaron en producción en solo lectura, Carlos aplicó las migraciones y la verificación posterior se hizo en solo lectura (resultados en §9). El SQL de recuperación (§7.5) no se ha ejecutado.
 
 ### 7.1 Antes de aplicar
 
@@ -491,7 +490,7 @@ supabase.from("activities").select("id", { count: "exact", head: true })
 | Escrituras | La versión desplegada no escribe en `activities` |
 | Tipos (`database.types.ts`) | Desactualizados (`visibility: string`, sin tablas nuevas); no rompen el panel |
 
-El código de actividades en `src/lib/activities/` y `src/server/activities/` está en desarrollo en esta rama y no forma parte de la versión desplegada.
+Desde el 17 de septiembre de 2026 el código de actividades (`src/lib/activities/`, `src/server/activities/` y las pantallas) está desplegado en producción, con las migraciones aplicadas antes del código.
 
 ### 7.4 Después de aplicar (verificación)
 
@@ -580,12 +579,30 @@ alter table activities add constraint activities_visibility_check
 
 | Riesgo / deuda | Detalle | Tratamiento |
 |---|---|---|
-| Invitaciones con scope `church` (previo, fuera de F4) | `app.accept_person_invitation` asigna el `role_key` de la invitación (`invite_existing_person` acepta cualquier `role_key`) siempre con `scope_type = 'church'`. Un `ministry_leader` así asignado lee todas las actividades (incluidos borradores y notas administrativas) y gestiona puestos en todas; un `campus_admin` obtiene todas las capabilities `activity*` en toda la iglesia. | Rama `hotfix/` separada |
+| Invitaciones con scope `church` (previo, fuera de F4) | `app.accept_person_invitation` asigna el `role_key` de la invitación (`invite_existing_person` acepta cualquier `role_key`) siempre con `scope_type = 'church'`. Un `ministry_leader` así asignado lee todas las actividades (incluidos borradores y notas administrativas) y gestiona puestos en todas; un `campus_admin` obtiene todas las capabilities `activity*` en toda la iglesia. | **Corregido**: PR #1 (`46c220f`), migración `20260919000700` aplicada en producción |
 | Elegibilidad por fecha de actividad | `app.evaluate_person_eligibility` evalúa el puesto de catálogo contra `now()`: no usa la fecha de la actividad ni los overrides, añadidos o desactivados por actividad. | Fase 5, antes de asignar |
 | Filas heredadas que incumplan `CHECK NOT VALID` | No admiten `UPDATE` hasta corregirlas. | Consultas §7.1 c |
 | Fechas aproximadas en la normalización | `archived_at`/`cancelled_at` rellenados usan el `updated_at` original (última modificación), no la fecha real. | Aceptado; consultas §7.1 d |
 | Cambio de regla y `activity.cancel` | Cancelar ocurrencias publicadas exige `activity.cancel` además de `activity.manage`; sin ella falla toda la operación. | Documentado |
-| Pruebas | Suites `fase4_actividades` (135), `fase4_permisos` (71) y `fase4_recurrencia` (74) pasan según el responsable con un arnés PostgreSQL 17 sin Docker; no se ejecutó `supabase test db`. | Confirmar en CI de la PR |
-| Tipos TypeScript | `src/lib/supabase/database.types.ts` no está regenerado. | **Pendiente** |
-| UI e i18n | En desarrollo en esta rama; límites desconocidos para este documento. | Pendiente |
+| Pruebas | Suites `fase4_actividades` (135), `fase4_permisos` (71) y `fase4_recurrencia` (74) pasan en local y en el CI de la PR (`supabase test db`). | **Cerrado** |
+| Tipos TypeScript | `src/lib/supabase/database.types.ts` se regeneró con el motor de postgres-meta sobre la base local; falta contrastarlo con `supabase gen types`. | Deuda menor |
+| UI e i18n | Integrada y desplegada; textos solo en español de España. Navegación autenticada en navegador no verificada en el cierre (§9). | Comprobación manual recomendada |
 | Rendimiento de creación recurrente | Hasta 200 ocurrencias con copia de estructura por ocurrencia en una transacción. | Medir en local |
+
+## 9. Cierre y verificación en producción (17 de septiembre de 2026)
+
+| Paso | Evidencia | Resultado |
+|---|---|---|
+| Hotfix previo de invitaciones | PR #1, commit `cd6793d` validado por Carlos; merge `46c220f`; migración `20260919000700` aplicada y verificada en producción | Integrado |
+| Validación de Fase 4 | PR #2, commit `93eb369` validado expresamente por Carlos (incluye `main` con el hotfix) | Validado |
+| CI de la PR | `93eb369`: lint, typecheck y build; `supabase start`, `supabase test db` y `supabase db diff --local` | En verde |
+| Comprobaciones previas en producción (solo lectura) | 0 iglesias y 0 actividades; sin zonas inválidas; sin colisiones de capabilities; políticas de Fase 0 presentes; `db push --dry-run` con exactamente las 9 migraciones de F4 | Sin riesgos |
+| Migraciones en producción | `20260920000100`–`20260920000900` aplicadas por Carlos con `supabase db push` **antes** de integrar el código | Aplicadas |
+| Verificación posterior (solo lectura) | Última migración `20260920000900`; estado `planned`; 10 tablas nuevas con RLS forzado; `activities` solo con `activities_select`; `authenticated` sin INSERT/UPDATE directo; 9 capabilities `activity%`; visibilidad como enum; RPC presentes | Correcto |
+| Integración | Merge de la PR #2 en `main`: `b3f5add`; CI de `main` en verde | Integrado |
+| Despliegue | Vercel Production de `b3f5add` correcto; alias público `app-levita2.vercel.app` | Desplegado |
+| Smoke HTTP (sin sesión) | `/acceso` responde 200; `/app`, `/app/actividades`, `/app/actividades/plantillas` y `/app/calendario` redirigen a `/acceso?siguiente=…` | Correcto |
+| Smoke funcional en la base de producción | En una transacción con `ROLLBACK` y usuario sintético: alta de iglesia, plantilla con área/puesto/plan, actividad desde plantilla (11:00 America/New_York), estructura copiada, cobertura `uncovered`, añadir y reordenar plan, publicar, cancelar, serie semanal que cruza el cambio de hora (15:00 → 16:00 UTC), dashboard, escritura directa denegada | Correcto |
+| Ausencia de restos | Tras el smoke: 0 iglesias, 0 actividades, 0 plantillas y ningún usuario sintético | Correcto |
+
+**No verificado:** navegación autenticada de las pantallas en el navegador con una cuenta real. El smoke sin sesión confirma el enrutado y la protección; el funcional confirma la lógica en la base de producción, no la interfaz. Queda como comprobación manual recomendada, no bloqueante del cierre.
