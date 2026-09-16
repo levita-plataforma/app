@@ -129,6 +129,7 @@ export const STRUCTURE_ISSUE_LABELS: Record<string, string> = {
   catalog_position_unavailable: "El puesto ya no está activo en el catálogo",
   no_areas: "Sin áreas de servicio",
   plan_exceeds_activity: "El orden del servicio dura más que la actividad",
+  plan_items_overlap: "Hay bloques del orden del servicio que se solapan",
 };
 
 export const TEMPLATE_SKIP_REASON_LABELS: Record<string, string> = {

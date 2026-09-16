@@ -202,6 +202,9 @@ begin
 
   if app.activity_cap(p_church_id, p_campus_id, p_activity_id, 'activity.read')
      or app.activity_cap(p_church_id, p_campus_id, p_activity_id, 'activity.manage')
+     or app.activity_cap(p_church_id, p_campus_id, p_activity_id, 'activity.publish')
+     or app.activity_cap(p_church_id, p_campus_id, p_activity_id, 'activity.cancel')
+     or app.activity_cap(p_church_id, p_campus_id, p_activity_id, 'activity.archive')
      or app.activity_cap(p_church_id, p_campus_id, p_activity_id, 'activity_plan.manage') then
     return true;
   end if;
@@ -353,7 +356,9 @@ grant execute on function app.position_coverage_status(integer, integer, integer
 -- Incidencias de estructura
 -- ===========================================================================
 -- severity 'blocking' impide publicar. 'warning' informa.
-create or replace function app.activity_structure_issues(p_activity_id uuid)
+-- Variante interna sin comprobación de lectura: la usan triggers y funciones
+-- definer que ya validaron el acceso. No se concede a authenticated.
+create or replace function app.activity_structure_issues_unchecked(p_activity_id uuid)
 returns table (
   code text,
   severity text,
@@ -371,6 +376,8 @@ declare
   v_cursor integer := 0;
   v_end integer := 0;
   v_has_plan boolean := false;
+  v_overlap boolean := false;
+  v_previous_end integer;
 begin
   select * into v_activity from activities a where a.id = p_activity_id;
   if not found then
@@ -434,28 +441,54 @@ begin
     return query select 'no_areas', 'warning', null::uuid, null::uuid;
   end if;
 
-  -- Plan más largo que la actividad (solo con horario).
-  if v_activity.schedule_kind = 'timed' then
-    for v_item in
-      select pi.duration_minutes, pi.start_offset_minutes
-      from activity_plan_items pi
-      where pi.activity_id = p_activity_id
-      order by pi.sort_order
-    loop
-      v_has_plan := true;
-      v_cursor := coalesce(v_item.start_offset_minutes, v_cursor);
-      v_cursor := v_cursor + coalesce(v_item.duration_minutes, 0);
-      v_end := greatest(v_end, v_cursor);
-    end loop;
-
-    if v_has_plan
-       and v_end > extract(epoch from (v_activity.ends_at - v_activity.starts_at)) / 60 then
-      return query select 'plan_exceeds_activity', 'warning', null::uuid, null::uuid;
+  -- Línea temporal del plan: solapes entre bloques y plan más largo que la
+  -- actividad (esto último solo con horario). Se permiten; se avisan.
+  for v_item in
+    select pi.duration_minutes, pi.start_offset_minutes
+    from activity_plan_items pi
+    where pi.activity_id = p_activity_id
+    order by pi.sort_order
+  loop
+    v_has_plan := true;
+    v_cursor := coalesce(v_item.start_offset_minutes, v_cursor);
+    if v_previous_end is not null and v_cursor < v_previous_end then
+      v_overlap := true;
     end if;
+    v_cursor := v_cursor + coalesce(v_item.duration_minutes, 0);
+    v_previous_end := v_cursor;
+    v_end := greatest(v_end, v_cursor);
+  end loop;
+
+  if v_overlap then
+    return query select 'plan_items_overlap', 'warning', null::uuid, null::uuid;
+  end if;
+
+  if v_has_plan and v_activity.schedule_kind = 'timed'
+     and v_end > extract(epoch from (v_activity.ends_at - v_activity.starts_at)) / 60 then
+    return query select 'plan_exceeds_activity', 'warning', null::uuid, null::uuid;
   end if;
 end;
 $$;
 
+-- Variante para usuarios: solo actividades que el usuario puede leer.
+create or replace function app.activity_structure_issues(p_activity_id uuid)
+returns table (
+  code text,
+  severity text,
+  activity_service_area_id uuid,
+  activity_position_id uuid
+)
+language sql
+stable
+security definer
+set search_path = pg_catalog, public
+as $$
+  select i.*
+  from app.activity_structure_issues_unchecked(p_activity_id) i
+  where auth.uid() is null or app.can_read_activity(p_activity_id);
+$$;
+
+revoke all on function app.activity_structure_issues_unchecked(uuid) from public, anon, authenticated;
 revoke all on function app.activity_structure_issues(uuid) from public, anon;
 grant execute on function app.activity_structure_issues(uuid) to authenticated;
 
@@ -477,6 +510,7 @@ as $$
   from activity_position_requirements apr
   where apr.activity_position_id = p_activity_position_id
     and not apr.disabled
+    and (auth.uid() is null or app.can_read_activity(apr.activity_id))
   order by apr.created_at, apr.id;
 $$;
 
@@ -494,6 +528,7 @@ as $$
       and (a.schedule_kind = 'flexible' or a.ends_at > now())
     from activities a
     where a.id = p_activity_id
+      and (auth.uid() is null or app.can_read_activity(a.id))
   ), false);
 $$;
 
@@ -615,8 +650,10 @@ begin
       from activity_service_areas asa
       left join service_areas sa on sa.id = asa.service_area_id
       where asa.activity_id = new.id
-        and coalesce(sa.campus_id, asa.area_campus_id) is not null
-        and coalesce(sa.campus_id, asa.area_campus_id) <> new.campus_id
+        -- Mismo criterio que activity_structure_issues: catálogo vigente si
+        -- existe; snapshot solo si el área de catálogo ya no existe.
+        and (case when sa.id is null then asa.area_campus_id else sa.campus_id end) is not null
+        and (case when sa.id is null then asa.area_campus_id else sa.campus_id end) <> new.campus_id
     ) or exists (
       select 1
       from activity_positions ap
@@ -654,9 +691,24 @@ begin
     raise exception 'No autorizado para cambiar el estado de la actividad (%).', v_capability using errcode = '42501';
   end if;
 
+  -- Desarchivar restaura el estado previo tal cual: conserva motivo y fechas
+  -- de cancelación, publicación y completado, y no revalida la estructura.
+  if old.status = 'archived' then
+    new.archived_at := null;
+    new.archived_by := null;
+    new.status_before_archive := null;
+    new.cancelled_at := old.cancelled_at;
+    new.cancelled_by := old.cancelled_by;
+    new.cancellation_reason := old.cancellation_reason;
+    new.published_at := old.published_at;
+    new.published_by := old.published_by;
+    new.completed_at := old.completed_at;
+    return new;
+  end if;
+
   if new.status = 'published' then
     select string_agg(distinct i.code, ', ') into v_blocking
-    from app.activity_structure_issues(new.id) i
+    from app.activity_structure_issues_unchecked(new.id) i
     where i.severity = 'blocking';
     if v_blocking is not null then
       raise exception 'La estructura de la actividad no es válida para publicar: %.', v_blocking using errcode = '22023';
@@ -689,12 +741,6 @@ begin
     new.cancellation_reason := null;
     new.published_at := null;
     new.published_by := null;
-  end if;
-
-  if old.status = 'archived' then
-    new.archived_at := null;
-    new.archived_by := null;
-    new.status_before_archive := null;
   end if;
 
   -- El motivo solo se fija al cancelar y solo se borra al reactivar.

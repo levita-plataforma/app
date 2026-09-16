@@ -19,6 +19,9 @@
 -- Además, el nuevo modelo de lectura oculta a los miembros las actividades en
 -- draft/planned, así que el acceso efectivo a datos existentes solo se reduce.
 
+-- Los rellenos de datos de esta migración no deben pisar updated_at.
+alter table activities disable trigger activities_set_updated_at;
+
 create type activity_visibility as enum ('private', 'leaders', 'members', 'public_future');
 
 comment on type activity_visibility is
@@ -91,6 +94,7 @@ alter table activities
   add column series_id uuid,
   add column occurrence_date date,
   add column series_modified boolean not null default false,
+  add column series_structure_modified boolean not null default false,
   add column duplicated_from_activity_id uuid,
   add column creation_request_id uuid,
   add column published_at timestamptz,
@@ -112,6 +116,8 @@ comment on column activities.occurrence_date is
   'Fecha local original de la ocurrencia dentro de la serie. Identidad estable: (series_id, occurrence_date) es única y hace idempotente la expansión.';
 comment on column activities.series_modified is
   'Excepción: la ocurrencia se editó individualmente y las ediciones de "futuras" o "toda la serie" no la sobrescriben.';
+comment on column activities.series_structure_modified is
+  'Excepción de estructura: sus áreas, puestos, requisitos o plan se editaron individualmente; "aplicar estructura a la serie" no la sobrescribe.';
 comment on column activities.status_before_archive is
   'Estado previo al archivado, para poder desarchivar sin perder el ciclo de vida.';
 comment on column activities.cancellation_reason is
@@ -130,6 +136,8 @@ where status = 'archived' and archived_at is null;
 update activities
 set cancelled_at = coalesce(cancelled_at, updated_at)
 where status = 'cancelled' and cancelled_at is null;
+
+alter table activities enable trigger activities_set_updated_at;
 
 alter table activities add constraint activities_archived_consistency_check
   check ((status = 'archived') = (archived_at is not null));

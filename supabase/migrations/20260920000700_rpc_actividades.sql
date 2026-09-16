@@ -369,8 +369,11 @@ begin
   select * into v_target from activities where id = p_target_id;
   perform set_config('app.structure_copy', 'on', true);
 
+  -- Sin módulo Servicios no se crean áreas ni puestos; el plan sí se copia.
   for v_area in
-    select * from activity_service_areas where activity_id = p_source_id order by sort_order, created_at
+    select * from activity_service_areas
+    where activity_id = p_source_id and app.module_enabled(v_target.church_id, 'serving')
+    order by sort_order, created_at
   loop
     insert into activity_service_areas (
       church_id, activity_id, service_area_id, area_name, area_campus_id, requirement, notes, sort_order, created_by
@@ -426,6 +429,19 @@ begin
 end;
 $$;
 
+-- Editar individualmente la estructura o el plan de una ocurrencia la marca
+-- como excepción de estructura (apply_activity_structure_to_series la respeta).
+create or replace function app.mark_structure_modified(p_activity_id uuid)
+returns void
+language sql
+security definer
+set search_path = pg_catalog, public
+as $$
+  update activities set series_structure_modified = true
+  where id = p_activity_id and series_id is not null and not series_structure_modified;
+$$;
+
+revoke all on function app.mark_structure_modified(uuid) from public, anon, authenticated;
 revoke all on function app.j_text(jsonb, text) from public, anon;
 revoke all on function app.assert_church_member(uuid) from public, anon;
 revoke all on function app.lock_activity(uuid) from public, anon;
@@ -570,6 +586,12 @@ begin
       v_campus_id := v_template.campus_id;
     end if;
     v_kind := coalesce(v_kind, v_template.schedule_kind);
+    -- Solo fecha ("YYYY-MM-DD") + hora por defecto de la plantilla.
+    if v_template.default_local_start_time is not null
+       and char_length(btrim(coalesce(p_input ->> 'local_start', ''))) = 10 then
+      p_input := jsonb_set(p_input, '{local_start}',
+        to_jsonb((p_input ->> 'local_start') || 'T' || to_char(v_template.default_local_start_time, 'HH24:MI')));
+    end if;
     v_title := coalesce(v_title, v_template.default_title, v_template.name);
     v_description := coalesce(v_description, v_template.description);
     v_visibility := coalesce(v_visibility, v_template.visibility);
@@ -761,9 +783,12 @@ begin
       ) then
         raise exception 'La sede no pertenece a esta iglesia.' using errcode = '22023';
       end if;
-      -- También hay que poder gestionar actividades en el destino.
-      if not app.activity_cap(v_activity.church_id, v_new.campus_id, v_activity.id, 'activity.manage')
-         or (v_new.campus_id is null and not app.has_capability(v_activity.church_id, 'activity.manage')) then
+      -- Mover de sede exige gestionar actividades en el destino con scope de
+      -- iglesia o de esa sede (un scope de actividad no basta).
+      if not (
+        (v_new.campus_id is null and app.has_capability(v_activity.church_id, 'activity.manage'))
+        or (v_new.campus_id is not null and app.has_capability(v_activity.church_id, 'activity.manage', 'campus', v_new.campus_id))
+      ) then
         raise exception 'No tienes permiso para mover la actividad a esa sede.' using errcode = '42501';
       end if;
     end if;
@@ -847,7 +872,8 @@ begin
   -- El trigger valida la matriz, la capability del ámbito y la estructura.
   update activities
   set status = p_to,
-      cancellation_reason = case when p_to = 'cancelled' then p_reason else cancellation_reason end
+      cancellation_reason = case when p_to = 'cancelled' and v_activity.status <> 'archived'
+        then p_reason else cancellation_reason end
   where id = v_activity.id;
 
   v_action := case
@@ -974,6 +1000,7 @@ declare
 begin
   perform app.require_activity_cap(v_activity, 'activity.manage');
   perform app.require_serving_module(v_activity.church_id);
+  perform app.mark_structure_modified(v_activity.id);
 
   if exists (
     select 1 from activity_service_areas asa
@@ -1034,6 +1061,8 @@ begin
   end if;
   v_activity := app.lock_activity(v_area.activity_id);
   perform app.require_activity_cap(v_activity, 'activity.manage');
+  perform app.require_serving_module(v_activity.church_id);
+  perform app.mark_structure_modified(v_activity.id);
 
   update activity_service_areas set
     requirement = case when p_input ? 'requirement' then (p_input ->> 'requirement')::activity_area_requirement else requirement end,
@@ -1064,6 +1093,8 @@ begin
   end if;
   v_activity := app.lock_activity(v_area.activity_id);
   perform app.require_activity_cap(v_activity, 'activity.manage');
+  perform app.require_serving_module(v_activity.church_id);
+  perform app.mark_structure_modified(v_activity.id);
 
   delete from activity_service_areas where id = v_area.id;
 
@@ -1094,6 +1125,7 @@ begin
     raise exception 'No tienes permiso para gestionar los puestos de esta área.' using errcode = '42501';
   end if;
   perform app.require_serving_module(v_activity.church_id);
+  perform app.mark_structure_modified(v_activity.id);
   return v_area;
 end;
 $$;
@@ -1294,6 +1326,7 @@ begin
           or app.activity_cap(v_activity.church_id, v_activity.campus_id, v_activity.id, 'activity.manage')) then
     raise exception 'No tienes permiso para gestionar el orden del servicio.' using errcode = '42501';
   end if;
+  perform app.mark_structure_modified(v_activity.id);
   return v_activity;
 end;
 $$;
@@ -1525,6 +1558,11 @@ begin
     end if;
     perform app.require_template_cap(p_church_id, v_existing.campus_id);
 
+    -- Primero se retiran las filas hijas: así un cambio de sede no choca con
+    -- las áreas antiguas que se van a reemplazar.
+    delete from activity_template_areas where template_id = p_template_id;
+    delete from activity_template_plan_items where template_id = p_template_id;
+
     update activity_templates set
       name = coalesce(app.j_text(p_input, 'name'), ''),
       type = (p_input ->> 'type')::activity_type,
@@ -1540,9 +1578,6 @@ begin
       active = coalesce((p_input ->> 'active')::boolean, true),
       sort_order = coalesce((p_input ->> 'sort_order')::integer, 0)
     where id = p_template_id;
-
-    delete from activity_template_areas where template_id = p_template_id;
-    delete from activity_template_plan_items where template_id = p_template_id;
   else
     insert into activity_templates (
       church_id, name, type, campus_id, default_title, schedule_kind, default_local_start_time,

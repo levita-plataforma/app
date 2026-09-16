@@ -20,3 +20,4 @@ Registro de decisiones de arquitectura (Architecture Decision Records) tomadas d
 | [0014](0014-claves-fk-tenant-safe.md) | Claves y FKs tenant-safe | Aceptado |
 | [0015](0015-repositorio-unico-monorepo.md) | Repositorio único (no monorepo apps/packages) | Aceptado |
 | [0016](0016-referencia-visual-layout.md) | Referencia visual: imágenes `layout*` sustituyen a Calserv | Aceptado |
+| [0017](0017-actividades-planificacion-fase-4.md) | Actividades, estructura de servicio y planificación (Fase 4) | Propuesto — pendiente de validación |

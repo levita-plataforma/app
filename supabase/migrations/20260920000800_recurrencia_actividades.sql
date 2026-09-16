@@ -648,12 +648,22 @@ begin
       -- Excepción o histórico: se conserva.
       null;
     elsif v_target.status = 'published' then
+      -- Requiere activity.cancel (lo comprueba el trigger de estado).
       update activities set status = 'cancelled', cancellation_reason = 'Serie reprogramada'
       where id = v_target.id;
       v_cancelled := v_cancelled + 1;
+      perform app.write_audit_log(
+        v_activity.church_id, 'activity.cancelled', 'activities', v_target.id,
+        jsonb_build_object('from', v_target.status, 'to', 'cancelled', 'cause', 'series_rule_changed', 'series_id', v_series_id)
+      );
     else
+      -- Borrador/planificada sin excepción ni histórico: se elimina.
       delete from activities where id = v_target.id;
       v_removed := v_removed + 1;
+      perform app.write_audit_log(
+        v_activity.church_id, 'activity.series_occurrence_removed', 'activities', v_target.id,
+        jsonb_build_object('occurrence_date', v_target.occurrence_date, 'status', v_target.status, 'series_id', v_series_id)
+      );
     end if;
   end loop;
 
@@ -695,6 +705,8 @@ begin
     raise exception 'La actividad no pertenece a una serie.' using errcode = '22023';
   end if;
   perform app.require_activity_cap(v_source, 'activity.manage');
+  -- Sin el módulo se borrarían áreas del destino sin poder copiarlas.
+  perform app.require_serving_module(v_source.church_id);
 
   for v_target in
     select * from app.series_editable_occurrences(
@@ -702,6 +714,8 @@ begin
     )
   loop
     continue when v_target.id = v_source.id;
+    -- Excepciones de estructura (editadas individualmente): se respetan.
+    continue when v_target.series_structure_modified;
     perform 1 from activities where id = v_target.id for update;
     if not app.activity_cap(v_target.church_id, v_target.campus_id, v_target.id, 'activity.manage') then
       raise exception 'No tienes permiso para editar todas las ocurrencias afectadas.' using errcode = '42501';
