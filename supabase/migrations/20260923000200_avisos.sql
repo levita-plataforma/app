@@ -42,6 +42,7 @@ create table notification_events (
     'assignment.cancelled',
     'assignment.substituted',
     'assignment.substitution_requested',
+    'assignment.substitution_cancelled',
     'assignment.reminder',
     'assignment.coverage_at_risk',
     'activity.rescheduled'
@@ -65,7 +66,7 @@ create table notification_events (
 comment on table notification_events is
   'Outbox de eventos de dominio de avisos (Fase 5, DI-02). Se escribe en la misma transacción que la mutación. Nunca la lee el cliente: solo el motor con service_role.';
 comment on column notification_events.idempotency_key is
-  'Clave de deduplicación <event_type>:<entity_id>:<entity_version>. Repetir la misma transición no duplica el evento (on conflict do nothing).';
+  'Clave de deduplicación <event_type>:<entity_id>:<entity_version>. Repetir la misma transición no duplica el evento (on conflict do nothing). Los avisos cuya repetición no depende de la versión de la entidad usan una clave estable con 0 en ese hueco: el recordatorio de un plazo se manda una sola vez aunque la actividad se reprograme.';
 comment on column notification_events.recipient_person_ids is
   'Personas destinatarias, ya filtradas a pertenencia vigente de la iglesia.';
 comment on column notification_events.payload is
@@ -173,6 +174,28 @@ create index notification_preferences_person_idx on notification_preferences (pe
 create trigger notification_preferences_set_updated_at
   before update on notification_preferences
   for each row execute function app.set_updated_at();
+
+-- Índices del motor -----------------------------------------------------------
+-- Los dos barridos periódicos (app.enqueue_due_reminders y
+-- app.escalate_uncovered_positions, migración 0500) filtran por el estado y la
+-- hora de la actividad y por los puestos críticos. Todos los índices anteriores
+-- de esas dos tablas empiezan por church_id, así que el motor (que recorre
+-- TODAS las iglesias) no podía usar ninguno. Estos son parciales: solo indexan
+-- la porción viva, que es una fracción mínima de la tabla.
+
+create index if not exists activities_pending_notifications_idx
+  on activities (starts_at)
+  where status in ('planned', 'published') and starts_at is not null;
+
+comment on index activities_pending_notifications_idx is
+  'Barrido de recordatorios y de escalado: actividades vivas ordenadas por hora de inicio, sin pasar por church_id.';
+
+create index if not exists activity_positions_critical_idx
+  on activity_positions (activity_id)
+  where critical;
+
+comment on index activity_positions_critical_idx is
+  'Escalado de la regla 3: los puestos críticos son pocos y así se llega a ellos sin recorrer todos los puestos.';
 
 alter table notification_events enable row level security;
 alter table notification_events force row level security;

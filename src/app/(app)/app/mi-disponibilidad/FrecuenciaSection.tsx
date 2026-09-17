@@ -10,8 +10,10 @@ import { DpMessages, useDisponibilidadAction } from "./ui";
 /**
  * Bloque 3: con qué frecuencia quiere servir la persona. Máximo de
  * actividades al mes, general y afinable por área (solo las áreas en las que
- * es miembro activo). Es una preferencia: superarla avisa a quien coordina,
- * nunca bloquea.
+ * es miembro activo). Es una preferencia: superarla añade el aviso de
+ * elegibilidad `frequency_exceeded`, que quien coordina ve al asignar, y nunca
+ * bloquea. Ese aviso no genera ninguna notificación ni entra en la bandeja,
+ * así que los textos de esta pantalla no pueden decir que se avise a nadie.
  *
  * Ojo con la diferencia que fija la migración: un área **sin** preferencia
  * propia hereda el máximo general; un área **con** preferencia y el campo
@@ -116,8 +118,9 @@ export default function FrecuenciaSection({
       <p className="dp-note">
         <Info size={13} aria-hidden="true" />
         <span>
-          Es una <strong>preferencia</strong>, no un bloqueo: si se supera, quien coordina recibe un aviso
-          y decide. Nadie deja de poder contar contigo por esto.
+          Es una <strong>preferencia</strong>, no un bloqueo: si se supera, quien coordina lo ve al
+          asignarte y decide. No se envía ningún aviso a nadie. Nadie deja de poder contar contigo por
+          esto.
         </span>
       </p>
 

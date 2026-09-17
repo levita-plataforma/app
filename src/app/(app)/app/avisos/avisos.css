@@ -272,6 +272,26 @@
   max-width: 70ch;
 }
 
+/* La lectura de las preferencias ha fallado: se dice y no se toca nada. */
+.av-prefs-failed {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  margin-top: 6px;
+  padding: 10px 12px;
+  border-radius: var(--shell-radius-sm);
+  background: #fdf3d9;
+  color: #7a5a12;
+  font-size: 12.5px;
+  line-height: 1.45;
+  max-width: 70ch;
+}
+
+.av-prefs-failed svg {
+  flex-shrink: 0;
+  margin-top: 2px;
+}
+
 .av-prefs-list {
   list-style: none;
   margin: 0;
@@ -389,6 +409,21 @@
 .av-feedback.is-success {
   background: var(--mod-serving-bg);
   color: #2c6e45;
+}
+
+/*
+ * Región de estado de la bandeja: ocupa toda la fila, entre las pestañas y la
+ * lista. Cuando está vacía se queda con la clase sr-only, porque una región
+ * dinámica tiene que seguir en el árbol de accesibilidad para que su cambio de
+ * contenido se anuncie (display: none la sacaría).
+ */
+.av-status {
+  font-size: 13px;
+}
+
+.av-status:focus-visible {
+  outline: 2px solid var(--shell-brand);
+  outline-offset: 2px;
 }
 
 .av-error {

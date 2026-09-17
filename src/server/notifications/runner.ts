@@ -19,9 +19,10 @@ import { env } from "@/server/env";
 export type NotificationsRunResult = {
   reminders: number;
   escalations: number;
-  processed: number;
+  events: number;
+  notifications: number;
+  deliveries: number;
   transport: string;
-  deliveriesSent: number;
 };
 
 const BATCH = 200;
@@ -29,24 +30,33 @@ const BATCH = 200;
 export async function runNotifications(): Promise<NotificationsRunResult> {
   const supabase = createSupabaseServiceRoleClient();
 
-  const reminders = await callCount(supabase, "enqueue_due_reminders", {});
-  const escalations = await callCount(supabase, "escalate_uncovered_positions", {});
-  const processed = await callCount(supabase, "process_notification_events", { p_limit: BATCH });
+  const reminders = await callRpc(supabase, "enqueue_due_reminders", {});
+  const escalations = await callRpc(supabase, "escalate_uncovered_positions", {});
+  const processed = await callRpc(supabase, "process_notification_events", { p_limit: BATCH });
 
   return {
-    reminders,
-    escalations,
-    processed,
+    reminders: count(reminders, "reminders"),
+    escalations: count(escalations, "escalations"),
+    events: count(processed, "events"),
+    notifications: count(processed, "notifications"),
+    deliveries: count(processed, "deliveries"),
     transport: env.notificationsTransport,
-    // Sin transporte configurado no se envía nada fuera de la aplicación.
-    deliveriesSent: 0,
   };
 }
 
 type Rpc = ReturnType<typeof createSupabaseServiceRoleClient>;
 
-async function callCount(supabase: Rpc, fn: string, args: Record<string, unknown>): Promise<number> {
+/** Las tres RPC del motor devuelven jsonb con sus contadores. */
+async function callRpc(supabase: Rpc, fn: string, args: Record<string, unknown>): Promise<unknown> {
   const { data, error } = await supabase.rpc(fn as never, args as never);
   if (error) throw new Error(`Falló ${fn}: ${error.message}`);
-  return typeof data === "number" ? data : 0;
+  return data;
+}
+
+function count(data: unknown, key: string): number {
+  if (data && typeof data === "object" && !Array.isArray(data)) {
+    const value = (data as Record<string, unknown>)[key];
+    if (typeof value === "number") return value;
+  }
+  return 0;
 }

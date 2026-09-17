@@ -13,7 +13,8 @@ import "server-only";
  * Método: dos pasadas. La primera estima el desfase con la hora escrita leída
  * como UTC; la segunda lo corrige con el instante ya aproximado, que es lo que
  * hace falta en los días de cambio de hora. Una hora inexistente (la madrugada
- * del adelanto) se desplaza hacia delante, igual que hace PostgreSQL.
+ * del adelanto) se desplaza hacia delante, igual que hace PostgreSQL; quien
+ * necesite detectar ese caso para explicarlo tiene `localTimeExists`.
  */
 
 /** "YYYY-MM-DDTHH:MM", tal y como lo emite un <input type="datetime-local">. */
@@ -64,4 +65,39 @@ export function localToInstant(local: string, timeZone: string): string {
   let instantMs = naiveMs - zoneOffsetMs(naiveMs, timeZone);
   instantMs = naiveMs - zoneOffsetMs(instantMs, timeZone);
   return new Date(instantMs).toISOString();
+}
+
+/** Instante → "YYYY-MM-DDTHH:MM" tal y como se ve en la zona indicada. */
+function instantToLocal(instantMs: number, timeZone: string): string {
+  const parts = new Intl.DateTimeFormat("en-CA", {
+    timeZone,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+    hourCycle: "h23",
+  }).formatToParts(new Date(instantMs));
+
+  const value = (type: string) => parts.find((p) => p.type === type)?.value ?? "";
+  return `${value("year")}-${value("month")}-${value("day")}T${value("hour")}:${value("minute")}`;
+}
+
+/**
+ * Falso cuando esa hora local no existe ese día en esa zona: la madrugada en
+ * que los relojes se adelantan (en Europe/Madrid, las 02:30 del 31-03-2030).
+ * `localToInstant` la desplaza hacia delante, igual que PostgreSQL, así que el
+ * instante resultante ya no muestra la hora escrita; comparar una con otra es
+ * lo que delata el hueco, sin tocar la conversión.
+ */
+export function localTimeExists(local: string, timeZone: string): boolean {
+  return instantToLocal(Date.parse(localToInstant(local, timeZone)), timeZone) === local;
+}
+
+/** "2030-03-31T02:30" → "02:30 del 31/03/2030", para los mensajes. */
+export function describeLocalDateTime(local: string): string {
+  const [date = "", time = ""] = local.split("T");
+  const [year, month, day] = date.split("-");
+  if (!year || !month || !day || !time) return local;
+  return `${time} del ${day}/${month}/${year}`;
 }

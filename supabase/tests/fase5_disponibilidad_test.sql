@@ -6,7 +6,7 @@
 -- la escritura directa. Ver migración 20260923000100_disponibilidad.sql.
 
 begin;
-select plan(62);
+select plan(65);
 
 create or replace function test_set_auth_uid(p_uid uuid) returns void as $$
 begin
@@ -316,6 +316,37 @@ select is(
                '2031-10-18 00:00+00', '2031-10-28 00:00+00'),
   2,
   'El líder del área, con assignment.manage de scope service_area, sí consulta la disponibilidad'
+);
+
+-- La carga de servicio de una persona no se consulta desde el cliente: las dos
+-- funciones son definer y no comprueban ni pertenencia ni iglesia de quien
+-- llama, así que solo las alcanza su llamante interno (la elegibilidad, que sí
+-- comprueba el acceso). Concedérselas a `authenticated` dejaba deducir desde
+-- otra iglesia cuánto sirve una persona.
+select ok(
+  not has_function_privilege('authenticated',
+    'app.person_monthly_serving_load(uuid, uuid, uuid, timestamptz, uuid)', 'execute')
+  and not has_function_privilege('authenticated',
+    'app.person_frequency_exceeded(uuid, uuid, uuid, timestamptz, uuid)', 'execute')
+  and not has_function_privilege('anon',
+    'app.person_monthly_serving_load(uuid, uuid, uuid, timestamptz, uuid)', 'execute')
+  and not has_function_privilege('anon',
+    'app.person_frequency_exceeded(uuid, uuid, uuid, timestamptz, uuid)', 'execute'),
+  'Ni authenticated ni anon pueden ejecutar la carga mensual ni el exceso de frecuencia'
+);
+
+select is(
+  substring(t_err($q$ select app.person_monthly_serving_load(
+    t_id('church_a'), 'd1000000-0000-0000-0000-0000000e0002'::uuid, null, now()) $q$) from 1 for 5),
+  '42501',
+  'Llamar a app.person_monthly_serving_load como authenticated da 42501'
+);
+
+select is(
+  substring(t_err($q$ select app.person_frequency_exceeded(
+    t_id('church_a'), 'd1000000-0000-0000-0000-0000000e0002'::uuid, null, now()) $q$) from 1 for 5),
+  '42501',
+  'Llamar a app.person_frequency_exceeded como authenticated da 42501'
 );
 
 -- ============================================================

@@ -1,7 +1,7 @@
 "use client";
 
 import { useId, useState, useTransition } from "react";
-import { Bell, Mail, Smartphone, type LucideIcon } from "lucide-react";
+import { AlertTriangle, Bell, Mail, Smartphone, type LucideIcon } from "lucide-react";
 import type { NotificationChannel, NotificationPreferences } from "@/server/notifications/notifications-service";
 import { cambiarPreferenciaAvisoAction } from "./actions";
 
@@ -11,6 +11,11 @@ import { cambiarPreferenciaAvisoAction } from "./actions";
  *
  * Los textos no prometen ningún envío: mientras el transporte externo esté
  * desactivado, el aviso solo aparece dentro de LEVITA.
+ *
+ * Si la lectura de las preferencias ha fallado (`loadFailed`), los
+ * interruptores no muestran ningún ajuste ni se pueden tocar: enseñar los
+ * valores por defecto sería decirle a quien tiene un canal desactivado que lo
+ * tiene activado.
  */
 
 type Channel = { key: Exclude<NotificationChannel, "inapp">; label: string; Icon: LucideIcon; help: string };
@@ -32,9 +37,12 @@ const CHANNELS: Channel[] = [
 
 export default function PreferenciasAvisos({
   preferences,
+  loadFailed,
   externalTransportEnabled,
 }: {
   preferences: NotificationPreferences;
+  /** Cierto si no se pudieron leer: lo de arriba son valores por defecto. */
+  loadFailed: boolean;
   /** Falso mientras el envío fuera de la aplicación siga desactivado. */
   externalTransportEnabled: boolean;
 }) {
@@ -45,7 +53,7 @@ export default function PreferenciasAvisos({
   const titleId = useId();
 
   function toggle(channel: Exclude<NotificationChannel, "inapp">, next: boolean) {
-    if (busy) return;
+    if (busy || loadFailed) return;
     const previous = values[channel];
     setBusy(channel);
     setFeedback(null);
@@ -80,6 +88,17 @@ export default function PreferenciasAvisos({
         <h2 id={titleId} className="av-prefs-title">
           Cómo quieres recibir los avisos
         </h2>
+        {loadFailed ? (
+          <p className="av-prefs-failed">
+            <AlertTriangle size={14} aria-hidden="true" />
+            <span>
+              <strong>No se pudieron cargar tus preferencias.</strong> Lo que ves debajo no es tu ajuste
+              guardado, así que los interruptores quedan desactivados para no cambiar nada sin saber de
+              qué se parte. Ha fallado la carga; vuelve a intentarlo en unos segundos recargando la
+              página.
+            </span>
+          </p>
+        ) : null}
         {externalTransportEnabled ? null : (
           <p className="av-prefs-lead">
             De momento los avisos <strong>solo aparecen aquí, dentro de la aplicación</strong>: LEVITA todavía no
@@ -89,6 +108,10 @@ export default function PreferenciasAvisos({
         )}
         <p className="av-prefs-lead">
           La preferencia es personal: se aplica a todas las iglesias a las que perteneces.
+        </p>
+        <p className="av-prefs-lead">
+          Los avisos no son inmediatos: una tarea programada los prepara <strong>una vez al día</strong>,
+          así que lo que ocurra ahora puede tardar hasta 24 horas en aparecer en esta bandeja.
         </p>
       </div>
 
@@ -107,7 +130,7 @@ export default function PreferenciasAvisos({
         </li>
 
         {CHANNELS.map(({ key, label, Icon, help }) => {
-          const checked = values[key];
+          const checked = loadFailed ? false : values[key];
           const isBusy = busy === key;
           return (
             <li className="av-pref" key={key}>
@@ -119,7 +142,7 @@ export default function PreferenciasAvisos({
                   <label htmlFor={`${titleId}-${key}`}>{label}</label>
                 </p>
                 <p className="av-pref-help" id={`${titleId}-${key}-help`}>
-                  {help}
+                  {loadFailed ? "No se ha podido leer tu ajuste de este canal, así que no se muestra." : help}
                   {externalTransportEnabled ? "" : " Hoy no sale nada de LEVITA por este canal."}
                 </p>
               </div>
@@ -129,7 +152,7 @@ export default function PreferenciasAvisos({
                 type="checkbox"
                 role="switch"
                 checked={checked}
-                disabled={isBusy}
+                disabled={isBusy || loadFailed}
                 aria-busy={isBusy}
                 aria-describedby={`${titleId}-${key}-help`}
                 onChange={(event) => toggle(key, event.target.checked)}

@@ -39,7 +39,7 @@ Excluido (a propósito):
 | 3 | **Escalado:** un puesto **crítico** que siga por debajo de su mínimo a menos de 3 días de la actividad avisa a la administración de la iglesia. |
 | 4 | **Recordatorios:** sin respuesta, 7 y 2 días antes; ya aceptado, la víspera. |
 | 5 | **Silencio:** 22:00–08:00 en la zona de la actividad. Lo que cae dentro se entrega al terminar la franja. Única excepción: una cancelación de una actividad que empieza ese mismo día. |
-| 6 | **Frecuencia:** máximo de actividades al mes, global y afinable por área. Dos puestos de la misma actividad cuentan como una. Superarlo **solo avisa**: nunca bloquea. |
+| 6 | **Frecuencia:** máximo de actividades al mes, global y afinable por área. Dos puestos de la misma actividad cuentan como una. Superarlo **no bloquea**: es un aviso más, que quien asigna confirma expresamente como los demás (no impide asignar, pero sí exige confirmarlo). Nadie recibe una notificación por ello: se ve al asignar. |
 
 ---
 
@@ -133,8 +133,10 @@ Ningún texto promete correo ni push mientras el transporte esté desactivado.
 
 ## 6. Ejecución periódica y transporte
 
-- Ruta `POST /api/tareas/avisos`, protegida por `CRON_SECRET`; sin secreto configurado, responde 503 y no hace nada.
-- Ejecuta, con la clave de servicio: recordatorios → escalado → proceso de eventos.
+- Ruta `/api/tareas/avisos` (acepta `GET` y `POST`), protegida por `CRON_SECRET` en la cabecera `Authorization: Bearer …`. Sin credencial válida responde 401, esté o no configurado el secreto.
+- La dispara **Vercel Cron** una vez al día (`vercel.json`, 07:00 UTC), que es lo que permite cualquier plan. Vercel envía esa cabecera automáticamente cuando `CRON_SECRET` está definida en el entorno.
+- **Latencia:** con una sola pasada diaria, un aviso puede tardar hasta 24 horas en aparecer en la bandeja. Si el plan lo permite, subir la frecuencia a `*/10 * * * *` en `vercel.json` es un cambio de una línea. Mientras tanto, se puede forzar una pasada llamando a la ruta con el secreto.
+- Ejecuta, con la clave de servicio: recordatorios → escalado → proceso de eventos. Devuelve los contadores de cada paso.
 - Transporte: `NOTIFICATIONS_TRANSPORT` (`disabled` por defecto). Desactivado, las entregas de `email` y `push` se quedan en `queued` y se registra el motivo; no se contacta con ningún proveedor.
 
 ---
@@ -154,4 +156,8 @@ Se usa el prefijo `20260923…` (posterior a F5-Carlos) en lugar del `20260921�
 | Reparto con Diogo | Esta parte era suya. Si tiene trabajo local, hay que reconciliar antes de integrar |
 | Envío externo | Desactivado por defecto; activarlo exige proveedor, credenciales y una prueba con datos sintéticos |
 | Volumen de avisos | La bandeja crece sin purga; conviene un archivado posterior |
+| Frecuencia de la tarea | Una pasada diaria: la bandeja puede ir hasta 24 horas por detrás. Subirla depende del plan de Vercel |
 | Zona de la pauta semanal | Se interpreta en la zona de la iglesia, no en la de la persona |
+| Pauta semanal y medianoche | Una franja no puede cruzar la medianoche («sábados de 22:00 a 02:00» son dos franjas) |
+| Preferencia de canal | Es de la persona, no de cada iglesia: cambiarla se aplica a todas sus pertenencias |
+| Outbox en la misma transacción | Es lo acordado, pero implica que un defecto al emitir un evento aborta la escritura de dominio. Al ampliar el catálogo de `event_type` hay que actualizar su `check` antes de emitir el valor nuevo |

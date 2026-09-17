@@ -2,7 +2,8 @@ import "server-only";
 import { createSupabaseServerClient } from "@/server/supabase/server-client";
 import { DomainError } from "@/server/errors/domain-error";
 import { logger } from "@/server/logger/logger";
-import { localToInstant } from "./church-time";
+import { callActivityRpc, one } from "@/server/activities/rpc";
+import { describeLocalDateTime, localTimeExists, localToInstant } from "./church-time";
 
 /**
  * Disponibilidad y frecuencia de servicio de la propia persona (Fase 5,
@@ -86,50 +87,17 @@ export type SaveWeeklyInput = {
 };
 
 // ---------------------------------------------------------------------------
-// Errores
+// Llamada a las RPC
 // ---------------------------------------------------------------------------
 
-type PostgrestLikeError = { code?: string; message: string };
-
-/** Los mensajes de las RPC ya están escritos para la persona; si suena a
- *  error técnico (constraint, tipo, permiso de PostgreSQL) se sustituye. */
-const TECHNICAL_MESSAGE =
-  /violates|duplicate key|null value|invalid input|syntax|column|relation|function|operator|permission denied/i;
-
-function toDomainError(error: PostgrestLikeError, fallback: string): DomainError {
-  const message = TECHNICAL_MESSAGE.test(error.message) ? null : error.message;
-
-  switch (error.code) {
-    case "42501":
-      return new DomainError(
-        "FORBIDDEN",
-        message ?? "No puedes cambiar tu disponibilidad en esta iglesia.",
-      );
-    case "P0002":
-      return new DomainError("RESOURCE_NOT_FOUND", message ?? "Eso ya no existe. Recarga la página.");
-    case "22023":
-    case "23514":
-    case "23502":
-    case "23503":
-    case "22007":
-    case "22008":
-    case "22P02":
-      return new DomainError("VALIDATION_ERROR", message ?? "Revisa los datos: algún valor no es válido.");
-    default:
-      logger.error("Error inesperado en una RPC de disponibilidad", {
-        code: error.code,
-        error: error.message,
-      });
-      return new DomainError("INTERNAL_ERROR", fallback);
-  }
-}
-
-async function callRpc<T>(fn: string, args: Record<string, unknown>, fallback: string): Promise<T> {
-  const supabase = await createSupabaseServerClient();
-  const { data, error } = await supabase.rpc(fn, args);
-  if (error) throw toDomainError(error, fallback);
-  return data as T;
-}
+/**
+ * La traducción de errores de PostgreSQL a errores de dominio es la misma que
+ * la de las RPC de actividades (incluidos 23505 y PT409), así que se reutiliza
+ * `callActivityRpc` en lugar de mantener una copia aquí. Las RPC de
+ * disponibilidad ya traen sus propios mensajes en español; el `fallback` de
+ * cada llamada es lo único propio de esta pantalla.
+ */
+const callRpc = callActivityRpc;
 
 // ---------------------------------------------------------------------------
 // Lectura
@@ -193,12 +161,6 @@ function mapWeekly(row: WeeklyRow): WeeklyUnavailability {
     endsTime: trimTime(row.ends_time),
     reason: row.reason,
   };
-}
-
-/** Normaliza la relación incrustada de PostgREST (objeto o array de uno). */
-function one<T>(value: T | T[] | null | undefined): T | null {
-  if (Array.isArray(value)) return value[0] ?? null;
-  return value ?? null;
 }
 
 /**
@@ -303,6 +265,20 @@ export async function loadMyAvailability(
 // ---------------------------------------------------------------------------
 
 /**
+ * Cambio de hora: la hora escrita puede no existir ese día en la zona de la
+ * iglesia. Se explica tal cual, en lugar de dejar que la conversión la
+ * desplace y el error hable de otra cosa.
+ */
+function checkLocalTimeExists(local: string, timezone: string, which: "de inicio" | "de fin"): void {
+  if (localTimeExists(local, timezone)) return;
+  throw new DomainError(
+    "VALIDATION_ERROR",
+    `La hora ${which} (${describeLocalDateTime(local)}) no existe ese día en la zona de la iglesia ` +
+      `(${timezone}): esa madrugada los relojes se adelantan por el cambio de hora. Elige otra hora.`,
+  );
+}
+
+/**
  * Alta o edición de un periodo. Las horas llegan en hora local de la iglesia
  * y se convierten aquí al instante que espera la RPC. La comprobación de que
  * el fin es posterior al inicio se repite en la RPC (SQLSTATE 22023) y en el
@@ -313,6 +289,13 @@ export async function saveMyUnavailabilityPeriod(
   input: SavePeriodInput,
 ): Promise<{ id: string; created: boolean }> {
   const timezone = await getChurchTimezone(churchId);
+  // La madrugada en que los relojes se adelantan hay horas que no existen. Se
+  // dice cuál es antes de comparar inicio y fin: si no, el desplazamiento que
+  // hace la conversión acabaría dando «el fin debe ser posterior al inicio»
+  // sobre unos datos que a la vista sí lo son.
+  checkLocalTimeExists(input.startsLocal, timezone, "de inicio");
+  checkLocalTimeExists(input.endsLocal, timezone, "de fin");
+
   const startsAt = localToInstant(input.startsLocal, timezone);
   const endsAt = localToInstant(input.endsLocal, timezone);
 

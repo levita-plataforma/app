@@ -4,12 +4,19 @@ import { useState, useTransition } from "react";
 import Link from "next/link";
 import { ArrowRight, Check, Loader2 } from "lucide-react";
 import { marcarAvisoLeidoAction } from "./actions";
+import { anunciarEnAvisos } from "./EstadoAvisos";
 
 /**
  * Acciones de un aviso: abrir su destino y marcarlo como leído.
  *
  * Abrir el enlace también lo marca como leído. La navegación no espera a la
  * acción: si falla, el aviso sigue sin leer y se puede marcar a mano.
+ *
+ * Marcarlo desde el botón se lo lleva por delante: en la pestaña «Sin leer»
+ * la fila entera desaparece de la lista y en «Todos» el botón deja paso a
+ * «Leído». Por eso el resultado se anuncia en la región de estado de la
+ * bandeja, que no se desmonta, y el foco vuelve a la pestaña «Sin leer». El
+ * error sí se queda aquí: la fila sigue en su sitio, con su botón.
  */
 export default function AvisoAcciones({
   notificationId,
@@ -31,7 +38,8 @@ export default function AvisoAcciones({
 
   const stillUnread = unread && !marked;
 
-  function marcarLeido() {
+  /** `anunciar` es falso al abrir el enlace: ahí la navegación es la respuesta. */
+  function marcarLeido(anunciar: boolean) {
     if (isPending || !stillUnread) return;
     setError(null);
     startTransition(async () => {
@@ -42,6 +50,7 @@ export default function AvisoAcciones({
           return;
         }
         setMarked(true);
+        if (anunciar) anunciarEnAvisos("success", `Aviso marcado como leído: ${title}`, true);
       } catch {
         setError("No se pudo marcar el aviso como leído. Inténtalo de nuevo.");
       }
@@ -51,7 +60,7 @@ export default function AvisoAcciones({
   return (
     <div className="av-item-actions">
       {href && linkLabel ? (
-        <Link href={href} className="av-open" onClick={marcarLeido}>
+        <Link href={href} className="av-open" onClick={() => marcarLeido(false)}>
           {linkLabel}
           <span className="sr-only">: {title}</span>
           <ArrowRight size={14} aria-hidden="true" />
@@ -62,7 +71,7 @@ export default function AvisoAcciones({
         <button
           type="button"
           className="av-btn"
-          onClick={marcarLeido}
+          onClick={() => marcarLeido(true)}
           disabled={isPending}
           aria-busy={isPending}
         >

@@ -12,7 +12,7 @@ import {
   type LucideIcon,
 } from "lucide-react";
 import { getTenantContext } from "@/server/tenant/tenant-context";
-import { createSupabaseServerClient } from "@/server/supabase/server-client";
+import { getChurchTimezone } from "@/server/availability/availability-service";
 import { env } from "@/server/env";
 import {
   DEFAULT_NOTIFICATION_PREFERENCES,
@@ -23,8 +23,10 @@ import {
   type AppNotification,
   type NotificationPreferences,
 } from "@/server/notifications/notifications-service";
+import { logger } from "@/server/logger/logger";
 import { formatDateLong, formatTime, timeZoneAbbreviation } from "@/lib/activities/time";
 import AvisoAcciones from "./AvisoAcciones";
+import EstadoAvisos, { AVISOS_FOCUS_ANCHOR_ID } from "./EstadoAvisos";
 import MarcarTodoLeido from "./MarcarTodoLeido";
 import PreferenciasAvisos from "./PreferenciasAvisos";
 import "./avisos.css";
@@ -35,6 +37,10 @@ import "./avisos.css";
  *
  * Mientras el transporte externo esté desactivado, el aviso vive solo aquí:
  * ningún texto de esta página dice que se haya enviado un correo ni un push.
+ *
+ * Tampoco promete inmediatez: lo que ocurre en la aplicación se apunta en el
+ * outbox, y es la tarea programada (una vez al día, ver vercel.json) la que lo
+ * convierte en aviso de esta bandeja. Puede tardar, y así se dice.
  */
 
 type SearchParams = { ver?: string };
@@ -69,17 +75,12 @@ export default async function AvisosPage({ searchParams }: { searchParams: Promi
     );
   }
 
-  const supabase = await createSupabaseServerClient();
   const [notifications, unreadCount, preferences, churchTimezone] = await Promise.all([
     listMyNotifications(tenant.churchId, { onlyUnread, limit: LIST_LIMIT }),
     countMyUnreadNotifications(tenant.churchId),
     loadPreferences(tenant.churchId, tenant.personId),
-    supabase
-      .from("churches")
-      .select("timezone")
-      .eq("id", tenant.churchId)
-      .maybeSingle()
-      .then(({ data }) => (data?.timezone as string | null) ?? "Europe/Madrid"),
+    // Misma lectura (y misma validación de la zona) que «Mi disponibilidad».
+    getChurchTimezone(tenant.churchId),
   ]);
 
   const nowMs = currentTimeMs();
@@ -91,7 +92,12 @@ export default async function AvisosPage({ searchParams }: { searchParams: Promi
 
       <div className="av-toolbar">
         <nav className="serving-tabs av-tabs" aria-label="Avisos que se muestran">
-          <Link href="/app/avisos" className="av-tab" aria-current={onlyUnread ? "page" : undefined}>
+          <Link
+            id={AVISOS_FOCUS_ANCHOR_ID}
+            href="/app/avisos"
+            className="av-tab"
+            aria-current={onlyUnread ? "page" : undefined}
+          >
             Sin leer{unreadCount > 0 ? ` (${unreadCount})` : ""}
           </Link>
           <Link href="/app/avisos?ver=todos" className="av-tab" aria-current={onlyUnread ? undefined : "page"}>
@@ -100,6 +106,10 @@ export default async function AvisosPage({ searchParams }: { searchParams: Promi
         </nav>
         <MarcarTodoLeido unreadCount={unreadCount} />
       </div>
+
+      {/* Resultado de las acciones de la bandeja: vive fuera de los controles
+          que desaparecen al usarlos. */}
+      <EstadoAvisos />
 
       {notifications.length === 0 ? (
         <div className="shell-card shell-empty-state">
@@ -117,7 +127,7 @@ export default async function AvisosPage({ searchParams }: { searchParams: Promi
                 para repasar los anteriores.
               </>
             ) : (
-              "Aquí aparecerán los avisos de tus turnos y de las actividades que coordinas: cuando te asignen un puesto, cuando alguien responda o cuando cambie una hora."
+              "Aquí aparecerán los avisos de tus turnos y de las actividades que coordinas: que te asignen un puesto, que alguien responda o que cambie una hora. Se preparan con una tarea que se ejecuta una vez al día, así que pueden tardar en aparecer."
             )}
           </p>
         </div>
@@ -140,7 +150,11 @@ export default async function AvisosPage({ searchParams }: { searchParams: Promi
         </p>
       ) : null}
 
-      <PreferenciasAvisos preferences={preferences} externalTransportEnabled={externalTransportEnabled} />
+      <PreferenciasAvisos
+        preferences={preferences.preferences}
+        loadFailed={!preferences.ok}
+        externalTransportEnabled={externalTransportEnabled}
+      />
     </>
   );
 }
@@ -272,12 +286,21 @@ function relativeTime(iso: string, nowMs: number): string {
 
 /**
  * Las preferencias son secundarias: si su lectura falla, la bandeja se muestra
- * igual y el bloque de canales parte de los valores por defecto.
+ * igual. Pero el fallo se distingue del dato: enseñar los valores por defecto
+ * como si fueran los guardados le diría a quien tiene el correo desactivado
+ * que lo tiene activado. Cuando falla, el bloque lo dice y no deja tocar nada.
  */
-async function loadPreferences(churchId: string, personId: string): Promise<NotificationPreferences> {
+export type PreferencesLoad =
+  | { ok: true; preferences: NotificationPreferences }
+  | { ok: false; preferences: NotificationPreferences };
+
+async function loadPreferences(churchId: string, personId: string): Promise<PreferencesLoad> {
   try {
-    return await getMyNotificationPreferences(churchId, personId);
-  } catch {
-    return { ...DEFAULT_NOTIFICATION_PREFERENCES };
+    return { ok: true, preferences: await getMyNotificationPreferences(churchId, personId) };
+  } catch (error) {
+    logger.error("No se pudieron cargar las preferencias de avisos", {
+      error: error instanceof Error ? error.message : String(error),
+    });
+    return { ok: false, preferences: { ...DEFAULT_NOTIFICATION_PREFERENCES } };
   }
 }

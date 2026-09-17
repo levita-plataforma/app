@@ -1,11 +1,12 @@
 -- Fase 5 (DI-02) · Tests de avisos: emisión de eventos y destinatarios,
 -- deduplicación, proceso del outbox (bandeja y entregas por canal),
 -- silencio 22:00-08:00, recordatorios, escalado de puestos críticos,
--- aislamiento entre iglesias y permisos.
+-- sustitución cancelada, aislamiento entre iglesias, trazas de los eventos
+-- descartados o apartados y permisos.
 -- Ver migraciones 20260923000200..0500 y docs/FASE-5-AVISOS-DISPONIBILIDAD.md §4.
 
 begin;
-select plan(67);
+select plan(90);
 
 create or replace function test_set_auth_uid(p_uid uuid) returns void as $$
 begin
@@ -77,6 +78,13 @@ create or replace function tn_payload(p_type text, p_entity uuid) returns jsonb 
   order by e.created_at desc, e.id desc limit 1;
 $$ language sql security definer;
 
+-- Cuerpo redactado de un evento (sin pasar por la bandeja).
+create or replace function tn_body(p_type text, p_entity uuid) returns text as $$
+  select app.notification_text(e.*) ->> 'body' from notification_events e
+  where e.event_type = p_type and e.entity_id = p_entity
+  order by e.created_at desc, e.id desc limit 1;
+$$ language sql security definer;
+
 create or replace function t_sorted(p_ids uuid[]) returns uuid[] as $$
   select (select array_agg(x order by x) from unnest(p_ids) x);
 $$ language sql;
@@ -99,7 +107,8 @@ insert into auth.users (id, email) values
   ('d5000000-0000-0000-0000-000000000001', 'owner.di2a@example.test'),
   ('d5000000-0000-0000-0000-000000000002', 'owner.di2b@example.test'),
   ('d5000000-0000-0000-0000-000000000003', 'lider.di2a@example.test'),
-  ('d5000000-0000-0000-0000-000000000004', 'paula.di2a@example.test');
+  ('d5000000-0000-0000-0000-000000000004', 'paula.di2a@example.test'),
+  ('d5000000-0000-0000-0000-000000000005', 'nuria.di2a@example.test');
 
 select test_set_auth_uid('d5000000-0000-0000-0000-000000000001');
 select t_set('church_a', out_church_id::text), t_set('owner_a', out_person_id::text)
@@ -129,6 +138,8 @@ insert into people (id, user_id, first_name, last_name, source) values
   ('d5000000-0000-0000-0000-0000000e0004', null, 'Sara', 'Soler', 'manual'),
   ('d5000000-0000-0000-0000-0000000e0005', null, 'Tomás', 'Torres', 'manual'),
   ('d5000000-0000-0000-0000-0000000e0020', 'd5000000-0000-0000-0000-000000000003', 'Luis', 'Líder', 'manual'),
+  ('d5000000-0000-0000-0000-0000000e0021', 'd5000000-0000-0000-0000-000000000005', 'Nuria', 'Navarro', 'manual'),
+  ('d5000000-0000-0000-0000-0000000e0022', null, 'Óscar', 'Ortiz', 'manual'),
   ('d5000000-0000-0000-0000-0000000e0030', null, 'Bea', 'Bautista', 'manual');
 
 insert into church_people (id, church_id, person_id, relationship, source) values
@@ -138,7 +149,14 @@ insert into church_people (id, church_id, person_id, relationship, source) value
   (default, t_id('church_a'), 'd5000000-0000-0000-0000-0000000e0004', 'member', 'manual'),
   (default, t_id('church_a'), 'd5000000-0000-0000-0000-0000000e0005', 'member', 'manual'),
   ('d5000000-0000-0000-0000-0000000f0020', t_id('church_a'), 'd5000000-0000-0000-0000-0000000e0020', 'member', 'manual'),
+  ('d5000000-0000-0000-0000-0000000f0021', t_id('church_a'), 'd5000000-0000-0000-0000-0000000e0021', 'member', 'manual'),
+  ('d5000000-0000-0000-0000-0000000f0022', t_id('church_a'), 'd5000000-0000-0000-0000-0000000e0022', 'member', 'manual'),
   (default, t_id('church_b'), 'd5000000-0000-0000-0000-0000000e0030', 'member', 'manual');
+
+-- Sede propia para las pruebas de ámbito (la de la provisión es la principal).
+select t_set('campus_1', (select id::text from campuses where church_id = t_id('church_a') order by created_at limit 1));
+insert into campuses (id, church_id, name, slug, is_primary)
+values ('d5000000-0000-0000-0000-0000000c0002', t_id('church_a'), 'Sede Norte DI2', 'sede-norte-di2', false);
 
 -- Área con líder (Sonido) y área sin líder (Multimedia): regla 2.
 insert into service_areas (id, church_id, name, slug) values
@@ -146,11 +164,19 @@ insert into service_areas (id, church_id, name, slug) values
   ('d5000000-0000-0000-0000-0000000a0002', t_id('church_a'), 'Multimedia DI2', 'multimedia-di2'),
   ('d5000000-0000-0000-0000-0000000a0003', t_id('church_b'), 'Sonido DI2 B', 'sonido-di2-b');
 
-insert into service_area_leaders (church_id, service_area_id, person_id, is_primary)
-values (t_id('church_a'), 'd5000000-0000-0000-0000-0000000a0001', 'd5000000-0000-0000-0000-0000000e0020', true);
+-- Luis lidera Sonido y además tiene el rol que da assignment.manage sobre el
+-- área: es destinatario de verdad. Nuria figura como líder del área pero no
+-- tiene ningún rol (regla 2 mal aplicada la avisaría). Óscar tiene el rol, pero
+-- lidera solo la Sede Norte.
+insert into service_area_leaders (church_id, service_area_id, person_id, is_primary, campus_id) values
+  (t_id('church_a'), 'd5000000-0000-0000-0000-0000000a0001', 'd5000000-0000-0000-0000-0000000e0020', true, null),
+  (t_id('church_a'), 'd5000000-0000-0000-0000-0000000a0001', 'd5000000-0000-0000-0000-0000000e0021', false, null),
+  (t_id('church_a'), 'd5000000-0000-0000-0000-0000000a0001', 'd5000000-0000-0000-0000-0000000e0022', false,
+   'd5000000-0000-0000-0000-0000000c0002');
 
-insert into church_people_roles (church_id, church_people_id, role_key, scope_type, scope_id)
-values (t_id('church_a'), 'd5000000-0000-0000-0000-0000000f0020', 'ministry_leader', 'service_area', 'd5000000-0000-0000-0000-0000000a0001');
+insert into church_people_roles (church_id, church_people_id, role_key, scope_type, scope_id) values
+  (t_id('church_a'), 'd5000000-0000-0000-0000-0000000f0020', 'ministry_leader', 'service_area', 'd5000000-0000-0000-0000-0000000a0001'),
+  (t_id('church_a'), 'd5000000-0000-0000-0000-0000000f0022', 'ministry_leader', 'service_area', 'd5000000-0000-0000-0000-0000000a0001');
 
 insert into service_area_members (church_id, service_area_id, person_id, status, level)
 select t_id('church_a'), a, p, 'active', 'autonomous'
@@ -232,6 +258,53 @@ select is(
 );
 
 -- ============================================================
+-- 2 bis. La regla 2 se resuelve por capability, no por figurar como líder
+-- ============================================================
+-- Actividad de la sede principal: Luis (líder con rol) entra; Nuria (líder sin
+-- ningún rol) no; Óscar (con rol, pero líder de la Sede Norte) tampoco.
+select t_set('act_cap', public.create_activity(t_id('church_a'), jsonb_build_object(
+  'type', 'service', 'title', 'Culto ámbitos DI2', 'local_start', '2031-06-01T10:00',
+  'duration_minutes', 60, 'campus_id', t_id('campus_1'))) ->> 'activity_id');
+select t_set('pos_cap', t_pos(t_area(t_id('act_cap'), 'd5000000-0000-0000-0000-0000000a0001'),
+  '{"name":"Ámbitos DI2","min_people":1}')::text);
+select public.transition_activity_status(t_id('act_cap'), 'published');
+select t_set('a_cap', t_asg(t_id('pos_cap'), 'd5000000-0000-0000-0000-0000000e0005', '{"send":true}')::text);
+select public.record_assignment_response(t_id('a_cap'), 'declined');
+
+select is(
+  tn_to('assignment.declined', t_id('a_cap')),
+  t_sorted(array[t_id('owner_a'), 'd5000000-0000-0000-0000-0000000e0020'::uuid]),
+  'La respuesta solo llega a quien puede gestionar el puesto de verdad'
+);
+
+select ok(
+  not (tn_to('assignment.declined', t_id('a_cap')) @> array['d5000000-0000-0000-0000-0000000e0021'::uuid]),
+  'Figurar en service_area_leaders sin ningún rol con assignment.manage no da derecho al aviso'
+);
+
+select ok(
+  not (tn_to('assignment.declined', t_id('a_cap')) @> array['d5000000-0000-0000-0000-0000000e0022'::uuid]),
+  'El líder de otra sede no recibe los avisos de esta (se respeta service_area_leaders.campus_id)'
+);
+
+-- Lo que se le cuenta a un destinatario tiene que poder verlo ya sin avisos.
+select test_set_auth_uid('d5000000-0000-0000-0000-000000000003');
+select is(
+  (select count(*)::integer from activity_assignments where id = t_id('a_cap')),
+  1,
+  'El líder destinatario del aviso puede ver de verdad la asignación de la que se le informa'
+);
+
+select test_set_auth_uid('d5000000-0000-0000-0000-000000000005');
+select is(
+  (select count(*)::integer from activity_assignments where id = t_id('a_cap')),
+  0,
+  'A quien RLS le oculta la asignación tampoco se le cuenta por la bandeja'
+);
+
+select test_set_auth_uid('d5000000-0000-0000-0000-000000000001');
+
+-- ============================================================
 -- 3. Cancelaciones: solo si el turno se había comunicado
 -- ============================================================
 select t_set('act3', public.create_activity(t_id('church_a'),
@@ -287,6 +360,50 @@ select public.record_assignment_response(t_id('s_cand'), 'accepted');
 
 select is(tn_to('assignment.substituted', t_id('s_orig')), array['d5000000-0000-0000-0000-0000000e0001'::uuid],
   'Al aceptar el candidato, la persona original recibe assignment.substituted');
+
+-- ============================================================
+-- 4 bis. Sustitución cancelada (contrato §6.1)
+-- ============================================================
+-- La pidió la propia persona: se entera ella.
+select t_set('act4b', public.create_activity(t_id('church_a'),
+  '{"type":"service","title":"Culto sustitución retirada DI2","local_start":"2031-04-20T10:00","duration_minutes":60}'::jsonb) ->> 'activity_id');
+select t_set('pos4b', t_pos(t_area(t_id('act4b'), 'd5000000-0000-0000-0000-0000000a0001'), '{"name":"Retirada DI2","min_people":1}')::text);
+select public.transition_activity_status(t_id('act4b'), 'published');
+select t_set('sc_asg1', t_asg(t_id('pos4b'), 'd5000000-0000-0000-0000-0000000e0001')::text);
+select t_respond(t_id('sc_asg1'), 'accepted');
+
+select test_set_auth_uid('d5000000-0000-0000-0000-000000000004');
+select t_set('sc_req1', public.request_assignment_substitution(t_id('sc_asg1')) ->> 'request_id');
+select public.cancel_substitution_request(t_id('sc_req1'));
+
+select is(
+  tn_to('assignment.substitution_cancelled', t_id('sc_req1')),
+  array['d5000000-0000-0000-0000-0000000e0001'::uuid],
+  'Cancelar la sustitución que pidió la propia persona se lo cuenta a ella'
+);
+
+select ok(
+  tn_body('assignment.substitution_cancelled', t_id('sc_req1'))
+    like '%Se ha cancelado la sustitución que pediste%Sigues contando en ese turno.',
+  'El texto dice la verdad: la sustitución se retira y la persona sigue contando en el turno'
+);
+
+-- La abrió coordinación: se enteran quienes gestionan el puesto.
+select test_set_auth_uid('d5000000-0000-0000-0000-000000000001');
+select t_set('act4c', public.create_activity(t_id('church_a'),
+  '{"type":"service","title":"Culto sustitución coordinada DI2","local_start":"2031-04-27T10:00","duration_minutes":60}'::jsonb) ->> 'activity_id');
+select t_set('pos4c', t_pos(t_area(t_id('act4c'), 'd5000000-0000-0000-0000-0000000a0001'), '{"name":"Coordinada DI2","min_people":1}')::text);
+select public.transition_activity_status(t_id('act4c'), 'published');
+select t_set('sc_asg2', t_asg(t_id('pos4c'), 'd5000000-0000-0000-0000-0000000e0002')::text);
+select t_respond(t_id('sc_asg2'), 'accepted');
+select t_set('sc_req2', public.request_assignment_substitution(t_id('sc_asg2')) ->> 'request_id');
+select public.cancel_substitution_request(t_id('sc_req2'));
+
+select is(
+  tn_to('assignment.substitution_cancelled', t_id('sc_req2')),
+  t_sorted(array[t_id('owner_a'), 'd5000000-0000-0000-0000-0000000e0020'::uuid]),
+  'Cancelar una sustitución abierta por coordinación avisa a quien gestiona el puesto'
+);
 
 -- ============================================================
 -- 5. Reprogramación y cancelación de la actividad
@@ -409,10 +526,16 @@ select is(
   'El canal desactivado por la persona genera una entrega suppressed'
 );
 
+select ok(
+  (select status::text = 'sent' and sent_at is not null
+   from tn_delivery('assignment.proposed', t_id('a_sent'), 'd5000000-0000-0000-0000-0000000e0002', 'inapp')),
+  'La entrega inapp nace enviada aunque la persona desactive los demás canales: la bandeja es la entrega'
+);
+
 select is(
-  (select status::text from tn_delivery('assignment.proposed', t_id('a_sent'), 'd5000000-0000-0000-0000-0000000e0002', 'inapp')),
-  'queued',
-  'El canal inapp se encola aunque la persona desactive los demás'
+  (select count(*)::integer from notification_deliveries where channel = 'inapp' and status <> 'sent'),
+  0,
+  'Ninguna entrega de la bandeja se queda en una cola que nadie vacía'
 );
 
 select is(
@@ -424,12 +547,24 @@ select is(
   'Se crea una entrega por canal (inapp, email y push)'
 );
 
--- Reprocesar no duplica.
+-- Reprocesar no duplica. Hay que devolver los eventos a la cola: si no, el
+-- cursor no selecciona nada y la comprobación no prueba nada.
+update notification_events set processed_at = null where church_id = t_id('church_a');
+
 select ok(
-  (app.process_notification_events(500) ->> 'notifications')::integer = 0
+  (select count(*)::integer from notification_events
+   where church_id = t_id('church_a') and processed_at is null) > 0,
+  'Los eventos vuelven a la cola para poder reprocesarlos de verdad'
+);
+
+select t_set('reproc', app.process_notification_events(500)::text);
+
+select ok(
+  (current_setting('t5n.reproc')::jsonb ->> 'events')::integer > 0
+  and (current_setting('t5n.reproc')::jsonb ->> 'notifications')::integer = 0
   and (select count(*)::integer from notifications n join notification_events e on e.id = n.event_id
        where e.event_type = 'assignment.proposed' and e.entity_id = t_id('a_draft')) = 1,
-  'Reprocesar el outbox no duplica la bandeja'
+  'Reprocesar el outbox recorre los eventos otra vez y no duplica la bandeja'
 );
 
 -- ============================================================
@@ -553,9 +688,82 @@ select app.enqueue_due_reminders();
 select is(tn_count('assignment.reminder', t_id('n_pend')), 0,
   'Una actividad cancelada no genera recordatorios');
 
+-- Un turno recién comunicado no recibe «todavía no has respondido» en la misma
+-- pasada, aunque la actividad esté a menos de 7 días.
+select test_set_auth_uid('d5000000-0000-0000-0000-000000000001');
+select t_set('act12', public.create_activity(t_id('church_a'),
+  '{"type":"service","title":"Culto recién enviado DI2","local_start":"2031-11-09T10:00","duration_minutes":60}'::jsonb) ->> 'activity_id');
+select t_set('pos12', t_pos(t_area(t_id('act12'), 'd5000000-0000-0000-0000-0000000a0001'), '{"name":"Reciente DI2","min_people":1}')::text);
+select public.transition_activity_status(t_id('act12'), 'published');
+select t_set('r_fresh', t_asg(t_id('pos12'), 'd5000000-0000-0000-0000-0000000e0005', '{"send":true}')::text);
+reset role;
+
+-- El turno se comunica a las 09:00 y el motor pasa seis horas después.
+update activity_assignments set sent_at = '2031-11-05T09:00:00+01' where id = t_id('r_fresh');
+select t_clock('2031-11-05T15:00:00+01');
+select app.enqueue_due_reminders();
+
+select is(tn_count('assignment.reminder', t_id('r_fresh')), 0,
+  'Un turno comunicado hace seis horas no recibe ya el recordatorio de «todavía no has respondido»');
+
+select t_clock('2031-11-06T10:00:00+01');
+select app.enqueue_due_reminders();
+
+select is(tn_count('assignment.reminder', t_id('r_fresh')), 1,
+  'Con el turno comunicado desde hace más de 12 horas sí se recuerda');
+
+-- Reprogramar sube la versión de la asignación: el recordatorio del mismo
+-- plazo NO se repite (la clave de deduplicación es estable).
+select t_set('ver_before', (select version from activity_assignments where id = t_id('r_fresh'))::text);
+select test_set_auth_uid('d5000000-0000-0000-0000-000000000001');
+select public.update_activity(t_id('act12'), '{"local_start":"2031-11-09T12:00"}'::jsonb);
+reset role;
+select app.enqueue_due_reminders();
+
+select ok(
+  (select version from activity_assignments where id = t_id('r_fresh')) > current_setting('t5n.ver_before')::integer
+  and tn_count('assignment.reminder', t_id('r_fresh')) = 1,
+  'Reprogramar la actividad sube la versión pero no repite el recordatorio del mismo plazo'
+);
+
 -- ============================================================
 -- 10. Escalado de puestos críticos (regla 3)
 -- ============================================================
+-- Tres casos que NO deben escalar, cada uno por un único motivo:
+-- (a) puesto sin cubrir y en plazo, pero no crítico;
+-- (b) puesto crítico y sin cubrir, pero a más de 3 días;
+-- (c) puesto crítico y en plazo, pero con el mínimo ya confirmado.
+select test_set_auth_uid('d5000000-0000-0000-0000-000000000001');
+
+select t_set('act_nc', public.create_activity(t_id('church_a'),
+  '{"type":"service","title":"Culto no crítico DI2","local_start":"2031-10-05T18:00","duration_minutes":60}'::jsonb) ->> 'activity_id');
+select t_set('pos_nc', t_pos(t_area(t_id('act_nc'), 'd5000000-0000-0000-0000-0000000a0001'),
+  '{"name":"No crítico DI2","min_people":2,"critical":false}')::text);
+select public.transition_activity_status(t_id('act_nc'), 'published');
+
+select t_set('act_far', public.create_activity(t_id('church_a'),
+  '{"type":"service","title":"Culto lejano DI2","local_start":"2031-10-20T10:00","duration_minutes":60}'::jsonb) ->> 'activity_id');
+select t_set('pos_far', t_pos(t_area(t_id('act_far'), 'd5000000-0000-0000-0000-0000000a0001'),
+  '{"name":"Lejano DI2","min_people":2,"critical":true}')::text);
+select public.transition_activity_status(t_id('act_far'), 'published');
+
+select t_set('act_cov', public.create_activity(t_id('church_a'),
+  '{"type":"service","title":"Culto cubierto DI2","local_start":"2031-10-04T18:00","duration_minutes":60}'::jsonb) ->> 'activity_id');
+select t_set('pos_cov', t_pos(t_area(t_id('act_cov'), 'd5000000-0000-0000-0000-0000000a0001'),
+  '{"name":"Cubierto DI2","min_people":1,"critical":true}')::text);
+select public.transition_activity_status(t_id('act_cov'), 'published');
+select t_set('c_cov', t_asg(t_id('pos_cov'), 'd5000000-0000-0000-0000-0000000e0003', '{"send":true}')::text);
+select public.record_assignment_response(t_id('c_cov'), 'accepted');
+
+-- (d) crítico, en plazo y sin cubrir, pero la actividad está cancelada.
+select t_set('act_canc', public.create_activity(t_id('church_a'),
+  '{"type":"service","title":"Culto crítico anulado DI2","local_start":"2031-10-05T20:00","duration_minutes":60}'::jsonb) ->> 'activity_id');
+select t_set('pos_canc', t_pos(t_area(t_id('act_canc'), 'd5000000-0000-0000-0000-0000000a0001'),
+  '{"name":"Crítico anulado DI2","min_people":2,"critical":true}')::text);
+select public.transition_activity_status(t_id('act_canc'), 'published');
+select public.transition_activity_status(t_id('act_canc'), 'cancelled', 'Sin técnico');
+reset role;
+
 select t_clock('2031-10-03T10:00:00+02');
 select app.escalate_uncovered_positions();
 
@@ -573,9 +781,44 @@ select app.escalate_uncovered_positions();
 select is(tn_count('assignment.coverage_at_risk', t_id('pos8')), 1,
   'El escalado no se repite para el mismo puesto y horario');
 
--- A más de tres días no escala.
-select is(tn_count('assignment.coverage_at_risk', t_id('pos9')), 0,
-  'Un puesto no crítico o fuera de plazo no escala');
+-- La clave fija el horario en UTC: no depende de la zona de la sesión.
+select is(
+  (select idempotency_key from notification_events
+   where event_type = 'assignment.coverage_at_risk' and entity_id = t_id('pos8')),
+  'assignment.coverage_at_risk:' || t_id('pos8')::text || ':1:'
+    || to_char((select starts_at from activities where id = t_id('act8')) at time zone 'UTC', 'YYYYMMDDHH24MI'),
+  'La clave del escalado fija el horario de la actividad en UTC'
+);
+
+select t_set('tz_before', current_setting('TimeZone'));
+select set_config('TimeZone', 'UTC', true);
+select app.escalate_uncovered_positions();
+select set_config('TimeZone', 'Europe/Madrid', true);
+select app.escalate_uncovered_positions();
+select set_config('TimeZone', current_setting('t5n.tz_before'), true);
+
+select is(tn_count('assignment.coverage_at_risk', t_id('pos8')), 1,
+  'Dos pasadas del motor con zonas horarias distintas no escalan dos veces');
+
+-- Los tres motivos, uno a uno.
+select is(tn_count('assignment.coverage_at_risk', t_id('pos_nc')), 0,
+  'Un puesto sin cubrir y en plazo, pero no crítico, no escala');
+
+select is(tn_count('assignment.coverage_at_risk', t_id('pos_far')), 0,
+  'Un puesto crítico sin cubrir a más de 3 días no escala');
+
+select is(tn_count('assignment.coverage_at_risk', t_id('pos_cov')), 0,
+  'Un puesto crítico y en plazo con el mínimo confirmado no escala');
+
+select is(tn_count('assignment.coverage_at_risk', t_id('pos_canc')), 0,
+  'Un puesto crítico y sin cubrir de una actividad cancelada no escala');
+
+-- El texto deja claro que la cobertura se mide con turnos confirmados.
+select ok(
+  tn_body('assignment.coverage_at_risk', t_id('pos8'))
+    like '%confirmado%Los turnos enviados sin respuesta no cuentan.',
+  'El aviso de escalado dice que solo cuentan los turnos confirmados'
+);
 
 select t_clock('');
 
@@ -698,6 +941,15 @@ select ok(
 );
 
 select ok(
+  not has_function_privilege('authenticated',
+    'app.person_assignment_manage_cap(uuid, uuid, uuid, uuid, uuid)', 'execute')
+  and not has_function_privilege('authenticated',
+    'app.position_notification_recipients(uuid, uuid, uuid, uuid, uuid)', 'execute')
+  and not has_function_privilege('authenticated', 'app.church_admin_person_ids(uuid, uuid)', 'execute'),
+  'Las funciones que resuelven destinatarios son internas: authenticated no las ejecuta'
+);
+
+select ok(
   has_function_privilege('authenticated', 'public.list_my_notifications(uuid, boolean, integer)', 'execute')
   and has_function_privilege('authenticated', 'public.mark_notification_read(uuid)', 'execute')
   and not has_function_privilege('anon', 'public.list_my_notifications(uuid, boolean, integer)', 'execute'),
@@ -705,8 +957,66 @@ select ok(
 );
 
 -- ============================================================
+-- 12 bis. Un evento nunca desaparece sin dejar traza
+-- ============================================================
+-- Sin ningún destinatario con pertenencia vigente: se cuenta y se audita.
+insert into notification_events (
+  church_id, event_type, entity_type, entity_id, entity_version,
+  idempotency_key, recipient_person_ids, payload
+) values (
+  t_id('church_a'), 'assignment.reminder', 'activity_assignments', t_id('a_draft'), 0,
+  'test.sin-destinatarios:' || t_id('a_draft')::text,
+  array['d5000000-0000-0000-0000-0000000e0030'::uuid], '{}'::jsonb
+);
+
+select t_set('proc_disc', app.process_notification_events(500)::text);
+
+select ok(
+  (current_setting('t5n.proc_disc')::jsonb ->> 'discarded')::integer = 1
+  and exists (
+    select 1 from audit_logs
+    where church_id = t_id('church_a') and action = 'notification_event.discarded'
+      and entity_type = 'notification_events'),
+  'Un evento sin destinatarios vivos se cuenta como descartado y queda en la auditoría'
+);
+
+-- Apartado tras agotar los intentos: el payload apunta a una actividad que no
+-- existe, así que la bandeja falla por clave foránea en cada pasada.
+insert into notification_events (
+  church_id, event_type, entity_type, entity_id, entity_version,
+  idempotency_key, recipient_person_ids, payload
+) values (
+  t_id('church_a'), 'assignment.reminder', 'activity_assignments', t_id('a_draft'), 0,
+  'test.siempre-falla:' || t_id('a_draft')::text,
+  array['d5000000-0000-0000-0000-0000000e0001'::uuid],
+  jsonb_build_object('activity_id', 'd5000000-0000-0000-0000-00000000dead')
+);
+
+select app.process_notification_events(500);
+select app.process_notification_events(500);
+select app.process_notification_events(500);
+select app.process_notification_events(500);
+select t_set('proc_aband', app.process_notification_events(500)::text);
+
+select ok(
+  (current_setting('t5n.proc_aband')::jsonb ->> 'abandoned')::integer = 1
+  and (select attempts >= 5 and processed_at is not null from notification_events
+       where idempotency_key = 'test.siempre-falla:' || t_id('a_draft')::text)
+  and exists (
+    select 1 from audit_logs
+    where church_id = t_id('church_a') and action = 'notification_event.abandoned'
+      and entity_type = 'notification_events'),
+  'Un evento apartado tras cinco intentos se cuenta y queda registrado en la auditoría'
+);
+
+-- ============================================================
 -- 13. Cola de salida
 -- ============================================================
+-- Reloj diurno fijo: con el reloj real, una ejecución entre las 22:00 y las
+-- 08:00 dejaría todas las entregas de correo desplazadas por el silencio y no
+-- habría nada que reclamar.
+select t_clock('2031-12-01T13:00:00+01');
+
 select t_set('claimed', (select count(*) from app.claim_notification_deliveries('email', 10))::text);
 
 select ok(
@@ -728,6 +1038,23 @@ select is(t_err($$ select app.complete_notification_delivery(t_id('one_delivery'
 
 select is(t_err($$ select app.claim_notification_deliveries('telepatia', 5) $$), '22023',
   'Un canal no válido se rechaza');
+
+-- Tope de reintentos: una entrega que nunca se cierra deja de reclamarse.
+select t_set('worn', (select id from notification_deliveries
+  where channel = 'push' and status = 'queued' order by id limit 1)::text);
+update notification_deliveries set attempts = 5 where id = t_id('worn');
+
+select t_set('worn_claimed', (select count(*)::text from app.claim_notification_deliveries('push', 200) c
+  where c.delivery_id = t_id('worn')));
+
+select ok(
+  current_setting('t5n.worn_claimed')::integer = 0
+  and (select status = 'failed' and last_error is not null and claimed_at is null
+       from notification_deliveries where id = t_id('worn')),
+  'Una entrega que agota los cinco intentos pasa a failed y ya no se reclama'
+);
+
+select t_clock('');
 
 -- ============================================================
 -- 14. Borrado de la iglesia en cascada

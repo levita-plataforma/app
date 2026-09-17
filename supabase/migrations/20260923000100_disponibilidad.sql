@@ -386,10 +386,13 @@ $$;
 comment on function app.person_frequency_exceeded(uuid, uuid, uuid, timestamptz, uuid) is
   'true si asignar una actividad más en el mes natural de p_at superaría el máximo que pidió la persona (el del área si lo tiene, si no el global). Solo avisa: nunca bloquea.';
 
-revoke all on function app.person_monthly_serving_load(uuid, uuid, uuid, timestamptz, uuid) from public, anon;
-revoke all on function app.person_frequency_exceeded(uuid, uuid, uuid, timestamptz, uuid) from public, anon;
-grant execute on function app.person_monthly_serving_load(uuid, uuid, uuid, timestamptz, uuid) to authenticated;
-grant execute on function app.person_frequency_exceeded(uuid, uuid, uuid, timestamptz, uuid) to authenticated;
+-- Ninguna de las dos se concede al cliente. Son definer y no comprueban ni
+-- pertenencia ni iglesia de quien llama: concederlas a `authenticated` dejaría
+-- deducir desde otra iglesia cuánto sirve una persona. Su único llamante es
+-- app.evaluate_assignment_eligibility, que ya es definer, comprueba el acceso y
+-- está revocada a anon.
+revoke all on function app.person_monthly_serving_load(uuid, uuid, uuid, timestamptz, uuid) from public, anon, authenticated;
+revoke all on function app.person_frequency_exceeded(uuid, uuid, uuid, timestamptz, uuid) from public, anon, authenticated;
 
 -- ===========================================================================
 -- Elegibilidad: se añade el aviso frequency_exceeded

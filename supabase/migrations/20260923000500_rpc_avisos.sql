@@ -110,6 +110,15 @@ begin
       v_body := v_person || ' necesita que le sustituyan en el puesto «' || v_position || '» de «'
         || v_activity || '»' || v_when || '.';
 
+    when 'assignment.substitution_cancelled' then
+      v_title := 'Solicitud de sustitución cancelada';
+      v_body := case when coalesce((v_payload ->> 'requested_by_self')::boolean, false)
+        then 'Se ha cancelado la sustitución que pediste para el puesto «' || v_position || '» de «'
+          || v_activity || '»' || v_when || '. Sigues contando en ese turno.'
+        else 'Se ha cancelado la sustitución abierta para el puesto «' || v_position || '» de «'
+          || v_activity || '»' || v_when || '. ' || v_person || ' sigue contando en ese turno.'
+      end;
+
     when 'activity.rescheduled' then
       v_title := 'Cambio de hora';
       v_body := '«' || v_activity || '» cambia de hora: ahora empieza' || coalesce(nullif(v_when, ''), ' en otro momento')
@@ -127,8 +136,14 @@ begin
 
     when 'assignment.coverage_at_risk' then
       v_title := 'Puesto crítico sin cubrir';
+      -- Se cuentan SOLO las confirmaciones (turnos aceptados): un turno enviado
+      -- sin responder no cubre nada, y el texto lo dice para que nadie lo lea
+      -- como «hay gente asignada».
       v_body := 'El puesto crítico «' || v_position || '» de «' || v_activity || '»' || v_when
-        || ' sigue sin cubrir: faltan ' || coalesce(v_payload ->> 'missing', '?') || ' persona(s) y quedan menos de 3 días.';
+        || ' sigue sin cubrir: hay ' || coalesce(v_payload ->> 'accepted_count', '?')
+        || ' persona(s) con el turno confirmado de las ' || coalesce(v_payload ->> 'min_people', '?')
+        || ' que hacen falta, así que faltan ' || coalesce(v_payload ->> 'missing', '?')
+        || ' confirmación(es) y quedan menos de 3 días. Los turnos enviados sin respuesta no cuentan.';
 
     else
       v_title := 'Aviso';
@@ -216,6 +231,11 @@ declare
   v_events integer := 0;
   v_notifications integer := 0;
   v_deliveries integer := 0;
+  v_discarded integer := 0;
+  v_abandoned integer := 0;
+  v_delivered integer;
+  v_now timestamptz;
+  v_attempts integer;
 begin
   for v_event in
     select * from notification_events
@@ -226,6 +246,7 @@ begin
   loop
     begin
       v_text := app.notification_text(v_event);
+      v_delivered := 0;
 
       foreach v_person in array v_event.recipient_person_ids loop
         -- Quien ya no pertenece a la iglesia deja de recibir el aviso.
@@ -235,6 +256,7 @@ begin
         ) then
           continue;
         end if;
+        v_delivered := v_delivered + 1;
 
         insert into notifications (
           church_id, event_id, person_id, event_type, title, body, entity_type, entity_id, activity_id
@@ -258,12 +280,20 @@ begin
             where np.church_id = v_event.church_id and np.person_id = v_person and np.channel = v_channel
           ), true);
 
+          -- La bandeja no tiene transporte que la cierre: la propia fila de
+          -- `notifications` ES la entrega, así que nace enviada. Dejarla en
+          -- `queued` sería una cola que nadie vacía nunca.
           insert into notification_deliveries (
-            church_id, notification_id, person_id, channel, status, scheduled_for, last_error
+            church_id, notification_id, person_id, channel, status, scheduled_for, sent_at, last_error
           ) values (
             v_event.church_id, v_notification_id, v_person, v_channel,
-            case when v_enabled then 'queued'::notification_delivery_status else 'suppressed' end,
+            case
+              when v_channel = 'inapp' then 'sent'::notification_delivery_status
+              when v_enabled then 'queued'::notification_delivery_status
+              else 'suppressed'
+            end,
             app.notification_delivery_schedule(v_event, v_channel),
+            case when v_channel = 'inapp' then app.notification_clock() end,
             case when v_enabled then null else 'Canal desactivado por la persona.' end
           )
           on conflict (notification_id, channel) do nothing;
@@ -271,26 +301,59 @@ begin
         end loop;
       end loop;
 
+      -- Un evento sin ningún destinatario vivo no desaparece en silencio: se
+      -- cuenta aparte y queda en la auditoría de su iglesia.
+      if v_delivered = 0 then
+        v_discarded := v_discarded + 1;
+        perform app.write_audit_log(
+          v_event.church_id, 'notification_event.discarded', 'notification_events', v_event.id,
+          jsonb_build_object(
+            'event_type', v_event.event_type,
+            'reason', 'sin destinatarios con pertenencia vigente',
+            'recipients', cardinality(v_event.recipient_person_ids))
+        );
+      end if;
+
       update notification_events
       set processed_at = app.notification_clock(), attempts = attempts + 1, last_error = null
       where id = v_event.id;
       v_events := v_events + 1;
     exception when others then
-      -- El fallo de un evento no tumba el lote. Tras 5 intentos se aparta.
+      -- El fallo de un evento no tumba el lote. Tras 5 intentos se aparta, y
+      -- apartarlo se registra: es un aviso que nadie va a recibir nunca.
+      v_now := app.notification_clock();
       update notification_events
       set attempts = attempts + 1,
           last_error = left(sqlerrm, 500),
-          processed_at = case when attempts + 1 >= 5 then app.notification_clock() end
-      where id = v_event.id;
+          processed_at = case when attempts + 1 >= 5 then v_now end
+      where id = v_event.id
+      returning attempts into v_attempts;
+
+      if coalesce(v_attempts, 0) >= 5 then
+        v_abandoned := v_abandoned + 1;
+        perform app.write_audit_log(
+          v_event.church_id, 'notification_event.abandoned', 'notification_events', v_event.id,
+          jsonb_build_object(
+            'event_type', v_event.event_type,
+            'attempts', v_attempts,
+            'last_error', left(sqlerrm, 500))
+        );
+      end if;
     end;
   end loop;
 
-  return jsonb_build_object('events', v_events, 'notifications', v_notifications, 'deliveries', v_deliveries);
+  return jsonb_build_object(
+    'events', v_events,
+    'notifications', v_notifications,
+    'deliveries', v_deliveries,
+    'discarded', v_discarded,
+    'abandoned', v_abandoned
+  );
 end;
 $$;
 
 comment on function app.process_notification_events(integer) is
-  'Consume el outbox con for update skip locked: una notificación por destinatario y sus entregas por canal según preferencias, aplicando el silencio en scheduled_for.';
+  'Consume el outbox con for update skip locked: una notificación por destinatario y sus entregas por canal según preferencias, aplicando el silencio en scheduled_for. La entrega inapp nace `sent` (la bandeja es la entrega). Devuelve además `discarded` (eventos sin ningún destinatario vivo) y `abandoned` (apartados tras 5 intentos); ambos quedan en audit_logs.';
 
 -- ===========================================================================
 -- Recordatorios (regla 4) y escalado (regla 3)
@@ -304,17 +367,25 @@ set search_path = pg_catalog, public
 as $$
 declare
   v_now timestamptz := app.notification_clock();
+  v_rec record;
   v_assignment activity_assignments%rowtype;
+  v_starts_at timestamptz;
   v_days integer;
   v_kind text;
   v_created integer := 0;
 begin
-  for v_assignment in
-    select aa.*
+  -- starts_at viaja en el propio cursor: antes se volvía a consultar
+  -- `activities` con una subconsulta por fila.
+  for v_rec in
+    select aa as assignment, a.starts_at as starts_at
     from activity_assignments aa
     join activities a on a.id = aa.activity_id
     where aa.status in ('pending', 'accepted')
       and (aa.sent_at is not null or aa.response_source is not null)
+      -- El turno tiene que llevar un rato comunicado: sin este mínimo, la
+      -- misma pasada que envía un turno de una actividad a menos de 7 días
+      -- manda acto seguido el «todavía no has respondido».
+      and (aa.sent_at is null or aa.sent_at < v_now - interval '12 hours')
       -- Nunca de actividades pasadas, canceladas ni archivadas.
       and a.status in ('planned', 'published')
       and a.starts_at is not null
@@ -322,16 +393,17 @@ begin
       and a.starts_at <= v_now + interval '7 days'
     order by aa.id
   loop
+    v_assignment := v_rec.assignment;
+    v_starts_at := v_rec.starts_at;
+
     if v_assignment.status = 'pending' then
       -- Sin respuesta: 7 y 2 días antes.
       v_kind := 'pending';
-      v_days := case
-        when (select starts_at from activities where id = v_assignment.activity_id) > v_now + interval '2 days'
-          then 7 else 2 end;
+      v_days := case when v_starts_at > v_now + interval '2 days' then 7 else 2 end;
     else
       -- Aceptada: la víspera.
       v_kind := 'accepted';
-      if (select starts_at from activities where id = v_assignment.activity_id) > v_now + interval '1 day' then
+      if v_starts_at > v_now + interval '1 day' then
         continue;
       end if;
       v_days := 1;
@@ -341,7 +413,13 @@ begin
       v_assignment.church_id, 'assignment.reminder', 'activity_assignments', v_assignment.id, v_assignment.version,
       array[v_assignment.person_id],
       app.assignment_notification_payload(v_assignment) || jsonb_build_object('kind', v_kind, 'days', v_days),
-      'd' || v_days::text
+      'd' || v_days::text,
+      -- Clave ESTABLE: el recordatorio de un plazo se manda una sola vez, pase
+      -- lo que pase con la versión de la asignación. Mover la hora sube la
+      -- versión, y con la versión dentro de la clave la persona recibía otra
+      -- vez el mismo «todavía no has respondido»; del cambio de hora ya avisa
+      -- activity.rescheduled.
+      '0'
     ) is not null then
       v_created := v_created + 1;
     end if;
@@ -352,7 +430,7 @@ end;
 $$;
 
 comment on function app.enqueue_due_reminders() is
-  'Regla 4: sin respuesta, 7 y 2 días antes; aceptada, la víspera. La clave de deduplicación (d7/d2/d1 + versión) evita repetirlos.';
+  'Regla 4: sin respuesta, 7 y 2 días antes; aceptada, la víspera; nunca antes de que el turno lleve 12 horas comunicado. La clave de deduplicación es estable (d7/d2/d1, sin la versión de la asignación): reprogramar la actividad no repite el recordatorio del mismo plazo.';
 
 create or replace function app.escalate_uncovered_positions()
 returns jsonb
@@ -367,7 +445,8 @@ declare
 begin
   for v_rec in
     select ap.id as position_id, ap.name as position_name, ap.min_people, ap.service_area_id,
-           a.id as activity_id, a.church_id, a.title, a.starts_at, a.ends_at, a.timezone,
+           a.id as activity_id, a.church_id, a.campus_id, a.title, a.starts_at, a.ends_at, a.timezone,
+           -- Solo confirmados: un turno enviado sin responder no cubre el puesto.
            (select count(*) from activity_assignments aa
             where aa.activity_position_id = ap.id and aa.status = 'accepted') as accepted_count
     from activity_positions ap
@@ -385,7 +464,7 @@ begin
 
     if app.emit_notification_event(
       v_rec.church_id, 'assignment.coverage_at_risk', 'activity_positions', v_rec.position_id, 1,
-      app.church_admin_person_ids(v_rec.church_id),
+      app.church_admin_person_ids(v_rec.church_id, v_rec.campus_id),
       jsonb_strip_nulls(jsonb_build_object(
         'activity_id', v_rec.activity_id,
         'activity_title', v_rec.title,
@@ -399,8 +478,12 @@ begin
         'accepted_count', v_rec.accepted_count,
         'missing', v_rec.min_people - v_rec.accepted_count
       )),
-      -- Una escalada por puesto y horario: si la actividad se mueve, vuelve a avisar.
-      to_char(v_rec.starts_at, 'YYYYMMDDHH24MI')
+      -- Una escalada por puesto y horario: si la actividad se mueve, vuelve a
+      -- avisar. El horario se fija SIEMPRE en UTC: to_char sobre un timestamptz
+      -- usa la zona de la sesión, así que dos pasadas del motor con TimeZone
+      -- distinto generaban dos claves y escalaban dos veces a toda la
+      -- administración.
+      to_char(v_rec.starts_at at time zone 'UTC', 'YYYYMMDDHH24MI')
     ) is not null then
       v_created := v_created + 1;
     end if;
@@ -411,7 +494,7 @@ end;
 $$;
 
 comment on function app.escalate_uncovered_positions() is
-  'Regla 3: un puesto crítico por debajo de su mínimo a menos de 3 días avisa a la administración de la iglesia.';
+  'Regla 3: un puesto crítico por debajo de su mínimo a menos de 3 días avisa a la administración de la iglesia (la de ámbito iglesia y la del campus de la actividad). La cobertura se mide SOLO con turnos confirmados (status = accepted): los enviados sin responder y los borradores no cuentan, porque hasta que alguien confirma no hay nadie comprometido; el texto del aviso lo dice. La clave de deduplicación fija el horario en UTC, así que no depende de la zona de la sesión que ejecute el motor.';
 
 -- ===========================================================================
 -- Cola de salida (solo service_role)
@@ -444,12 +527,24 @@ begin
   end if;
   v_channel := p_channel::notification_channel;
 
+  -- Tope de reintentos: sin él, una entrega que falla siempre se reclama sin
+  -- fin y tapa a las demás en la cabecera de la cola. A los 5 intentos deja de
+  -- reclamarse y queda como `failed` con su motivo.
+  update notification_deliveries d
+  set status = 'failed',
+      claimed_at = null,
+      last_error = coalesce(d.last_error, 'Entrega agotada: 5 intentos sin cerrarse.')
+  where d.channel = v_channel
+    and d.status = 'queued'
+    and d.attempts >= 5;
+
   return query
   with picked as (
     select d.id
     from notification_deliveries d
     where d.channel = v_channel
       and d.status = 'queued'
+      and d.attempts < 5
       and d.scheduled_for <= app.notification_clock()
       and (d.claimed_at is null or d.claimed_at < app.notification_clock() - interval '15 minutes')
     order by d.scheduled_for, d.id
@@ -470,6 +565,9 @@ begin
   order by c.scheduled_for, c.id;
 end;
 $$;
+
+comment on function app.claim_notification_deliveries(text, integer) is
+  'Reclama entregas vencidas de un canal marcando un intento. Antes de repartir, cierra como `failed` las que llevan 5 intentos sin cerrarse: no se reclaman más.';
 
 create or replace function app.complete_notification_delivery(
   p_delivery_id uuid,

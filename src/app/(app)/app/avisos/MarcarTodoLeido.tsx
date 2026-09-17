@@ -1,38 +1,44 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useTransition } from "react";
 import { CheckCheck, Loader2 } from "lucide-react";
 import { marcarTodoLeidoAction } from "./actions";
+import { anunciarEnAvisos } from "./EstadoAvisos";
 
-/** «Marcar todo como leído». Solo actúa sobre los avisos de la iglesia activa. */
+/**
+ * «Marcar todo como leído». Solo actúa sobre los avisos de la iglesia activa.
+ *
+ * Al terminar bien no queda nada sin leer, así que este botón desaparece: el
+ * resultado no se muestra aquí, sino en la región de estado de la bandeja
+ * (EstadoAvisos), que sigue montada y se lleva el foco a la pestaña «Sin
+ * leer». Un error sí deja el botón en su sitio, y el foco no se mueve.
+ */
 export default function MarcarTodoLeido({ unreadCount }: { unreadCount: number }) {
   const [isPending, startTransition] = useTransition();
-  const [feedback, setFeedback] = useState<{ kind: "error" | "success"; message: string } | null>(null);
 
   if (unreadCount === 0) return null;
 
   function marcarTodo() {
     if (isPending) return;
-    setFeedback(null);
     startTransition(async () => {
       try {
         const result = await marcarTodoLeidoAction();
         if (!result.ok) {
-          setFeedback({ kind: "error", message: result.error });
+          anunciarEnAvisos("error", result.error);
           return;
         }
         const updated = result.updated ?? 0;
-        setFeedback({
-          kind: "success",
-          message:
-            updated === 0
-              ? "Ya tenías todos los avisos leídos."
-              : updated === 1
-                ? "Se ha marcado 1 aviso como leído."
-                : `Se han marcado ${updated} avisos como leídos.`,
-        });
+        anunciarEnAvisos(
+          "success",
+          updated === 0
+            ? "Ya tenías todos los avisos leídos."
+            : updated === 1
+              ? "Se ha marcado 1 aviso como leído."
+              : `Se han marcado ${updated} avisos como leídos.`,
+          true,
+        );
       } catch {
-        setFeedback({ kind: "error", message: "No se pudieron marcar tus avisos como leídos. Inténtalo de nuevo." });
+        anunciarEnAvisos("error", "No se pudieron marcar tus avisos como leídos. Inténtalo de nuevo.");
       }
     });
   }
@@ -53,14 +59,6 @@ export default function MarcarTodoLeido({ unreadCount }: { unreadCount: number }
         )}
         {isPending ? "Marcando…" : "Marcar todo como leído"}
       </button>
-      {feedback ? (
-        <p
-          className={`av-feedback is-${feedback.kind}`}
-          role={feedback.kind === "error" ? "alert" : "status"}
-        >
-          {feedback.message}
-        </p>
-      ) : null}
     </div>
   );
 }

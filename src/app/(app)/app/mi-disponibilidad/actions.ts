@@ -1,7 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { requireTenantContext } from "@/server/tenant/tenant-context";
+import { getTenantContext } from "@/server/tenant/tenant-context";
 import { DomainError } from "@/server/errors/domain-error";
 import { isLocalDateTime, isLocalTime } from "@/server/availability/church-time";
 import {
@@ -19,11 +19,17 @@ import { MAX_ACTIVITIES_LIMIT, REASON_MAX } from "./labels";
  * navegador) y las RPC de `20260923000100_disponibilidad.sql` vuelven a
  * comprobar pertenencia, propiedad y validaciones. Lo que se valida aquí es
  * solo para dar un mensaje claro antes de ir a la base de datos.
+ *
+ * Quien no pertenece a ninguna iglesia recibe un resultado con su motivo, como
+ * en la bandeja de avisos: si la acción lanzara, la pantalla solo diría «No se
+ * pudo completar la acción» y no se entendería por qué.
  */
 
 export type DisponibilidadResult = { ok: true } | { ok: false; error: string };
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+const NO_CHURCH = "No perteneces a ninguna iglesia.";
 
 function invalid(message: string): DisponibilidadResult {
   return { ok: false, error: message };
@@ -69,7 +75,8 @@ export type GuardarPeriodoInput = {
 };
 
 export async function guardarPeriodoAction(input: GuardarPeriodoInput): Promise<DisponibilidadResult> {
-  const tenant = await requireTenantContext();
+  const tenant = await getTenantContext();
+  if (!tenant) return invalid(NO_CHURCH);
 
   if (input.id !== undefined && input.id !== null && !UUID_RE.test(String(input.id))) {
     return invalid("El periodo no es válido. Recarga la página.");
@@ -96,7 +103,8 @@ export async function guardarPeriodoAction(input: GuardarPeriodoInput): Promise<
 }
 
 export async function eliminarPeriodoAction(id: string): Promise<DisponibilidadResult> {
-  await requireTenantContext();
+  const tenant = await getTenantContext();
+  if (!tenant) return invalid(NO_CHURCH);
   if (typeof id !== "string" || !UUID_RE.test(id)) {
     return invalid("El periodo no es válido. Recarga la página.");
   }
@@ -119,7 +127,8 @@ export type GuardarPautaInput = {
 };
 
 export async function guardarPautaAction(input: GuardarPautaInput): Promise<DisponibilidadResult> {
-  const tenant = await requireTenantContext();
+  const tenant = await getTenantContext();
+  if (!tenant) return invalid(NO_CHURCH);
 
   if (!Number.isInteger(input.weekday) || input.weekday < 0 || input.weekday > 6) {
     return invalid("Elige un día de la semana.");
@@ -144,7 +153,8 @@ export async function guardarPautaAction(input: GuardarPautaInput): Promise<Disp
 }
 
 export async function eliminarPautaAction(id: string): Promise<DisponibilidadResult> {
-  await requireTenantContext();
+  const tenant = await getTenantContext();
+  if (!tenant) return invalid(NO_CHURCH);
   if (typeof id !== "string" || !UUID_RE.test(id)) {
     return invalid("La pauta no es válida. Recarga la página.");
   }
@@ -162,7 +172,8 @@ export async function guardarFrecuenciaAction(
   serviceAreaId: string | null,
   max: number | null,
 ): Promise<DisponibilidadResult> {
-  const tenant = await requireTenantContext();
+  const tenant = await getTenantContext();
+  if (!tenant) return invalid(NO_CHURCH);
 
   if (serviceAreaId !== null && (typeof serviceAreaId !== "string" || !UUID_RE.test(serviceAreaId))) {
     return invalid("El área de servicio no es válida. Recarga la página.");
