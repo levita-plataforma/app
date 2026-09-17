@@ -1,20 +1,24 @@
-# Contrato F4/F5 — actividades, puestos, disponibilidad y eventos de aviso
+# Contrato F4/F5 — actividades, puestos, asignaciones, disponibilidad y eventos de aviso
 
-Fecha: **16 de septiembre de 2026**. Tarea: **CO-01** (Carlos redacta; Carlos y Diogo acuerdan).
+Fecha: **16 de septiembre de 2026**; actualización: **17 de septiembre de 2026** (decisiones de F5 de Carlos). Tarea: **CO-01** (Carlos redacta; Carlos y Diogo acuerdan).
 
 ## 1. Propósito, estado y responsables
 
-**Propósito.** Fijar qué produce la Fase 4 y qué consumirá la Fase 5, y proponer lo que cada parte de la Fase 5 expondrá a la otra, para que Carlos y Diogo puedan trabajar en paralelo sin cambios incompatibles.
+**Propósito.** Fijar qué produce la Fase 4, qué entrega y qué consume la parte de Carlos de la Fase 5, y qué queda por acordar con Diogo, para que ambos trabajen en paralelo sin cambios incompatibles.
 
 **Estado.**
 
 ```
-PROPUESTA — PENDIENTE DE ACUERDO (CO-01) Y DE VALIDACIÓN DE CARLOS
+F4:            INTEGRADA Y APLICADA EN PRODUCCIÓN (17 de septiembre de 2026)
+F5 · CARLOS:   DECISIONES DE SU DOMINIO ACORDADAS POR CARLOS (17 de septiembre de 2026)
+               EN DESARROLLO — rama feature/carlos-fase-5-asignaciones; nada aplicado en remoto
+F5 · COMPARTIDO Y DIOGO: PENDIENTE DE ACUERDO CON DIOGO
 ```
 
-- Este documento **no inicia ni autoriza ningún trabajo de F5**. CA-04, CA-05, DI-01 y siguientes son encargos separados que deben iniciarse expresamente.
-- **Nada de lo descrito está implementado más allá de F4.** Los apartados 3, 4 y 5 son propuestas: no existen tablas, funciones ni eventos de F5.
-- Los datos de F4 proceden de las migraciones `20260920000100`–`20260920000900` y de `src/server/activities/` en la rama `feature/carlos-fase-4-actividades`. Esas migraciones no se han aplicado en ningún entorno remoto. Detalle: [ADR 0017](adr/0017-actividades-planificacion-fase-4.md) y [FASE-4-ACTIVIDADES.md](FASE-4-ACTIVIDADES.md).
+- **F4.** Los datos de §2 proceden de las migraciones `20260920000100`–`20260920000900` y de `src/server/activities/`, integradas en `main` con la PR #2 (merge `b3f5add`), validadas por Carlos en el commit `93eb369` y **aplicadas en producción el 17 de septiembre de 2026**. Detalle y evidencias: [FASE-4-ACTIVIDADES.md §9](FASE-4-ACTIVIDADES.md) y [ADR 0017](adr/0017-actividades-planificacion-fase-4.md).
+- **F5 · Carlos (CA-04/CA-05).** Las decisiones de §3 están acordadas por Carlos. Su implementación en base de datos son las migraciones `20260922000100`–`20260922000500` de la rama `feature/carlos-fase-5-asignaciones`, **no aplicadas en ningún entorno remoto**. La interfaz (`src/`) y las pruebas pgTAP están en desarrollo en esa rama. Detalle técnico: [FASE-5-ASIGNACIONES.md](FASE-5-ASIGNACIONES.md).
+- **F5 · Diogo (DI-01 a DI-04) y lo compartido.** §5, §6 y §9 siguen siendo propuestas: no existen tablas, funciones ni eventos de Diogo. Nada de este documento las da por acordadas.
+- Este documento no inicia ni autoriza trabajo de Diogo, ni integraciones en `main`, ni cambios en producción.
 
 **Responsables.**
 
@@ -30,7 +34,7 @@ PROPUESTA — PENDIENTE DE ACUERDO (CO-01) Y DE VALIDACIÓN DE CARLOS
 
 **Estable** = F5 puede leerlo y depender de ello; un cambio incompatible requiere acordarlo aquí. **Interno** = detalle de F4 que F5 no debe usar.
 
-Toda escritura en estas tablas pasa por RPC de F4: `authenticated` no tiene `INSERT/UPDATE/DELETE` directos. F5 no escribe en tablas de F4; si necesita un cambio, lo pide mediante una RPC acordada.
+Toda escritura en estas tablas pasa por RPC de F4: `authenticated` no tiene `INSERT/UPDATE/DELETE` directos. F5-Carlos no tiene RPC que escriban en tablas de F4; reacciona a los cambios de F4 con triggers propios, y uno de ellos modifica `activities`: una ocurrencia con asignaciones que F4 iba a borrar pasa a `cancelled` en lugar de eliminarse (§3, decisión 5; detalle en [FASE-5-ASIGNACIONES.md §7](FASE-5-ASIGNACIONES.md)).
 
 ### 2.1 Tablas y columnas
 
@@ -51,13 +55,14 @@ Toda escritura en estas tablas pasa por RPC de F4: `authenticated` no tiene `INS
 | Función | Qué devuelve | Contrato |
 |---|---|---|
 | `app.activity_position_effective_requirements(activity_position_id)` | Requisitos heredados no desactivados + añadidos por actividad (`requirement_type`, `strictness`, `qualification_id`, `credential_type_id`, `min_level`, `min_operational_level`, `requires_current_validity`) | Estable. Con usuario, filtra por `app.can_read_activity`. Wrapper `public.*` disponible |
-| `app.activity_accepts_assignments(activity_id)` | `true` si `status in ('planned','published')` y (`flexible` o `ends_at > now()`) | Estable. Con usuario, filtra por lectura. Sin wrapper público |
+| `app.activity_accepts_assignments(activity_id)` | `true` si `status in ('planned','published')` y (`flexible` o `ends_at > now()`) | Estable. Con usuario, filtra por lectura. Sin wrapper público (F5 no lo necesita). Internamente F5-Carlos usa `app.activity_accepts_assignments_unchecked`, más estricta: una tarea `flexible` con `ends_at` vencido no admite asignaciones (decisión 9) |
 | `app.position_coverage_status(min, max, assigned)` | `uncovered`, `partially_covered`, `covered` (incluye mínimo 0), `overstaffed` (nunca con máximo nulo) | Estable |
-| `public.activity_position_coverage(activity_id)` | Por puesto: `min_people`, `max_people`, `assigned_count`, `coverage_status`. **En F4 `assigned_count = 0` siempre** | Estable en forma; F5 sustituye el recuento |
+| `public.activity_position_coverage(activity_id)` | Por puesto: `min_people`, `max_people`, `assigned_count`, `coverage_status`. En F4 `assigned_count = 0` siempre | Estable en forma; F5-Carlos la amplía (§4.3) |
 | `app.can_read_activity(activity_id)` | Modelo de lectura (§2.4) | Estable |
+| `app.can_read_activity_row(...)` | Condición de lectura por fila usada en RLS de `activities` | Estable; F5-Carlos la redefine conservando su lógica (§4.4) |
 | `app.activity_cap(church, campus, activity, capability)` | Capability con scope `church`, `campus` o `activity` | Estable |
 | `app.activity_structure_issues`, `app.activity_structure_issues_unchecked` | Incidencias de estructura | Interno |
-| `app.evaluate_person_eligibility(church, service_position, person)` (F3) | Elegibilidad contra el **puesto de catálogo** y `now()` | Existente, **no apto** para asignar por fecha de actividad (§3) |
+| `app.evaluate_person_eligibility(church, service_position, person)` (F3) | Elegibilidad contra el **puesto de catálogo** y `now()` | Existente, **no apto** para asignar por fecha de actividad; F5-Carlos usa su propia evaluación (§4.2) |
 
 ### 2.3 Capabilities y scopes
 
@@ -75,103 +80,182 @@ Scopes: `church` (satisface cualquier scope), `campus`, `service_area`, `activit
 - En cualquier estado: organizador; `activity.read/manage/publish/cancel/archive` o `activity_plan.manage` con scope `church`, `campus` o `activity`; `activity.read`/`activity_positions.manage` con scope `service_area` de un área incluida.
 - `anon` no lee nada; `public_future` no da acceso anónimo.
 - Estructura sigue a la actividad. Notas administrativas: solo `activity.read`/`activity.manage` en scope `church`, `campus` o `activity`.
+- Ampliación de F5-Carlos: §4.4.
 
 ---
 
-## 3. Lo que F5-Carlos añadirá (CA-04/CA-05) — propuesta
+## 3. Decisiones de F5 del dominio de Carlos
 
-Nada de este apartado existe.
+Acordadas por Carlos el **17 de septiembre de 2026**. Sustituyen las propuestas anteriores de este apartado. Donde una decisión toca el dominio de Diogo, esa parte figura como pendiente y se repite en §9.
 
-### 3.1 Tabla de asignaciones (boceto)
+| Nº | Tema | Decisión | Estado |
+|---|---|---|---|
+| 1 | Estados | `proposed` (borrador no comunicado, invisible para la persona) → enviar → `pending` → `accepted` / `declined`; `cancelled` (retirada, con causa); `substituted` (reemplazada). | Acordada por Carlos |
+| 2 | Cobertura | Confirmados = `accepted` (determinan `coverage_status` y `assigned_count`); pendientes = `pending`; previstos = `proposed` + `pending` + `accepted`. Columnas nuevas `pending_count`, `proposed_count` y `expected_count` en `public.activity_position_coverage`. | Acordada por Carlos |
+| 3 | Conflictos | **Bloquean:** pertenencia (a la iglesia y al área), requisitos obligatorios en la fecha de la actividad, persona autónoma, estado de la actividad y máximo del puesto. **Avisan** (se confirman y quedan registrados): solapes con otras asignaciones, no disponibilidad, frecuencia, requisitos recomendados y sede distinta. Rangos semiabiertos `[inicio, fin)`. | Acordada por Carlos. Frecuencia: pendiente de la firma de Diogo. No disponibilidad: depende de DI-01 |
+| 4 | Respuestas | La persona responde hasta el inicio de la actividad (flexibles: hasta el fin de su ventana, o sin límite si no la tiene). Tras aceptar, la baja es mediante sustitución. Desde el inicio, solo el coordinador registra cambios. | Acordada por Carlos |
+| 5 | Cambios de F4 | Cambio de hora → reconfirmación. Cancelar, archivar (salvo completadas) o eliminar una ocurrencia → asignaciones `cancelled`. Despublicar conserva las asignaciones. Duplicar o aplicar estructura no copia personas. Eliminar un puesto con personas asignadas se bloquea. | Acordada por Carlos |
+| 6 | Sustitución | Solicitud (de la persona o del gestor) → candidato elegido por el gestor (revalidado, único por solicitud) → la asignación original pasa a `substituted` cuando el candidato acepta. | Acordada por Carlos |
+| 7 | Personas sin cuenta | Respuesta registrada por un representante, auditada y marcada con `response_source = representative`. | Acordada por Carlos |
+| 8 | Permisos | Capability `assignment.manage` con scopes `church`, `campus`, `activity` y `service_area`; roles `church_owner`, `church_admin`, `campus_admin` y `ministry_leader` (este, en el ámbito de su área). Responder las propias asignaciones no requiere capability. Lectura mínima de la persona asignada (`pending`/`accepted`): la actividad, su estructura y el orden del servicio; sin notas administrativas ni el resto del equipo. | Acordada por Carlos |
+| 9 | Flexibles | Se usa su ventana si existe; nunca se inventa una hora. | Acordada por Carlos |
+| 10 | Publicación multiárea | Se conserva la autoridad de F4 (A8): gestionar asignaciones no concede `activity.publish`. | Acordada por Carlos |
+| 11 | Enlaces de respuesta | Primera versión solo autenticada; sin tokens firmados. | Acordada por Carlos |
 
-| Columna | Propuesta |
-|---|---|
-| `id`, `church_id` | FK tenant-safe `(id, church_id)` |
-| `activity_id`, `activity_position_id` | FK compuesta a `activity_positions (id, church_id)` |
-| `person_id` | FK `(church_id, person_id)` → `church_people`; persona activa de la iglesia |
-| `status` | Ver §3.2 |
-| `proposed_by`, `proposed_at`, `responded_at`, `response_source` | Trazabilidad |
-| `substitutes_assignment_id` | Sustitución |
-| `eligibility_snapshot` | Resultado de elegibilidad al proponer (motivos sin datos sensibles) |
-| Unicidad | Una asignación vigente por `(activity_position_id, person_id)` |
+Consecuencias ya resueltas de la lista anterior de decisiones abiertas: estados y cobertura (antes 1), conflictos salvo frecuencia (antes 6), ventana de respuesta (antes 11, A9), publicación multiárea (antes 12, A8) y wrapper de `app.activity_accepts_assignments` (antes 13: no se necesita).
 
-### 3.2 Estados (propuesta)
+Detalles de implementación conformes a lo acordado: el coordinador puede cambiar una respuesta aceptada a rechazada y registrar respuestas después del inicio (decisión 4); el representante puede responder por personas con o sin cuenta (decisión 7); quien lee la actividad por audiencia ve el equipo confirmado (decisión 8); el candidato de sustitución se crea directamente en `pending` y solo puede aceptar mientras sea el candidato activo de una solicitud abierta (decisión 6). Limitaciones conocidas: [FASE-5-ASIGNACIONES.md §14](FASE-5-ASIGNACIONES.md).
 
-| Estado | Significado | Cuenta para cobertura |
+---
+
+## 4. Lo que F5-Carlos entrega (contrato estable)
+
+Estado: **en desarrollo** en `feature/carlos-fase-5-asignaciones`, no aplicado en remoto. Se considera contrato para Diogo y para la interfaz: un cambio incompatible se acuerda aquí. Descripción completa en [FASE-5-ASIGNACIONES.md](FASE-5-ASIGNACIONES.md).
+
+### 4.1 Tablas y columnas públicas
+
+Las tres tablas tienen RLS forzado; `authenticated` solo tiene `SELECT` y la escritura pasa por RPC.
+
+| Tabla | Columnas para consumidores | Notas |
 |---|---|---|
-| `proposed` | Creada por un coordinador, aún no comunicada | Por decidir (§8) |
-| `pending` | Comunicada, esperando respuesta | Por decidir (§8) |
-| `accepted` | Aceptada | Sí |
-| `declined` | Rechazada | No |
-| `cancelled` | Retirada por el coordinador o por cancelación de la actividad | No |
-| `substituted` | Sustituida por otra asignación | No |
+| `activity_assignments` | `id`, `church_id`, `activity_id`, `activity_position_id` (nulo solo si el puesto se eliminó después), `person_id`, `status` (`activity_assignment_status`), `version`, `position_name` (snapshot), `service_area_id` (snapshot), `substitutes_assignment_id`, `created_at`, `sent_at`, `responded_at`, `response_source` (`self`, `representative`), `confirmed_starts_at`, `confirmed_ends_at`, `reconfirmation_requested_at`, `cancelled_at`, `cancel_cause` (`coordinator`, `activity_cancelled`, `activity_archived`, `occurrence_removed`, `substitution_withdrawn`), `substituted_at`, `updated_at` | Las filas no se borran. `version` es monotónica: sube en cada mutación de la fila |
+| `activity_assignment_notes` | `assignment_id`, `person_id`, `note` (1–1000), `updated_at` | Solo la lee la propia persona. **Nunca** se incluye en eventos ni avisos |
+| `activity_substitution_requests` | `id`, `church_id`, `activity_id`, `original_assignment_id`, `status` (`open`, `completed`, `cancelled`), `candidate_assignment_id`, `requested_by_self`, `requested_at`, `completed_at`, `cancelled_at` | Una solicitud abierta por asignación original |
 
-### 3.3 Reglas previstas
+Columnas de trazabilidad (`created_by`, `sent_by`, `responded_by`, `cancelled_by`, `requested_by`, `eligibility_checked_at`): internas.
 
-- Solo se asigna si `app.activity_accepts_assignments(activity_id)` es verdadero.
-- **Elegibilidad por fecha de actividad (no existe hoy):** evaluar `app.activity_position_effective_requirements` con vigencia de credenciales en `starts_at` (o ventana de la tarea), no con `now()` ni con el puesto de catálogo.
-- **Conflictos de persona:** solapes con otras asignaciones (datos de Carlos) y con la disponibilidad de Diogo (§4.1). Qué bloquea y qué avisa queda abierto (A10).
-- **Cobertura:** `assigned_count` pasa a contar asignaciones según §3.2, manteniendo `app.position_coverage_status`.
-- Cancelar o reprogramar una actividad con asignaciones genera eventos (§5).
+Códigos de elegibilidad guardados (`eligibility_blocking`, `eligibility_warnings`, `acknowledged_warnings`): sin `SELECT` por columna para `authenticated`, porque pueden revelar datos personales (por ejemplo, una no disponibilidad confirmada). Se guardan siempre enmascarados y quien gestiona el puesto los lee con `activity_assignment_recorded_warnings`.
+
+### 4.2 RPC
+
+Todas son `public.*` (`security invoker`) que llaman a `app.*` (`security definer`), salvo las lecturas indicadas. `EXECUTE` solo para `authenticated`.
+
+| Función | Parámetros | Devuelve |
+|---|---|---|
+| `create_activity_assignment` | `p_activity_position_id uuid`, `p_person_id uuid`, `p_input jsonb` (`acknowledged_warnings` array de códigos confirmados, `send` bool) | `{assignment_id, status, version, replayed, warnings}` |
+| `send_activity_assignments` | `p_activity_id uuid`, `p_assignment_ids uuid[]` (nulo = todas las `proposed` que gestione) | `{sent, blocked: [{assignment_id, blocking}]}` (las bloqueadas siguen en borrador) |
+| `cancel_activity_assignment` | `p_assignment_id uuid`, `p_expected_version integer` | `{status, version, replayed}` |
+| `respond_activity_assignment` | `p_assignment_id uuid`, `p_response text` (`accepted`, `declined`), `p_expected_version integer`, `p_note text` (`''` la borra) | `{status, version, replayed}` |
+| `record_assignment_response` | `p_assignment_id uuid`, `p_response text`, `p_expected_version integer` | `{status, version, replayed}` |
+| `request_assignment_substitution` | `p_assignment_id uuid` | `{request_id, replayed}` |
+| `propose_substitution_candidate` | `p_request_id uuid`, `p_person_id uuid`, `p_acknowledged_warnings text[]` | `{assignment_id, status, warnings}` |
+| `cancel_substitution_request` | `p_request_id uuid` (la persona solo cancela las que pidió ella) | void |
+| `preview_assignment_eligibility` (`security definer`) | `p_activity_position_id uuid`, `p_person_id uuid` | tabla `(blocking text[], warnings text[])` |
+| `activity_position_coverage` (`security definer`) | `p_activity_id uuid` | ver §4.3 |
+| `activity_staffing_summary` (`security definer`) | `p_activity_ids uuid[]` (máx. 200) | tabla `(activity_id, positions, positions_requiring_people, confirmed, pending, proposed, uncovered_positions)` |
+| `activity_assignment_review` (`security definer`) | `p_activity_id uuid` | tabla `(assignment_id, blocking, warnings)` de las asignaciones vigentes que gestione, reevaluadas con los datos actuales |
+| `activity_assignment_recorded_warnings` (`security definer`) | `p_activity_id uuid` | tabla `(assignment_id, eligibility_warnings, acknowledged_warnings)` de las asignaciones que gestione |
+| `my_respondable_assignments_count` (`security definer`) | `p_church_id uuid` | integer: turnos propios `pending` que aún se pueden responder |
+
+**Errores (SQLSTATE):** `42501` no autorizado · `P0002` no encontrado · `22023` regla incumplida (bloqueos en `DETAIL` como códigos separados por comas) · `PT412` hay avisos sin confirmar (en `DETAIL`, solo los códigos que faltan por confirmar) · `PT409` la asignación cambió respecto a `p_expected_version` (versión actual en `DETAIL`) · `23505` conflicto.
+
+**Códigos de elegibilidad.**
+
+| Tipo | Códigos |
+|---|---|
+| Bloqueo | `inactive_person`, `not_area_member`, `insufficient_level`, `missing_qualification`, `qualification_expired_at_activity`, `missing_credential`, `credential_expired_at_activity`, `requirement_not_met`, `activity_not_assignable`, `position_full`, `position_not_found` |
+| Aviso | `overlapping_assignment`, `unavailable`, `availability_unknown`, `different_campus` y los códigos de requisito con sufijo `_recommended` |
+
+### 4.3 Cobertura
+
+`public.activity_position_coverage(p_activity_id)` conserva las seis columnas de F4 en el mismo orden y añade tres al final:
+
+| Columna | Valor |
+|---|---|
+| `activity_position_id`, `activity_service_area_id`, `min_people`, `max_people` | Igual que F4 |
+| `assigned_count` | Confirmados (`accepted`) |
+| `coverage_status` | `app.position_coverage_status(min, max, confirmados)` |
+| `pending_count` | `pending` (nulo si no gestiona el puesto) |
+| `proposed_count` | `proposed` (nulo si no gestiona el puesto) |
+| `expected_count` | `accepted` + `pending` + `proposed`, con la original y su candidato vigente como una plaza (nulo si no gestiona el puesto) |
+
+Es `security definer` y exige `app.can_read_activity` (sin lectura, 0 filas). Confirmados y estado de cobertura llegan a cualquiera que lea la actividad; pendientes, borradores y previstos solo a quien gestiona el puesto (coherente con las decisiones 1 y 8: los borradores y el resto del equipo no son visibles para la audiencia). `activity_staffing_summary` suma `pending` y `proposed` solo de los puestos que gestiona y los devuelve nulos si no gestiona ninguno.
+
+### 4.4 Modelo de lectura
+
+| Quién | Actividad y estructura | Asignaciones |
+|---|---|---|
+| `assignment.manage` en el ámbito | Sí, en cualquier estado (se añade a la lógica de F4) | Todas las del puesto |
+| Persona con asignación `pending`/`accepted` | Sí, con la actividad `planned`/`published`/`completed`/`cancelled` (actividad, estructura y orden del servicio); no notas administrativas | Solo las suyas que llegaron a comunicarse; nunca borradores |
+| Lectura por el modelo de F4 (audiencia o capabilities) | Como en F4 | Solo las `accepted` (equipo confirmado, conforme a lo acordado) |
+
+`app.can_read_activity_row` pasa a ser `app.can_read_activity_row_base` (lógica de F4 más `assignment.manage`) **o** estar asignado. Las políticas de F4 que la usan no cambian.
 
 ---
 
-## 4. Lo que F5-Diogo expone y Carlos consume (DI-01/DI-02) — propuesta
+## 5. Lo que F5-Carlos consume de Diogo
 
-Nada de este apartado existe. No se eligen transportes.
+### 5.1 Disponibilidad (DI-01)
 
-### 4.1 Disponibilidad y bloqueos (DI-01)
-
-| Aspecto | Propuesta |
+| Aspecto | Estado |
 |---|---|
-| Consulta | `app.person_unavailability(church_id, person_ids uuid[], from timestamptz, to timestamptz)` → filas `(person_id, starts_at, ends_at, kind)` |
-| Rango | Semiabierto `[from, to)` en UTC |
-| Zona | Los bloqueos se guardan como instantes UTC más la zona IANA en la que se definieron (para días completos y repeticiones locales); la función devuelve instantes ya resueltos |
-| Privacidad | Quien asigna ve solo "no disponible" (`kind` genérico). Motivo y notas: solo la propia persona |
-| Autorización | Solo quien puede asignar en esa iglesia (capability a definir) o la propia persona |
-| Frecuencia deseada | `app.person_serving_preferences(church_id, person_id)` → frecuencia máxima (p. ej. veces por mes) y, si se decide, por área; la aplicación la trata como aviso, no bloqueo (por acordar) |
+| Firma consumida | `app.person_unavailability(church_id uuid, person_ids uuid[], from timestamptz, to timestamptz)` → filas. Solo se comprueba si devuelve alguna fila para la persona |
+| Cómo se consulta | Dinámicamente, **solo si la función existe** (`to_regprocedure`). Si no existe, no se emite el aviso `unavailable`. F5-Carlos **no** crea tabla ni función sustituta |
+| Rango enviado | `[starts_at, ends_at)` de la actividad; no se consulta si la actividad no tiene ambos valores |
+| Contexto de llamada | Dentro de funciones `security definer` de F5, con el usuario autenticado de la petición: quien gestiona asignaciones (crear, candidato, vista previa, revisión) y también la propia persona al aceptar |
+| Si la consulta falla | Cualquier error o denegación de la función se captura: se añade el aviso `availability_unknown` y la operación continúa |
+| Resto de la propuesta anterior (columnas devueltas, privacidad del motivo, capability que la autoriza, zona) | Pendiente de Diogo |
 
-### 4.2 Entrada de eventos de aviso (DI-02)
+### 5.2 Frecuencia deseada
+
+`app.person_serving_preferences` **no se consume todavía**. El aviso de frecuencia (decisión 3) queda pendiente de que Diogo fije la firma y el cómputo.
+
+### 5.3 Entrada de eventos de aviso (DI-02) — propuesta pendiente de Diogo
 
 | Campo | Propuesta |
 |---|---|
 | `idempotency_key` | Obligatorio; único. Reintentar con la misma clave no crea otro aviso |
 | `church_id` | Obligatorio; aislamiento por tenant |
-| `event_type` | Del catálogo §5 |
+| `event_type` | Del catálogo §6 |
 | `recipient_person_ids` | Personas (`people.id`) de esa iglesia; el motor resuelve cuentas, dispositivos y preferencias |
-| `entity_type`, `entity_id` | Entidad de origen (`activities`, asignación) |
+| `entity_type`, `entity_id`, `entity_version` | Entidad de origen y su versión (`activity_assignments.version`) |
 | `occurred_at` | Instante UTC del hecho |
-| `payload` | Mínimo, sin datos sensibles: identificadores, título, `starts_at`/`ends_at`, `timezone`. Sin motivos de cancelación ni notas administrativas |
-| Deduplicación | Por `idempotency_key`; ventana adicional por `(event_type, entity_id, destinatario)` a acordar |
+| `payload` | Mínimo, sin datos sensibles: identificadores, título, `position_name`, `starts_at`/`ends_at`, `timezone`. Sin motivos de cancelación, notas administrativas ni notas privadas de respuesta |
 | Reintentos | Responsabilidad del motor; el productor no reintenta envíos |
 | Notificación persistente | Se crea antes de cualquier canal externo (D16) |
 
 ---
 
-## 5. Catálogo de eventos de dominio — propuesta
+## 6. Eventos de dominio
 
-**Hoy F4 no emite ningún evento ni aviso.** Solo escribe `audit_logs` mediante `app.write_audit_log`, con estas acciones:
+**Hoy ni F4 ni F5-Carlos emiten eventos ni avisos.** Solo escriben `audit_logs` mediante `app.write_audit_log`, que no es contrato de eventos.
 
-`activity.created`, `activity.updated`, `activity.duplicated`, `activity.published`, `activity.cancelled`, `activity.completed`, `activity.archived`, `activity.unarchived`, `activity.status_changed`, `activity.series_occurrence_removed`, `activity.area_added`, `activity.area_updated`, `activity.area_removed`, `activity.position_added`, `activity.position_updated`, `activity.position_removed`, `activity.plan_item_added`, `activity.plan_item_updated`, `activity.plan_item_removed`, `activity.plan_reordered`, `activity_template.created`, `activity_template.updated`, `activity_template.archived`, `activity_template.restored`.
+Acciones de auditoría de F4: `activity.created`, `activity.updated`, `activity.duplicated`, `activity.published`, `activity.cancelled`, `activity.completed`, `activity.archived`, `activity.unarchived`, `activity.status_changed`, `activity.series_occurrence_removed`, `activity.area_added`, `activity.area_updated`, `activity.area_removed`, `activity.position_added`, `activity.position_updated`, `activity.position_removed`, `activity.plan_item_added`, `activity.plan_item_updated`, `activity.plan_item_removed`, `activity.plan_reordered`, `activity_template.created`, `activity_template.updated`, `activity_template.archived`, `activity_template.restored`.
 
-| Evento | Productor | Punto de disparo | Payload mínimo | Clave de deduplicación | Audiencia |
-|---|---|---|---|---|---|
-| `activity.published` | Carlos | Transición `draft/planned → published` | `activity_id`, `title`, `starts_at`, `ends_at`, `timezone` | `activity.published:{activity_id}:{published_at}` | Asignados (si existen); audiencia general por decidir |
-| `activity.unpublished` | Carlos | `published → planned` | `activity_id` | `activity.unpublished:{activity_id}:{updated_at}` | Asignados |
-| `activity.cancelled` | Carlos | Transición a `cancelled` (incluida la reconciliación de serie) | `activity_id`, `title`, `starts_at`, `timezone` (sin motivo) | `activity.cancelled:{activity_id}:{cancelled_at}` | Asignados no rechazados |
-| `activity.rescheduled` | Carlos | Cambio de `starts_at`/`ends_at` de una actividad `published` (individual o por serie) | `activity_id`, anteriores y nuevos `starts_at`/`ends_at`, `timezone` | `activity.rescheduled:{activity_id}:{nuevo starts_at}:{nuevo ends_at}` | Asignados no rechazados |
-| `activity.series_changed` | Carlos | `update_activity_series`/`update_activity_series_rule` con ocurrencias publicadas afectadas | `series_id`, ocurrencias afectadas | Por ocurrencia: se emite `rescheduled`/`cancelled` en su lugar (por decidir) | Asignados |
-| `assignment.proposed` | Carlos | Asignación comunicada (`pending`) | `assignment_id`, `activity_id`, `position_name`, `starts_at`, `timezone` | `assignment.proposed:{assignment_id}` | Persona asignada |
-| `assignment.accepted` | Carlos | Respuesta `accepted` | `assignment_id`, `activity_id` | `assignment.accepted:{assignment_id}:{responded_at}` | Coordinador/líder de área |
-| `assignment.declined` | Carlos | Respuesta `declined` | `assignment_id`, `activity_id`, `critical` | `assignment.declined:{assignment_id}:{responded_at}` | Coordinador/líder de área |
-| `assignment.cancelled` | Carlos | Asignación retirada o sustituida | `assignment_id`, `activity_id` | `assignment.cancelled:{assignment_id}` | Persona asignada |
-| `reminder.due` | Diogo | Planificador de recordatorios según `starts_at` y preferencias | `assignment_id`, `activity_id`, `starts_at`, `timezone` | `reminder.due:{assignment_id}:{offset}:{starts_at}` | Persona asignada |
+Acciones de auditoría de F5-Carlos: `assignment.created`, `assignment.sent`, `assignment.cancelled`, `assignment.accepted`, `assignment.declined`, `assignment.response_recorded`, `assignment.substituted`, `assignment.substitution_requested`, `assignment.substitution_candidate_proposed`, `assignment.substitution_cancelled`, `assignment.cancelled_by_activity`, `assignment.reconfirmation_requested`.
 
-**Emisión (decisión abierta).** Propuesta: tabla *outbox* por tenant escrita **en la misma transacción** que la RPC de dominio (Carlos escribe; el motor de Diogo consume y marca), de modo que un rollback no deja eventos huérfanos y un reintento no los duplica. Alternativas: llamada directa a una función de Diogo dentro de la transacción, o derivar de `audit_logs` (desaconsejado: la auditoría no es contrato de eventos).
+### 6.1 Puntos de emisión marcados en el SQL de F5-Carlos
+
+Marcados con el comentario `EVENTO F5 (DI-02)`. No emiten nada hasta que exista el punto de escritura acordado.
+
+| Función (migración) | Hecho | Evento previsto | Destinatario previsto |
+|---|---|---|---|
+| `app.create_activity_assignment` (`0500`) | Asignación creada ya enviada (`send`) | `assignment.proposed` | Persona asignada |
+| `app.send_activity_assignments` (`0500`) | `proposed` → `pending` | `assignment.proposed` | Persona asignada |
+| `app.cancel_activity_assignment` (`0500`) | Retirada por el coordinador | `assignment.cancelled` | Persona, si ya estaba comunicada |
+| `app.cancel_activity_assignment` (`0500`) | Retirada de una original con candidato vigente: el candidato → `cancelled` | `assignment.cancelled` | Candidato retirado |
+| `app.cancel_substitution_request` (`0500`) | Solicitud cancelada; candidato vigente → `cancelled` | `assignment.cancelled` y `assignment.substitution_cancelled` | Candidato retirado; quien pidió la sustitución |
+| `app.apply_assignment_response` (`0500`) | Candidato acepta y la original pasa a `substituted` | `assignment.cancelled` (sustituida) | Persona original |
+| `app.apply_assignment_response` (`0500`) | Respuesta propia o de representante | `assignment.accepted` / `assignment.declined` (sin la nota) | Quien gestiona el puesto |
+| `app.apply_assignment_response` (`0500`) | La original con sustitución abierta pasa a `declined`: candidato retirado | `assignment.cancelled` | Candidato retirado, si lo había |
+| `app.request_assignment_substitution` (`0500`) | Solicitud abierta | `assignment.substitution_requested` | Quien gestiona el puesto |
+| `app.propose_substitution_candidate` (`0500`) | Candidato creado en `pending` | `assignment.proposed` | Candidato |
+| `app.activities_assignments_sync` (`0300`) | Actividad cancelada, archivada u ocurrencia eliminada | `assignment.cancelled` por asignación afectada | Personas afectadas |
+| `app.activities_assignments_sync` (`0300`) | Cambio de `starts_at`/`ends_at` | `activity.rescheduled` | Personas con asignación comunicada |
+
+Eventos del catálogo anterior **sin punto marcado** en el SQL: `activity.published`, `activity.unpublished`, `activity.series_changed` (productor Carlos) y `reminder.due` (productor Diogo). Siguen pendientes (§9).
+
+### 6.2 Deduplicación (propuesta de Carlos, pendiente de Diogo)
+
+La clave de deduplicación de los eventos de asignación usa **`assignment_id` + `version`** (p. ej. `assignment.proposed:{assignment_id}:{version}`), no la fecha: mover una actividad de A a B y de vuelta a A sube la versión dos veces y produce dos eventos legítimos distintos, mientras que un reintento de la misma transición repite la misma clave. `activity.rescheduled` se emitiría por asignación afectada con su nueva versión.
+
+### 6.3 Mecanismo de emisión
+
+**Pendiente de Diogo.** Propuesta: *outbox* escrita en la misma transacción que la mutación de dominio, con el esquema definido por Diogo; Carlos escribe en el punto acordado y el motor de Diogo consume. Un rollback no deja eventos y la entrega externa ocurre fuera de la transacción.
 
 ---
 
-## 6. Zona horaria y DST — reglas comunes
+## 7. Zona horaria y DST — reglas comunes
 
 | Regla | Detalle |
 |---|---|
@@ -180,63 +264,62 @@ Nada de este apartado existe. No se eligen transportes.
 | Resolución de zona en F4 | Indicada → sede (`campuses.timezone`) → iglesia (`churches.timezone`) |
 | Hora local → instante | En base de datos (`app.local_to_instant`: `timestamp AT TIME ZONE zona`). Hora inexistente → hacia delante; ambigua → horario estándar |
 | Recurrencia | Hora local fija por ocurrencia; duración absoluta en minutos |
-| Disponibilidad (propuesta) | Rangos en UTC con la zona de definición como contexto; comparación de solapes siempre en UTC |
-| Recordatorios (propuesta) | Calculados sobre instantes UTC; horas de silencio evaluadas en la zona del destinatario (por decidir cuál) |
+| Solapes y disponibilidad (F5-Carlos) | Rango `[starts_at, ends_at)` en UTC; sin rango completo no se evalúan solapes ni disponibilidad |
+| Recordatorios (propuesta) | Calculados sobre instantes UTC; horas de silencio evaluadas en una zona por decidir (§9) |
 | Payloads | Siempre `starts_at`/`ends_at` UTC + `timezone`; el formateo local lo hace el canal |
 
 ---
 
-## 7. Migraciones y coordinación
+## 8. Migraciones y coordinación
 
-### 7.1 Prefijos
+### 8.1 Prefijos
 
 | Rango | Dueño | Estado |
 |---|---|---|
-| `20260920000100`–`20260920000999` | F4 (Carlos) | Reservado |
-| `20260921…` | F5-Diogo (propuesta) | Por acordar |
-| `20260922…` | F5-Carlos (propuesta) | Por acordar |
+| `20260920000100`–`20260920000900` | F4 (Carlos) | Aplicadas en producción |
+| `20260921…` | F5-Diogo | Propuesto; pendiente de confirmación de Diogo |
+| `20260922000100`–`20260922000500` | F5-Carlos | Usados en `feature/carlos-fase-5-asignaciones`; no aplicados en remoto |
 
-Migraciones de F4:
+Migraciones de F5-Carlos:
 
-1. `20260920000100_activity_status_planned.sql`
-2. `20260920000200_activities_ampliacion.sql`
-3. `20260920000300_activity_estructura_y_plantillas.sql`
-4. `20260920000400_capabilities_actividades.sql`
-5. `20260920000500_activity_funciones_y_reglas.sql`
-6. `20260920000600_rls_actividades.sql`
-7. `20260920000700_rpc_actividades.sql`
-8. `20260920000800_recurrencia_actividades.sql`
-9. `20260920000900_permisos_actividades_ui.sql`
+1. `20260922000100_asignaciones.sql`
+2. `20260922000200_asignaciones_funciones.sql`
+3. `20260922000300_asignaciones_integracion_f4.sql`
+4. `20260922000400_rls_asignaciones.sql`
+5. `20260922000500_rpc_asignaciones.sql`
 
-Propuesta: con `20260921…` para Diogo y `20260922…` para Carlos, las asignaciones de Carlos pueden depender de la disponibilidad de Diogo en orden natural. Cada PR se vuelve a probar (pgTAP completo) con el orden combinado de las ramas ya integradas; Carlos coordina ese orden.
+Reglas:
 
-### 7.2 Archivos compartidos (Carlos es responsable)
+- Las migraciones de disponibilidad de Diogo **no deben depender de `activity_assignments`**.
+- F5-Carlos no depende del esquema de Diogo (la disponibilidad se consulta solo si existe), así que ambas partes pueden aplicarse en cualquier orden sin error. Si las de Diogo (`20260921…`) llegan a un entorno donde ya están las de Carlos, su marca de tiempo será anterior a la última aplicada: revisar con `supabase db push --dry-run` antes de aplicarlas.
+- Cada PR se vuelve a probar (pgTAP completo) con el orden combinado de las ramas ya integradas; Carlos coordina ese orden.
+
+### 8.2 Archivos compartidos (Carlos es responsable)
 
 | Archivo / área | Regla |
 |---|---|
-| Tenant y autorización (`src/server/tenant/`, `app.has_capability`, catálogo `capabilities`/`role_capabilities`) | Diogo propone capabilities nuevas; Carlos las integra |
+| Tenant y autorización (`src/server/tenant/`, `app.has_capability`, catálogo `capabilities`/`role_capabilities`) | Diogo propone capabilities nuevas; Carlos las integra. F5-Carlos añade `assignment.manage` |
+| Funciones de lectura de F4 (`app.can_read_activity_row`) | F5-Carlos la redefine (§4.4); cualquier otro cambio se coordina aquí |
 | Navegación global `src/components/shell/nav-items.ts` | Diogo propone entradas; Carlos las integra |
 | Tipos generados `src/lib/supabase/database.types.ts` | Se regeneran desde el orden combinado; no se editan a mano ni se mantienen versiones paralelas |
 
 ---
 
-## 8. Decisiones abiertas
+## 9. Decisiones abiertas
 
-1. Estados de asignación definitivos y cuáles cuentan para cobertura (`proposed`, `pending`).
-2. Mecanismo de emisión de eventos: outbox transaccional, llamada directa o alternativa.
-3. Esquema de prefijos de migración F5 (`20260921…` Diogo / `20260922…` Carlos u otro).
-4. Firma final de la consulta de disponibilidad y capability que la autoriza.
-5. Si la frecuencia deseada bloquea o solo avisa.
-6. Conflictos que bloquean frente a los que avisan (A10).
-7. Audiencia de `activity.published`: solo asignados o también la audiencia general.
-8. Si un cambio de serie emite un evento agregado o eventos por ocurrencia.
-9. Ventana de deduplicación del motor y su clave.
-10. Zona de referencia para horas de silencio y recordatorios (destinatario, actividad o iglesia).
-11. Ventana de respuesta: hasta cuándo se acepta, rechaza o cambia una respuesta (A9).
-12. Quién publica una actividad multiárea y si un líder publica su parte (propuesta F4: solo `activity.publish` en el ámbito de la actividad; A8).
-13. Si F5 necesita un wrapper público de `app.activity_accepts_assignments`.
+Pendientes de Diogo o de ambos. Única lista vigente.
+
+1. **Emisión de eventos:** mecanismo (propuesta: outbox en la misma transacción, esquema de Diogo) y punto de escritura que usará Carlos (§6.3).
+2. **Deduplicación:** clave propuesta `assignment_id` + `version` (§6.2) y ventana adicional del motor.
+3. **Silencio y recordatorios:** zona de referencia (destinatario, actividad o iglesia), offsets y excepciones urgentes al silencio.
+4. **Llegada por puesto:** F4 no tiene antelación de llegada por puesto; decidir si se incorpora, de forma compatible, antes de basar recordatorios en ella.
+5. **Frecuencia:** firma de `app.person_serving_preferences`, si se cuenta por actividad o por puesto y si es por área. Carlos la tratará como aviso (decisión 3).
+6. **Disponibilidad:** confirmar la firma de §5.1, qué columnas devuelve y la capability que autoriza la consulta. Si deniega o falla en los contextos de llamada de F5-Carlos, el resultado es el aviso `availability_unknown`.
+7. **Destinatarios de avisos y escalado:** quién recibe aceptaciones y rechazos, escalado por criticidad y sin líder, audiencia de `activity.published` y `activity.unpublished`, y si un cambio de serie emite un evento agregado o por ocurrencia.
+8. **Transporte:** proveedor de email/push y entorno de pruebas.
+9. **Prefijo `20260921…`** para las migraciones de Diogo.
 
 ## Acuerdo
 
-- [ ] Acordado por Carlos
+- [x] Acordado por Carlos — solo las decisiones de su dominio (§3), el 17 de septiembre de 2026; no incluye lo compartido ni lo de Diogo (§5, §6, §9).
 - [ ] Acordado por Diogo

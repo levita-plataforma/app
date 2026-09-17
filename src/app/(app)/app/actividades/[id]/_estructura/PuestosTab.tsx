@@ -40,7 +40,7 @@ const OPERATIONAL_LEVELS = Object.keys(OPERATIONAL_LEVEL_LABELS) as OperationalL
 
 type Catalog = StructureTabsProps["data"]["catalog"];
 
-export function PuestosTab({ activity, capabilities, data }: StructureTabsProps) {
+export function PuestosTab({ activity, capabilities, capabilitiesError, data }: StructureTabsProps) {
   const { areas, summary } = data.structure;
   const editable = isActivityEditable(activity.status);
 
@@ -48,7 +48,7 @@ export function PuestosTab({ activity, capabilities, data }: StructureTabsProps)
     <div className="est-stack">
       {data.issuesError ? <IssuesUnavailable /> : null}
 
-      {!capabilities.servingEnabled ? (
+      {!capabilities.servingEnabled && !capabilitiesError ? (
         <div className="shell-card est-card">
           <p className="est-muted">
             Los puestos de servicio requieren el módulo <strong>Servicios</strong>. Mientras no esté habilitado, la
@@ -76,9 +76,29 @@ export function PuestosTab({ activity, capabilities, data }: StructureTabsProps)
               Mínimo total: <strong>{summary.minPeopleTotal}</strong>{" "}
               {summary.minPeopleTotal === 1 ? "persona" : "personas"}
             </span>
-            <span>
-              Asignadas: <strong>{summary.assignedPeople}</strong> (las asignaciones llegan en una fase posterior)
-            </span>
+            {summary.coverageUnavailable ? (
+              <span role="status">Cobertura de personas no disponible ahora mismo</span>
+            ) : (
+              <>
+                <span>
+                  Confirmadas: <strong>{summary.assignedPeople}</strong>
+                </span>
+                {summary.pendingPeople !== null ? (
+                  <span>
+                    Pendientes: <strong>{summary.pendingPeople}</strong>
+                  </span>
+                ) : null}
+                {summary.proposedPeople !== null ? (
+                  <span>
+                    Borradores: <strong>{summary.proposedPeople}</strong>
+                  </span>
+                ) : null}
+                <span>
+                  Sin cubrir: <strong>{summary.uncoveredPositions}</strong>{" "}
+                  {summary.uncoveredPositions === 1 ? "puesto" : "puestos"}
+                </span>
+              </>
+            )}
           </p>
           {areas.map((area) => (
             <AreaPositions
@@ -200,9 +220,28 @@ function PositionRow({
         <div className="est-chips">
           <Chip tone="muted">{position.isAdHoc ? "Ad-hoc" : "Catálogo"}</Chip>
           {position.critical ? <Chip tone="danger">Crítico</Chip> : null}
-          <Chip tone={coverage.tone} title="Las asignaciones de personas llegan en una fase posterior.">
-            {coverage.label} · {position.assignedCount} asignadas
-          </Chip>
+          {position.coverageUnavailable ? (
+            <Chip tone="muted" title="No se pudo calcular la cobertura de personas.">
+              Cobertura no disponible
+            </Chip>
+          ) : (
+            <>
+              <Chip tone={coverage.tone} title="La cobertura cuenta solo las personas confirmadas.">
+                {coverage.label} · {position.assignedCount}{" "}
+                {position.assignedCount === 1 ? "confirmada" : "confirmadas"}
+              </Chip>
+              {position.pendingCount !== null && position.pendingCount > 0 ? (
+                <Chip tone="warning">
+                  {position.pendingCount} {position.pendingCount === 1 ? "pendiente" : "pendientes"}
+                </Chip>
+              ) : null}
+              {position.proposedCount !== null && position.proposedCount > 0 ? (
+                <Chip tone="muted">
+                  {position.proposedCount} {position.proposedCount === 1 ? "borrador" : "borradores"}
+                </Chip>
+              ) : null}
+            </>
+          )}
           {issues.map((issue) => (
             <Chip key={issue.code} tone={issue.severity === "blocking" ? "danger" : "warning"}>
               <AlertTriangle size={12} aria-hidden />
@@ -235,8 +274,22 @@ function PositionRow({
                   <dd>{position.requiresAutonomousPerson ? "Requiere al menos una" : "No requerida"}</dd>
                 </div>
                 <div>
-                  <dt>Asignadas</dt>
-                  <dd>{position.assignedCount}</dd>
+                  <dt>Equipo</dt>
+                  <dd>
+                    {position.coverageUnavailable
+                      ? "No disponible ahora mismo"
+                      : [
+                          `${position.assignedCount} ${position.assignedCount === 1 ? "confirmada" : "confirmadas"}`,
+                          position.pendingCount !== null
+                            ? `${position.pendingCount} ${position.pendingCount === 1 ? "pendiente" : "pendientes"}`
+                            : null,
+                          position.proposedCount !== null
+                            ? `${position.proposedCount} ${position.proposedCount === 1 ? "borrador" : "borradores"}`
+                            : null,
+                        ]
+                          .filter(Boolean)
+                          .join(" · ")}
+                  </dd>
                 </div>
                 {position.notes ? (
                   <div style={{ gridColumn: "1 / -1" }}>

@@ -1,0 +1,532 @@
+/* Mis turnos (Fase 5): listado, detalle y tarjeta del dashboard. Prefijo mt-. */
+
+.mt-page-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.mt-page-header h1 {
+  font-size: 22px;
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+
+.mt-title-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+}
+
+.mt-subtitle {
+  color: var(--shell-text-muted);
+  font-size: 13px;
+  margin-top: 4px;
+}
+
+.mt-eyebrow {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--mod-serving-fg);
+  margin-bottom: 2px;
+}
+
+.mt-module-icon {
+  display: inline-grid;
+  place-items: center;
+  width: 36px;
+  height: 36px;
+  border-radius: var(--shell-radius-sm);
+  background: var(--mod-serving-bg);
+  color: var(--mod-serving-fg);
+  flex-shrink: 0;
+}
+
+.mt-back-link,
+.mt-inline-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  min-height: 44px;
+  font-size: 12.5px;
+  color: var(--shell-text-muted);
+  text-decoration: none;
+  align-self: flex-start;
+}
+
+.mt-inline-link {
+  font-weight: 600;
+  color: var(--shell-text);
+}
+
+.mt-back-link:hover,
+.mt-inline-link:hover {
+  text-decoration: underline;
+}
+
+.mt-pending-banner {
+  padding: 12px 16px;
+  border-radius: var(--shell-radius-md);
+  background: var(--shell-brand-soft);
+  color: var(--shell-text);
+  font-size: 13.5px;
+}
+
+/* Pestañas como enlaces ------------------------------------------------------ */
+
+.mt-tab {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  padding: 0 14px;
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--shell-text-muted);
+  text-decoration: none;
+  border-bottom: 2px solid transparent;
+  white-space: nowrap;
+}
+
+.mt-tab[aria-current="page"] {
+  border-bottom-color: var(--shell-brand);
+  color: var(--shell-text);
+}
+
+/* Listado --------------------------------------------------------------------- */
+
+.mt-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+  gap: 14px;
+}
+
+.mt-card {
+  position: relative;
+  display: flex;
+  gap: 14px;
+  padding: 16px;
+  transition: box-shadow 120ms ease-out;
+}
+
+.mt-card:hover {
+  box-shadow: 0 4px 16px rgba(31, 42, 36, 0.06);
+}
+
+.mt-date {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  width: 52px;
+  min-height: 60px;
+  flex-shrink: 0;
+  align-self: flex-start;
+  border-radius: var(--shell-radius-sm);
+  background: var(--mod-serving-bg);
+  color: var(--mod-serving-fg);
+  line-height: 1.1;
+}
+
+.mt-date-small {
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+}
+
+.mt-date-day {
+  font-family: var(--font-serif), Georgia, serif;
+  font-size: 20px;
+  font-weight: 600;
+  color: var(--shell-text);
+}
+
+.mt-card-main {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+  flex: 1;
+}
+
+.mt-card-title {
+  font-size: 14.5px;
+  font-weight: 600;
+}
+
+.mt-card-link {
+  color: var(--shell-text);
+  text-decoration: none;
+  overflow-wrap: anywhere;
+}
+
+/* Toda la tarjeta es pulsable; el enlace sigue siendo el único elemento enfocable. */
+.mt-card-link::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+}
+
+.mt-card-link:focus-visible {
+  outline: none;
+}
+
+.mt-card:has(.mt-card-link:focus-visible) {
+  outline: 2px solid var(--shell-brand);
+  outline-offset: 2px;
+}
+
+.mt-is-cancelled {
+  text-decoration: line-through;
+}
+
+.mt-card-position {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--mod-serving-fg);
+}
+
+.mt-card-meta {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 4px;
+  font-size: 12.5px;
+  color: var(--shell-text-muted);
+}
+
+.mt-tz {
+  margin-left: 4px;
+  font-size: 11px;
+  color: var(--shell-text-subtle);
+}
+
+.mt-badges {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 4px;
+}
+
+/* Detalle --------------------------------------------------------------------- */
+
+.mt-notice {
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+  padding: 12px 14px;
+  border-radius: var(--shell-radius-md);
+  font-size: 13px;
+  line-height: 1.45;
+}
+
+.mt-notice svg {
+  flex-shrink: 0;
+  margin-top: 2px;
+}
+
+.mt-notice.is-warning {
+  background: #fdf3d9;
+  color: #7a5a12;
+}
+
+.mt-notice.is-muted {
+  background: var(--shell-bg);
+  border: 1px solid var(--shell-border);
+  color: var(--shell-text);
+}
+
+.mt-detail-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 16px;
+  align-items: start;
+}
+
+.mt-panel {
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.mt-panel-title {
+  font-size: 15px;
+  font-weight: 600;
+}
+
+.mt-dl {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin: 0;
+}
+
+.mt-dl dt {
+  font-size: 11.5px;
+  font-weight: 600;
+  color: var(--shell-text-subtle);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.mt-dl dd {
+  margin: 2px 0 0;
+  font-size: 13.5px;
+  color: var(--shell-text);
+  overflow-wrap: anywhere;
+}
+
+.mt-dl dd svg {
+  vertical-align: -1px;
+  color: var(--shell-text-muted);
+}
+
+.mt-response {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.mt-lead {
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.mt-readonly {
+  font-size: 13.5px;
+  color: var(--shell-text-muted);
+  line-height: 1.5;
+}
+
+.mt-field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.mt-label {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--shell-text);
+}
+
+.mt-textarea {
+  width: 100%;
+  padding: 10px 12px;
+  border-radius: var(--shell-radius-sm);
+  border: 1px solid var(--shell-border);
+  background: var(--shell-surface);
+  color: var(--shell-text);
+  font-family: inherit;
+  font-size: 13.5px;
+  resize: vertical;
+  min-height: 80px;
+}
+
+.mt-textarea:disabled {
+  background: var(--shell-bg);
+}
+
+.mt-hint {
+  font-size: 12px;
+  color: var(--shell-text-muted);
+  line-height: 1.45;
+}
+
+.mt-note-readonly {
+  padding: 12px 14px;
+  border-radius: var(--shell-radius-sm);
+  background: var(--shell-bg);
+  font-size: 13px;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.mt-button-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.mt-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  min-height: 44px;
+  padding: 0 18px;
+  border-radius: var(--shell-radius-md);
+  font-family: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  text-decoration: none;
+}
+
+.mt-btn.is-primary {
+  border: none;
+  background: var(--shell-brand);
+  color: #fff;
+}
+
+.mt-btn.is-secondary {
+  border: 1px solid var(--shell-border);
+  background: var(--shell-surface);
+  color: var(--shell-text);
+}
+
+.mt-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.mt-btn[aria-busy="true"] {
+  cursor: wait;
+}
+
+.mt-btn:focus-visible,
+.mt-textarea:focus-visible,
+.mt-tab:focus-visible,
+.mt-back-link:focus-visible,
+.mt-inline-link:focus-visible,
+.mt-dash-card a:focus-visible {
+  outline: 2px solid var(--shell-brand);
+  outline-offset: 2px;
+}
+
+.mt-spin {
+  animation: mt-spin 0.9s linear infinite;
+}
+
+@keyframes mt-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.mt-feedback {
+  padding: 10px 14px;
+  border-radius: var(--shell-radius-sm);
+  font-size: 13px;
+  line-height: 1.45;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.mt-feedback.is-error {
+  background: #fbeaea;
+  color: #8f3a41;
+}
+
+.mt-feedback.is-success {
+  background: var(--mod-serving-bg);
+  color: #2c6e45;
+}
+
+.mt-reasons {
+  margin: 0;
+  padding-left: 18px;
+}
+
+.mt-substitution {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 8px;
+  padding-top: 14px;
+  border-top: 1px solid var(--shell-border);
+}
+
+.mt-confirm {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 14px;
+  border-radius: var(--shell-radius-md);
+  border: 1px solid var(--shell-border);
+  background: var(--shell-bg);
+  width: 100%;
+}
+
+.mt-confirm-title {
+  font-size: 13.5px;
+  font-weight: 600;
+}
+
+/* Tarjeta del dashboard ------------------------------------------------------- */
+
+.mt-dash-card {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 16px 20px;
+  flex-wrap: wrap;
+}
+
+.mt-dash-card-main {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  flex: 1;
+  min-width: 200px;
+}
+
+.mt-dash-card-value {
+  font-family: var(--font-serif), Georgia, serif;
+  font-size: 22px;
+  font-weight: 600;
+}
+
+.mt-dash-card a {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--shell-text);
+  text-decoration: none;
+}
+
+.mt-staffing {
+  font-size: 11.5px;
+  color: var(--shell-text-muted);
+}
+
+.mt-staffing-alert {
+  color: var(--shell-danger);
+  font-weight: 600;
+}
+
+@media (max-width: 860px) {
+  .mt-detail-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 760px) {
+  .mt-list {
+    grid-template-columns: 1fr;
+  }
+
+  .mt-button-row .mt-btn {
+    flex: 1 1 auto;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .mt-spin {
+    animation: none;
+  }
+
+  .mt-card {
+    transition: none;
+  }
+}

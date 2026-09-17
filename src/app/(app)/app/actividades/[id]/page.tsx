@@ -11,6 +11,7 @@ import { toDomainError } from "@/server/activities/rpc";
 import { TEMPLATE_SKIP_REASON_LABELS } from "@/lib/activities/constants";
 import { isUuid } from "../../calendario/calendar-utils";
 import { loadStructureTabs } from "./_estructura/load";
+import { failedEquipo, loadEquipo } from "./_equipo/load";
 import ActivityFicha, { type CampusOption, type HistoryData, type SkipNotice } from "./_ficha/ActivityFicha";
 import "../actividades.css";
 
@@ -74,9 +75,23 @@ export default async function ActividadDetallePage({
   if (!activity) notFound();
 
   const supabase = await createSupabaseServerClient();
-  const [capabilities, data, history, campusRes, currentCampusRes, { data: church }] = await Promise.all([
-    getActivityCapabilities(activity.id).catch(() => null),
-    loadStructureTabs(tenant.churchId, activity),
+  // Si los permisos no se pueden cargar se marca el error: no equivale a
+  // «sin permisos» ni a «módulo deshabilitado».
+  const capabilitiesPromise = getActivityCapabilities(activity.id).then(
+    (c) => ({ capabilities: c, error: false }),
+    () => ({ capabilities: null, error: true }),
+  );
+  const structurePromise = loadStructureTabs(tenant.churchId, activity);
+  const [capabilitiesResult, data, equipo, history, campusRes, currentCampusRes, { data: church }] = await Promise.all([
+    capabilitiesPromise,
+    structurePromise,
+    // Equipo (Fase 5): asignaciones, sustituciones, permisos por área y revisión
+    // actual. Opcional: si falla, la pestaña lo indica sin tumbar la ficha.
+    Promise.all([capabilitiesPromise, structurePromise])
+      .then(([c, structure]) =>
+        loadEquipo(tenant.churchId, activity, structure.structure.areas, Boolean(c.capabilities?.servingEnabled)),
+      )
+      .catch(failedEquipo),
     // El historial es secundario: si falla, la pestaña lo indica sin tumbar la ficha.
     getActivityHistory(tenant.churchId, activity).catch(
       (): HistoryData => ({ canRead: true, entries: [], error: true }),
@@ -100,7 +115,7 @@ export default async function ActividadDetallePage({
   ]);
   if (campusRes.error) throw toDomainError(campusRes.error, "No se pudieron cargar las sedes.");
   if (currentCampusRes.error) throw toDomainError(currentCampusRes.error, "No se pudo cargar la sede de la actividad.");
-  const caps = capabilities ?? NO_CAPABILITIES;
+  const caps = capabilitiesResult.capabilities ?? NO_CAPABILITIES;
 
   const campuses: CampusOption[] = ((campusRes.data ?? []) as { id: string; name: string; timezone: string | null }[]).map(
     (c) => ({ ...c, archived: false }),
@@ -158,7 +173,9 @@ export default async function ActividadDetallePage({
     <ActivityFicha
       activity={activity}
       capabilities={caps}
+      capabilitiesError={capabilitiesResult.error}
       data={data}
+      equipo={equipo}
       history={history}
       campuses={campuses}
       churchTimezone={(church?.timezone as string | null) ?? "UTC"}

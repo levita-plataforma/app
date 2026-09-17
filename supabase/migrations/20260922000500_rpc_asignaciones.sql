@@ -1,0 +1,963 @@
+-- Fase 5 (Carlos) · Operaciones de asignaciones, respuestas y sustituciones.
+--
+-- Patrón del proyecto: app.* security definer (pertenencia, capability/scope,
+-- módulo serving, reglas, auditoría en la misma transacción) + wrapper
+-- public.* security invoker.
+--
+-- Concurrencia: cada operación bloquea la fila de la actividad (FOR UPDATE)
+-- para serializar capacidad y sustituciones; las respuestas pueden exigir la
+-- versión vista (p_expected_version) y fallan con PT409 si cambió.
+--
+-- Errores: 42501 no autorizado · P0002 no encontrado · 22023 regla (bloqueos
+-- en DETAIL como códigos separados por comas) · PT412 hay avisos sin confirmar
+-- (códigos en DETAIL) · PT409 la asignación cambió · 23505 conflicto.
+--
+-- EVENTO F5: puntos donde se emitirá al motor de avisos de Diogo (DI-02) cuando
+-- exista su punto de escritura acordado. Hoy no se emite nada.
+
+-- ===========================================================================
+-- Utilidades
+-- ===========================================================================
+create or replace function app.lock_assignment_context(p_assignment_id uuid)
+returns table (assignment activity_assignments, activity activities)
+language plpgsql
+security definer
+set search_path = pg_catalog, public
+as $$
+declare
+  v_assignment activity_assignments%rowtype;
+  v_activity activities%rowtype;
+begin
+  select * into v_assignment from activity_assignments where id = p_assignment_id;
+  if not found or not (v_assignment.church_id = any (app.church_ids_for_user())) then
+    raise exception 'La asignación no existe.' using errcode = 'P0002';
+  end if;
+  select * into v_activity from activities where id = v_assignment.activity_id for update;
+  select * into v_assignment from activity_assignments where id = p_assignment_id for update;
+  return query select v_assignment, v_activity;
+end;
+$$;
+
+create or replace function app.require_assignment_manage(p_activity activities, p_service_area_id uuid)
+returns void
+language plpgsql
+stable
+security definer
+set search_path = pg_catalog, public
+as $$
+begin
+  if not app.assignment_manage_cap(p_activity.church_id, p_activity.campus_id, p_activity.id, p_service_area_id) then
+    raise exception 'No tienes permiso para gestionar asignaciones de este puesto.' using errcode = '42501';
+  end if;
+  if not app.module_enabled(p_activity.church_id, 'serving') then
+    raise exception 'El módulo Servicios no está habilitado.' using errcode = '42501';
+  end if;
+end;
+$$;
+
+create or replace function app.raise_assignment_blocked(p_blocking text[])
+returns void
+language plpgsql
+immutable
+set search_path = pg_catalog, public
+as $$
+begin
+  if cardinality(p_blocking) > 0 then
+    raise exception 'No se puede asignar: la persona no cumple las condiciones del puesto.'
+      using errcode = '22023', detail = array_to_string(p_blocking, ',');
+  end if;
+end;
+$$;
+
+create or replace function app.check_expected_version(p_assignment activity_assignments, p_expected integer)
+returns void
+language plpgsql
+immutable
+set search_path = pg_catalog, public
+as $$
+begin
+  if p_expected is not null and p_expected <> p_assignment.version then
+    raise exception 'La asignación ha cambiado mientras la veías. Recarga e inténtalo de nuevo.'
+      using errcode = 'PT409', detail = p_assignment.version::text;
+  end if;
+end;
+$$;
+
+-- Confirmación de avisos por lista de códigos: lanza PT412 con los avisos que
+-- quien opera no ha confirmado expresamente (nunca un "sí a todo" ciego).
+create or replace function app.require_acknowledged_warnings(p_warnings text[], p_acknowledged text[], p_message text)
+returns void
+language plpgsql
+immutable
+set search_path = pg_catalog, public
+as $$
+declare
+  v_missing text[];
+begin
+  v_missing := array(
+    select w from unnest(coalesce(p_warnings, '{}')) w
+    where not (w = any (coalesce(p_acknowledged, '{}')))
+  );
+  if cardinality(v_missing) > 0 then
+    raise exception '%', p_message using errcode = 'PT412', detail = array_to_string(v_missing, ',');
+  end if;
+end;
+$$;
+
+-- Envía (proposed -> pending) una asignación ya bloqueada, revalidando los
+-- bloqueos con los datos y la fecha actuales. Devuelve los bloqueos (vacío si
+-- se envió); no lanza, para que el envío en bloque pueda informar.
+create or replace function app.send_locked_assignment(p_assignment activity_assignments)
+returns text[]
+language plpgsql
+security definer
+set search_path = pg_catalog, public
+as $$
+declare
+  v_blocking text[];
+begin
+  select e.blocking into v_blocking
+  from app.evaluate_assignment_eligibility(p_assignment.activity_position_id, p_assignment.person_id, array[p_assignment.id]) e;
+  if cardinality(v_blocking) > 0 then
+    return v_blocking;
+  end if;
+  update activity_assignments
+  set status = 'pending', sent_at = now(), sent_by = auth.uid(), version = version + 1
+  where id = p_assignment.id;
+  -- EVENTO F5 (DI-02): assignment.proposed a p_assignment.person_id.
+  return '{}';
+end;
+$$;
+
+revoke all on function app.lock_assignment_context(uuid) from public, anon, authenticated;
+revoke all on function app.require_assignment_manage(activities, uuid) from public, anon, authenticated;
+revoke all on function app.raise_assignment_blocked(text[]) from public, anon, authenticated;
+revoke all on function app.check_expected_version(activity_assignments, integer) from public, anon, authenticated;
+revoke all on function app.require_acknowledged_warnings(text[], text[], text) from public, anon, authenticated;
+revoke all on function app.send_locked_assignment(activity_assignments) from public, anon, authenticated;
+
+-- ===========================================================================
+-- Crear
+-- ===========================================================================
+-- p_input: acknowledged_warnings (array de códigos confirmados, los que
+-- devolvió la previsualización o el PT412), send (bool: crear ya comunicada).
+-- Reintento con una asignación vigente: idempotente; si era borrador y se pide
+-- send, se envía revalidando bloqueos.
+create or replace function app.create_activity_assignment(p_activity_position_id uuid, p_person_id uuid, p_input jsonb default '{}')
+returns jsonb
+language plpgsql
+security definer
+set search_path = pg_catalog, public
+as $$
+declare
+  v_position activity_positions%rowtype;
+  v_activity activities%rowtype;
+  v_existing activity_assignments%rowtype;
+  v_blocking text[];
+  v_warnings text[];
+  v_stored_warnings text[];
+  v_ack text[];
+  v_send boolean := coalesce((p_input ->> 'send')::boolean, false);
+  v_id uuid;
+begin
+  v_ack := array(
+    select jsonb_array_elements_text(
+      case when jsonb_typeof(p_input -> 'acknowledged_warnings') = 'array' then p_input -> 'acknowledged_warnings' else '[]'::jsonb end)
+  );
+
+  select * into v_position from activity_positions where id = p_activity_position_id;
+  if not found or not (v_position.church_id = any (app.church_ids_for_user())) then
+    raise exception 'El puesto no existe.' using errcode = 'P0002';
+  end if;
+  select * into v_activity from activities where id = v_position.activity_id for update;
+  perform app.require_assignment_manage(v_activity, v_position.service_area_id);
+
+  -- Reintento: ya existe una asignación vigente para esa persona y puesto.
+  select * into v_existing from activity_assignments
+  where activity_position_id = p_activity_position_id and person_id = p_person_id
+    and status in ('proposed', 'pending', 'accepted')
+  for update;
+  if found then
+    if v_send and v_existing.status = 'proposed' then
+      perform app.raise_assignment_blocked(app.send_locked_assignment(v_existing));
+      perform app.write_audit_log(v_activity.church_id, 'assignment.sent', 'activities', v_activity.id,
+        jsonb_build_object('assignments', 1));
+      select * into v_existing from activity_assignments where id = v_existing.id;
+    end if;
+    return jsonb_build_object('assignment_id', v_existing.id, 'status', v_existing.status, 'version', v_existing.version,
+      'replayed', true, 'warnings', to_jsonb(v_existing.eligibility_warnings));
+  end if;
+
+  select e.blocking, e.warnings into v_blocking, v_warnings
+  from app.evaluate_assignment_eligibility(p_activity_position_id, p_person_id, '{}') e;
+
+  perform app.raise_assignment_blocked(v_blocking);
+  perform app.require_acknowledged_warnings(v_warnings, v_ack, 'La asignación tiene avisos que deben confirmarse.');
+
+  -- Lo que se guarda lo leen personas con distintos permisos: siempre enmascarado.
+  select e.warnings into v_stored_warnings
+  from app.evaluate_assignment_eligibility(p_activity_position_id, p_person_id, '{}', true) e;
+
+  begin
+    insert into activity_assignments (
+      church_id, activity_id, activity_position_id, person_id, status, position_name,
+      eligibility_blocking, eligibility_warnings, acknowledged_warnings, created_by, sent_by, sent_at
+    ) values (
+      v_activity.church_id, v_activity.id, v_position.id, p_person_id,
+      case when v_send then 'pending'::activity_assignment_status else 'proposed' end,
+      v_position.name, '{}', v_stored_warnings, v_stored_warnings,
+      auth.uid(), case when v_send then auth.uid() end, case when v_send then now() end
+    )
+    returning id into v_id;
+  exception
+    when unique_violation then
+      -- Otra transacción creó la misma asignación a la vez.
+      select * into v_existing from activity_assignments
+      where activity_position_id = p_activity_position_id and person_id = p_person_id
+        and status in ('proposed', 'pending', 'accepted');
+      return jsonb_build_object('assignment_id', v_existing.id, 'status', v_existing.status, 'version', v_existing.version,
+        'replayed', true, 'warnings', to_jsonb(v_existing.eligibility_warnings));
+  end;
+
+  perform app.write_audit_log(
+    v_activity.church_id, 'assignment.created', 'activity_assignments', v_id,
+    jsonb_build_object('activity_id', v_activity.id, 'activity_position_id', v_position.id, 'person_id', p_person_id,
+      'sent', v_send, 'acknowledged_warnings', to_jsonb(v_stored_warnings))
+  );
+  -- EVENTO F5 (DI-02): assignment.proposed a la persona si v_send.
+
+  return jsonb_build_object('assignment_id', v_id, 'status', case when v_send then 'pending' else 'proposed' end,
+    'version', 1, 'replayed', false, 'warnings', to_jsonb(v_warnings));
+end;
+$$;
+
+-- ===========================================================================
+-- Enviar (proposed -> pending)
+-- ===========================================================================
+-- p_assignment_ids nulo = todas las propuestas de la actividad que el usuario gestione.
+-- Devuelve {sent, blocked: [{assignment_id, blocking}]}: las que ya no cumplen
+-- las condiciones se quedan en borrador y se informan, sin impedir el resto.
+create or replace function app.send_activity_assignments(p_activity_id uuid, p_assignment_ids uuid[] default null)
+returns jsonb
+language plpgsql
+security definer
+set search_path = pg_catalog, public
+as $$
+declare
+  v_activity activities%rowtype;
+  v_assignment activity_assignments%rowtype;
+  v_sent integer := 0;
+  v_blocking text[];
+  v_blocked jsonb := '[]';
+begin
+  select * into v_activity from activities where id = p_activity_id for update;
+  if not found or not (v_activity.church_id = any (app.church_ids_for_user())) then
+    raise exception 'La actividad no existe.' using errcode = 'P0002';
+  end if;
+  if not app.activity_accepts_assignments_unchecked(v_activity.id) then
+    raise exception 'La actividad no admite asignaciones en su estado actual.' using errcode = '22023';
+  end if;
+  if not app.module_enabled(v_activity.church_id, 'serving') then
+    raise exception 'El módulo Servicios no está habilitado.' using errcode = '42501';
+  end if;
+
+  for v_assignment in
+    select * from activity_assignments
+    where activity_id = p_activity_id and status = 'proposed'
+      and (p_assignment_ids is null or id = any (p_assignment_ids))
+    for update
+  loop
+    if not app.assignment_manage_cap(v_activity.church_id, v_activity.campus_id, v_activity.id, v_assignment.service_area_id) then
+      if p_assignment_ids is not null then
+        raise exception 'No tienes permiso para enviar todas las asignaciones indicadas.' using errcode = '42501';
+      end if;
+      continue;
+    end if;
+    -- Se revalidan los bloqueos al comunicar (requisitos o fecha pudieron cambiar).
+    v_blocking := app.send_locked_assignment(v_assignment);
+    if cardinality(v_blocking) > 0 then
+      v_blocked := v_blocked || jsonb_build_array(jsonb_build_object('assignment_id', v_assignment.id, 'blocking', to_jsonb(v_blocking)));
+    else
+      v_sent := v_sent + 1;
+    end if;
+  end loop;
+
+  if v_sent > 0 then
+    perform app.write_audit_log(v_activity.church_id, 'assignment.sent', 'activities', v_activity.id,
+      jsonb_build_object('assignments', v_sent));
+  end if;
+  return jsonb_build_object('sent', v_sent, 'blocked', v_blocked);
+end;
+$$;
+
+-- ===========================================================================
+-- Retirar (coordinador)
+-- ===========================================================================
+create or replace function app.cancel_activity_assignment(p_assignment_id uuid, p_expected_version integer default null)
+returns jsonb
+language plpgsql
+security definer
+set search_path = pg_catalog, public
+as $$
+declare
+  v_ctx record;
+  v_assignment activity_assignments%rowtype;
+  v_activity activities%rowtype;
+begin
+  select * into v_ctx from app.lock_assignment_context(p_assignment_id);
+  v_assignment := v_ctx.assignment;
+  v_activity := v_ctx.activity;
+  perform app.require_assignment_manage(v_activity, v_assignment.service_area_id);
+
+  if v_assignment.status not in ('proposed', 'pending', 'accepted') then
+    return jsonb_build_object('status', v_assignment.status, 'version', v_assignment.version, 'replayed', true);
+  end if;
+  -- La historia de una actividad cerrada no se reescribe.
+  if v_activity.status not in ('draft', 'planned', 'published') then
+    raise exception 'La actividad está cerrada: sus asignaciones ya no se pueden retirar.' using errcode = '22023';
+  end if;
+  perform app.check_expected_version(v_assignment, p_expected_version);
+
+  update activity_assignments
+  set status = 'cancelled', cancelled_at = now(), cancelled_by = auth.uid(), cancel_cause = 'coordinator', version = version + 1
+  where id = v_assignment.id;
+
+  -- Si era candidato de una sustitución, la solicitud vuelve a quedar sin candidato.
+  update activity_substitution_requests set candidate_assignment_id = null
+  where candidate_assignment_id = v_assignment.id and status = 'open';
+
+  -- Si era la original con solicitud abierta, se cierra la solicitud y su candidato.
+  update activity_assignments
+  set status = 'cancelled', cancelled_at = now(), cancelled_by = auth.uid(), cancel_cause = 'substitution_withdrawn', version = version + 1
+  where substitutes_assignment_id = v_assignment.id and status in ('proposed', 'pending', 'accepted');
+  -- EVENTO F5 (DI-02): assignment.cancelled al candidato retirado, si lo había.
+  update activity_substitution_requests set status = 'cancelled', cancelled_at = now(), cancelled_by = auth.uid()
+  where original_assignment_id = v_assignment.id and status = 'open';
+
+  perform app.write_audit_log(v_activity.church_id, 'assignment.cancelled', 'activity_assignments', v_assignment.id,
+    jsonb_build_object('activity_id', v_activity.id, 'from', v_assignment.status));
+  -- EVENTO F5 (DI-02): assignment.cancelled a la persona si ya estaba comunicada.
+
+  return jsonb_build_object('status', 'cancelled', 'version', v_assignment.version + 1, 'replayed', false);
+end;
+$$;
+
+-- ===========================================================================
+-- Respuestas
+-- ===========================================================================
+-- Aplica una respuesta ya autorizada. p_source: self | representative.
+create or replace function app.apply_assignment_response(
+  p_assignment activity_assignments,
+  p_activity activities,
+  p_response text,
+  p_source activity_assignment_response_source,
+  p_expected_version integer
+)
+returns jsonb
+language plpgsql
+security definer
+set search_path = pg_catalog, public
+as $$
+declare
+  v_to activity_assignment_status;
+  v_blocking text[];
+  v_original activity_assignments%rowtype;
+begin
+  if p_response not in ('accepted', 'declined') then
+    raise exception 'Respuesta no válida.' using errcode = '22023';
+  end if;
+  v_to := p_response::activity_assignment_status;
+
+  -- Repetición de la misma respuesta: sin cambios ni nueva versión (idempotente).
+  if p_assignment.status = v_to then
+    return jsonb_build_object('status', p_assignment.status, 'version', p_assignment.version, 'replayed', true);
+  end if;
+
+  if p_assignment.status in ('proposed', 'cancelled', 'substituted') then
+    raise exception 'Esta asignación ya no admite respuestas.' using errcode = '22023';
+  end if;
+  perform app.check_expected_version(p_assignment, p_expected_version);
+
+  -- Tras aceptar, la propia persona no rechaza: solicita sustitución.
+  if p_source = 'self' and p_assignment.status = 'accepted' and v_to = 'declined' then
+    raise exception 'Ya aceptaste este turno: solicita una sustitución para darte de baja.' using errcode = '22023';
+  end if;
+
+  -- Un candidato de sustitución solo puede aceptar mientras sea el candidato
+  -- activo de una solicitud abierta (si rechazó, se retiró o la solicitud se
+  -- canceló, ya no sustituye a nadie).
+  if v_to = 'accepted' and p_assignment.substitutes_assignment_id is not null and not exists (
+    select 1 from activity_substitution_requests r
+    where r.original_assignment_id = p_assignment.substitutes_assignment_id
+      and r.status = 'open'
+      and r.candidate_assignment_id = p_assignment.id
+  ) then
+    raise exception 'Esta propuesta de sustitución ya no está activa.' using errcode = '22023';
+  end if;
+
+  if v_to = 'accepted' then
+    select e.blocking into v_blocking
+    from app.evaluate_assignment_eligibility(
+      p_assignment.activity_position_id, p_assignment.person_id,
+      array_remove(array[p_assignment.id, p_assignment.substitutes_assignment_id], null)
+    ) e;
+    perform app.raise_assignment_blocked(v_blocking);
+  end if;
+
+  update activity_assignments
+  set status = v_to,
+      responded_at = now(), responded_by = auth.uid(), response_source = p_source,
+      confirmed_starts_at = case when v_to = 'accepted' then p_activity.starts_at end,
+      confirmed_ends_at = case when v_to = 'accepted' then p_activity.ends_at end,
+      reconfirmation_requested_at = case when v_to = 'accepted' then null else reconfirmation_requested_at end,
+      version = version + 1
+  where id = p_assignment.id;
+
+  -- Sustitución: al aceptar el candidato, la original queda sustituida.
+  if p_assignment.substitutes_assignment_id is not null then
+    if v_to = 'accepted' then
+      select * into v_original from activity_assignments where id = p_assignment.substitutes_assignment_id for update;
+      update activity_substitution_requests set status = 'completed', completed_at = now()
+      where original_assignment_id = p_assignment.substitutes_assignment_id and status = 'open';
+      if v_original.status in ('proposed', 'pending', 'accepted') then
+        update activity_assignments set status = 'substituted', substituted_at = now(), version = version + 1
+        where id = v_original.id;
+        perform app.write_audit_log(p_activity.church_id, 'assignment.substituted', 'activity_assignments', v_original.id,
+          jsonb_build_object('activity_id', p_activity.id, 'substitute_assignment_id', p_assignment.id));
+        -- EVENTO F5 (DI-02): assignment.cancelled (sustituida) a la persona original.
+      end if;
+    else
+      update activity_substitution_requests set candidate_assignment_id = null
+      where candidate_assignment_id = p_assignment.id and status = 'open';
+    end if;
+  elsif v_to = 'declined' and exists (
+    select 1 from activity_substitution_requests
+    where original_assignment_id = p_assignment.id and status = 'open'
+  ) then
+    -- La original deja de estar vigente: la sustitución ya no tiene sentido y
+    -- su candidato (si lo había) se retira.
+    update activity_assignments
+    set status = 'cancelled', cancelled_at = now(), cancelled_by = auth.uid(), cancel_cause = 'substitution_withdrawn', version = version + 1
+    where substitutes_assignment_id = p_assignment.id and status in ('proposed', 'pending', 'accepted');
+    -- EVENTO F5 (DI-02): assignment.cancelled al candidato retirado, si lo había.
+    update activity_substitution_requests set status = 'cancelled', cancelled_at = now(), cancelled_by = auth.uid()
+    where original_assignment_id = p_assignment.id and status = 'open';
+  end if;
+
+  perform app.write_audit_log(
+    p_activity.church_id,
+    case when p_source = 'representative' then 'assignment.response_recorded' else 'assignment.' || p_response end,
+    'activity_assignments', p_assignment.id,
+    jsonb_build_object('activity_id', p_activity.id, 'from', p_assignment.status, 'to', v_to, 'source', p_source)
+  );
+  -- EVENTO F5 (DI-02): assignment.accepted/declined a quien gestiona el puesto (sin la nota).
+
+  return jsonb_build_object('status', v_to, 'version', p_assignment.version + 1, 'replayed', false);
+end;
+$$;
+
+revoke all on function app.apply_assignment_response(activity_assignments, activities, text, activity_assignment_response_source, integer)
+  from public, anon, authenticated;
+
+-- Respuesta de la propia persona. p_note: nota privada opcional ('' la borra).
+create or replace function app.respond_activity_assignment(
+  p_assignment_id uuid,
+  p_response text,
+  p_expected_version integer default null,
+  p_note text default null
+)
+returns jsonb
+language plpgsql
+security definer
+set search_path = pg_catalog, public
+as $$
+declare
+  v_ctx record;
+  v_assignment activity_assignments%rowtype;
+  v_activity activities%rowtype;
+  v_deadline timestamptz;
+  v_result jsonb;
+begin
+  select * into v_ctx from app.lock_assignment_context(p_assignment_id);
+  v_assignment := v_ctx.assignment;
+  v_activity := v_ctx.activity;
+
+  -- Solo la persona asignada; un borrador no existe para ella.
+  if not (v_assignment.person_id in (select app.current_person_ids())) or v_assignment.status = 'proposed' then
+    raise exception 'La asignación no existe.' using errcode = 'P0002';
+  end if;
+
+  v_deadline := app.activity_response_deadline(v_activity);
+  if v_deadline is not null and now() >= v_deadline and v_assignment.status::text <> p_response then
+    raise exception 'El plazo para responder terminó al empezar la actividad.' using errcode = '22023';
+  end if;
+  if v_activity.status not in ('planned', 'published') and v_assignment.status::text <> p_response then
+    raise exception 'La actividad no admite respuestas en su estado actual.' using errcode = '22023';
+  end if;
+
+  v_result := app.apply_assignment_response(v_assignment, v_activity, p_response, 'self', p_expected_version);
+
+  if p_note is not null then
+    if btrim(p_note) = '' then
+      delete from activity_assignment_notes where assignment_id = v_assignment.id;
+    else
+      insert into activity_assignment_notes (assignment_id, church_id, person_id, note)
+      values (v_assignment.id, v_assignment.church_id, v_assignment.person_id, btrim(p_note))
+      on conflict (assignment_id) do update set note = excluded.note, updated_at = now();
+    end if;
+  end if;
+
+  return v_result;
+end;
+$$;
+
+-- Respuesta registrada por un representante (quien gestiona el puesto), p. ej.
+-- para personas sin cuenta. Queda auditada como tal. Sin nota privada.
+create or replace function app.record_assignment_response(
+  p_assignment_id uuid,
+  p_response text,
+  p_expected_version integer default null
+)
+returns jsonb
+language plpgsql
+security definer
+set search_path = pg_catalog, public
+as $$
+declare
+  v_ctx record;
+begin
+  select * into v_ctx from app.lock_assignment_context(p_assignment_id);
+  perform app.require_assignment_manage(v_ctx.activity, (v_ctx.assignment).service_area_id);
+  if (v_ctx.activity).status not in ('planned', 'published') then
+    raise exception 'La actividad no admite respuestas en su estado actual.' using errcode = '22023';
+  end if;
+  if (v_ctx.assignment).status = 'proposed' then
+    raise exception 'Envía la asignación antes de registrar una respuesta.' using errcode = '22023';
+  end if;
+  return app.apply_assignment_response(v_ctx.assignment, v_ctx.activity, p_response, 'representative', p_expected_version);
+end;
+$$;
+
+-- ===========================================================================
+-- Sustituciones
+-- ===========================================================================
+-- La persona (sobre su asignación aceptada, antes del inicio) o quien gestiona
+-- el puesto (aceptada o pendiente) abre una solicitud. Idempotente.
+create or replace function app.request_assignment_substitution(p_assignment_id uuid)
+returns jsonb
+language plpgsql
+security definer
+set search_path = pg_catalog, public
+as $$
+declare
+  v_ctx record;
+  v_assignment activity_assignments%rowtype;
+  v_activity activities%rowtype;
+  v_self boolean;
+  v_existing activity_substitution_requests%rowtype;
+  v_id uuid;
+  v_deadline timestamptz;
+begin
+  select * into v_ctx from app.lock_assignment_context(p_assignment_id);
+  v_assignment := v_ctx.assignment;
+  v_activity := v_ctx.activity;
+  v_self := v_assignment.person_id in (select app.current_person_ids());
+
+  -- Un borrador no existe para la persona (no revelar que se está preparando).
+  if v_self and v_assignment.status = 'proposed'
+     and not app.assignment_manage_cap(v_activity.church_id, v_activity.campus_id, v_activity.id, v_assignment.service_area_id) then
+    raise exception 'La asignación no existe.' using errcode = 'P0002';
+  end if;
+  if not app.module_enabled(v_activity.church_id, 'serving') then
+    raise exception 'El módulo Servicios no está habilitado.' using errcode = '42501';
+  end if;
+
+  if v_self and v_assignment.status <> 'proposed'
+     and not app.assignment_manage_cap(v_activity.church_id, v_activity.campus_id, v_activity.id, v_assignment.service_area_id) then
+    if v_assignment.status <> 'accepted' then
+      raise exception 'Solo puedes pedir sustitución de un turno aceptado; si está pendiente, recházalo.' using errcode = '22023';
+    end if;
+    v_deadline := app.activity_response_deadline(v_activity);
+    if v_deadline is not null and now() >= v_deadline then
+      raise exception 'La actividad ya empezó: habla con quien coordina el puesto.' using errcode = '22023';
+    end if;
+  else
+    perform app.require_assignment_manage(v_activity, v_assignment.service_area_id);
+    v_self := false;
+    if v_assignment.status not in ('pending', 'accepted') then
+      raise exception 'Solo se sustituyen asignaciones pendientes o aceptadas.' using errcode = '22023';
+    end if;
+  end if;
+
+  if not app.activity_accepts_assignments_unchecked(v_activity.id) then
+    raise exception 'La actividad no admite cambios de asignación en su estado actual.' using errcode = '22023';
+  end if;
+
+  select * into v_existing from activity_substitution_requests
+  where original_assignment_id = v_assignment.id and status = 'open';
+  if found then
+    return jsonb_build_object('request_id', v_existing.id, 'replayed', true);
+  end if;
+
+  insert into activity_substitution_requests (church_id, activity_id, original_assignment_id, requested_by, requested_by_self)
+  values (v_activity.church_id, v_activity.id, v_assignment.id, auth.uid(), v_self)
+  returning id into v_id;
+
+  perform app.write_audit_log(v_activity.church_id, 'assignment.substitution_requested', 'activity_assignments', v_assignment.id,
+    jsonb_build_object('activity_id', v_activity.id, 'request_id', v_id, 'by_self', v_self));
+  -- EVENTO F5 (DI-02): assignment.substitution_requested a quien gestiona el puesto.
+
+  return jsonb_build_object('request_id', v_id, 'replayed', false);
+end;
+$$;
+
+-- Quien gestiona el puesto elige candidato: se crea su asignación en pending
+-- vinculada a la original. Un solo candidato vigente por solicitud.
+create or replace function app.propose_substitution_candidate(
+  p_request_id uuid,
+  p_person_id uuid,
+  p_acknowledged_warnings text[] default '{}'
+)
+returns jsonb
+language plpgsql
+security definer
+set search_path = pg_catalog, public
+as $$
+declare
+  v_request activity_substitution_requests%rowtype;
+  v_original activity_assignments%rowtype;
+  v_activity activities%rowtype;
+  v_blocking text[];
+  v_warnings text[];
+  v_stored_warnings text[];
+  v_id uuid;
+begin
+  select * into v_request from activity_substitution_requests where id = p_request_id;
+  if not found or not (v_request.church_id = any (app.church_ids_for_user())) then
+    raise exception 'La solicitud no existe.' using errcode = 'P0002';
+  end if;
+  select * into v_activity from activities where id = v_request.activity_id for update;
+  select * into v_request from activity_substitution_requests where id = p_request_id for update;
+  select * into v_original from activity_assignments where id = v_request.original_assignment_id for update;
+  perform app.require_assignment_manage(v_activity, v_original.service_area_id);
+
+  if v_request.status <> 'open' then
+    raise exception 'La solicitud ya no está abierta.' using errcode = '22023';
+  end if;
+  if v_request.candidate_assignment_id is not null and exists (
+    select 1 from activity_assignments
+    where id = v_request.candidate_assignment_id and status in ('proposed', 'pending', 'accepted')
+  ) then
+    raise exception 'La solicitud ya tiene un candidato pendiente: retíralo antes de proponer otro.' using errcode = '23505';
+  end if;
+  if p_person_id = v_original.person_id then
+    raise exception 'El candidato debe ser otra persona.' using errcode = '22023';
+  end if;
+  if v_original.activity_position_id is null or v_original.status not in ('pending', 'accepted') then
+    raise exception 'La asignación original ya no es sustituible.' using errcode = '22023';
+  end if;
+
+  select e.blocking, e.warnings into v_blocking, v_warnings
+  from app.evaluate_assignment_eligibility(v_original.activity_position_id, p_person_id, array[v_original.id]) e;
+  perform app.raise_assignment_blocked(v_blocking);
+  perform app.require_acknowledged_warnings(v_warnings, p_acknowledged_warnings, 'El candidato tiene avisos que deben confirmarse.');
+
+  select e.warnings into v_stored_warnings
+  from app.evaluate_assignment_eligibility(v_original.activity_position_id, p_person_id, array[v_original.id], true) e;
+
+  begin
+    insert into activity_assignments (
+      church_id, activity_id, activity_position_id, person_id, status, position_name, substitutes_assignment_id,
+      eligibility_blocking, eligibility_warnings, acknowledged_warnings, created_by, sent_by, sent_at
+    ) values (
+      v_activity.church_id, v_activity.id, v_original.activity_position_id, p_person_id, 'pending', v_original.position_name,
+      v_original.id, '{}', v_stored_warnings, v_stored_warnings,
+      auth.uid(), auth.uid(), now()
+    )
+    returning id into v_id;
+  exception
+    when unique_violation then
+      raise exception 'Esa persona ya tiene una asignación vigente en este puesto.' using errcode = '23505';
+  end;
+
+  update activity_substitution_requests set candidate_assignment_id = v_id where id = v_request.id;
+
+  perform app.write_audit_log(v_activity.church_id, 'assignment.substitution_candidate_proposed', 'activity_assignments', v_id,
+    jsonb_build_object('activity_id', v_activity.id, 'request_id', v_request.id, 'original_assignment_id', v_original.id,
+      'acknowledged_warnings', to_jsonb(v_stored_warnings)));
+  -- EVENTO F5 (DI-02): assignment.proposed al candidato.
+
+  return jsonb_build_object('assignment_id', v_id, 'status', 'pending', 'warnings', to_jsonb(v_warnings));
+end;
+$$;
+
+create or replace function app.cancel_substitution_request(p_request_id uuid)
+returns void
+language plpgsql
+security definer
+set search_path = pg_catalog, public
+as $$
+declare
+  v_request activity_substitution_requests%rowtype;
+  v_original activity_assignments%rowtype;
+  v_activity activities%rowtype;
+begin
+  select * into v_request from activity_substitution_requests where id = p_request_id;
+  if not found or not (v_request.church_id = any (app.church_ids_for_user())) then
+    raise exception 'La solicitud no existe.' using errcode = 'P0002';
+  end if;
+  select * into v_activity from activities where id = v_request.activity_id for update;
+  select * into v_request from activity_substitution_requests where id = p_request_id for update;
+  select * into v_original from activity_assignments where id = v_request.original_assignment_id;
+
+  -- La persona solo retira la sustitución que pidió ella; la abierta por
+  -- coordinación solo la cancela quien gestiona el puesto.
+  if not (v_request.requested_by_self and v_original.person_id in (select app.current_person_ids()))
+     and not app.assignment_manage_cap(v_activity.church_id, v_activity.campus_id, v_activity.id, v_original.service_area_id) then
+    raise exception 'No tienes permiso para cancelar esta solicitud.' using errcode = '42501';
+  end if;
+  if v_request.status <> 'open' then
+    return;
+  end if;
+  if not app.module_enabled(v_activity.church_id, 'serving') then
+    raise exception 'El módulo Servicios no está habilitado.' using errcode = '42501';
+  end if;
+
+  -- EVENTO F5 (DI-02): assignment.cancelled al candidato retirado y
+  -- assignment.substitution_cancelled a quien la pidió.
+  update activity_assignments
+  set status = 'cancelled', cancelled_at = now(), cancelled_by = auth.uid(), cancel_cause = 'substitution_withdrawn', version = version + 1
+  where substitutes_assignment_id = v_original.id and status in ('proposed', 'pending', 'accepted');
+
+  update activity_substitution_requests set status = 'cancelled', cancelled_at = now(), cancelled_by = auth.uid()
+  where id = v_request.id;
+
+  perform app.write_audit_log(v_activity.church_id, 'assignment.substitution_cancelled', 'activity_assignments', v_original.id,
+    jsonb_build_object('activity_id', v_activity.id, 'request_id', v_request.id));
+end;
+$$;
+
+-- ===========================================================================
+-- Lecturas
+-- ===========================================================================
+-- Cobertura (contrato F4 conservado y ampliado): assigned_count = confirmados
+-- (accepted), coverage_status calculado con confirmados. Columnas nuevas al
+-- final: pending_count (pending), proposed_count (borradores) y expected_count
+-- (previstos). Estos tres son nulos para quien no gestiona asignaciones del
+-- puesto: la audiencia solo conoce el equipo confirmado.
+drop function if exists public.activity_position_coverage(uuid);
+
+create function public.activity_position_coverage(p_activity_id uuid)
+returns table (
+  activity_position_id uuid,
+  activity_service_area_id uuid,
+  min_people integer,
+  max_people integer,
+  assigned_count integer,
+  coverage_status text,
+  pending_count integer,
+  proposed_count integer,
+  expected_count integer
+)
+language sql stable security definer set search_path = pg_catalog, public
+as $$
+  -- Definer con comprobación de lectura: confirmados (sin nombres) para quien
+  -- lee la actividad; pendientes, borradores y previstos solo para quien
+  -- gestiona el puesto. Una original con candidato vigente y su candidato
+  -- cuentan como una plaza prevista.
+  select ap.id, ap.activity_service_area_id, ap.min_people::integer, ap.max_people::integer,
+         coalesce(c.accepted, 0),
+         app.position_coverage_status(ap.min_people, ap.max_people, coalesce(c.accepted, 0)),
+         case when m.can_manage then coalesce(c.pending, 0) end,
+         case when m.can_manage then coalesce(c.proposed, 0) end,
+         case when m.can_manage then app.position_expected_count(ap.id, '{}') end
+  from activity_positions ap
+  join activities a on a.id = ap.activity_id
+  cross join lateral (
+    select app.assignment_manage_cap(a.church_id, a.campus_id, a.id, ap.service_area_id) as can_manage
+  ) m
+  left join lateral (
+    select count(*) filter (where aa.status = 'accepted')::integer as accepted,
+           count(*) filter (where aa.status = 'pending')::integer as pending,
+           count(*) filter (where aa.status = 'proposed')::integer as proposed
+    from activity_assignments aa
+    where aa.activity_position_id = ap.id
+  ) c on true
+  where ap.activity_id = p_activity_id
+    and app.can_read_activity(p_activity_id)
+  order by ap.sort_order, ap.created_at;
+$$;
+
+-- Resumen por actividad para listados y dashboard (máx. 200 ids). pending y
+-- proposed suman solo los puestos que el usuario gestiona; nulos si no
+-- gestiona ninguno.
+create or replace function public.activity_staffing_summary(p_activity_ids uuid[])
+returns table (
+  activity_id uuid,
+  positions integer,
+  positions_requiring_people integer,
+  confirmed integer,
+  pending integer,
+  proposed integer,
+  uncovered_positions integer
+)
+language sql stable security definer set search_path = pg_catalog, public
+as $$
+  select a.id,
+         count(ap.id)::integer,
+         count(ap.id) filter (where ap.min_people > 0)::integer,
+         coalesce(sum(c.accepted), 0)::integer,
+         case when bool_or(m.can_manage) then coalesce(sum(c.pending) filter (where m.can_manage), 0) end::integer,
+         case when bool_or(m.can_manage) then coalesce(sum(c.proposed) filter (where m.can_manage), 0) end::integer,
+         count(ap.id) filter (where coalesce(c.accepted, 0) < ap.min_people)::integer
+  from activities a
+  left join activity_positions ap on ap.activity_id = a.id
+  left join lateral (
+    select ap.id is not null and app.assignment_manage_cap(a.church_id, a.campus_id, a.id, ap.service_area_id) as can_manage
+  ) m on true
+  left join lateral (
+    select count(*) filter (where aa.status = 'accepted') as accepted,
+           count(*) filter (where aa.status = 'pending') as pending,
+           count(*) filter (where aa.status = 'proposed') as proposed
+    from activity_assignments aa where aa.activity_position_id = ap.id
+  ) c on true
+  where a.id = any (p_activity_ids[1:200])
+    and app.can_read_activity(a.id)
+  group by a.id;
+$$;
+
+-- Revisión de asignaciones vigentes: reevalúa elegibilidad con los datos y la
+-- fecha actuales (requisitos cambiados, credencial que caduca antes, nueva
+-- hora). Solo para quien gestiona asignaciones de la actividad.
+create or replace function public.activity_assignment_review(p_activity_id uuid)
+returns table (assignment_id uuid, blocking text[], warnings text[])
+language plpgsql stable security definer set search_path = pg_catalog, public
+as $$
+declare
+  v_activity activities%rowtype;
+begin
+  select * into v_activity from activities where id = p_activity_id;
+  if not found or not (v_activity.church_id = any (app.church_ids_for_user()))
+     or not app.module_enabled(v_activity.church_id, 'serving') then
+    return;
+  end if;
+  return query
+  select aa.id, e.blocking, e.warnings
+  from activity_assignments aa
+  cross join lateral app.evaluate_assignment_eligibility(
+    aa.activity_position_id, aa.person_id, array_remove(array[aa.id, aa.substitutes_assignment_id], null)
+  ) e
+  where aa.activity_id = p_activity_id
+    and aa.status in ('proposed', 'pending', 'accepted')
+    and aa.activity_position_id is not null
+    and app.assignment_manage_cap(v_activity.church_id, v_activity.campus_id, v_activity.id, aa.service_area_id);
+end;
+$$;
+
+-- Avisos registrados al crear cada asignación (códigos enmascarados) y los
+-- confirmados. Solo las asignaciones cuyos puestos gestiona el usuario.
+create or replace function public.activity_assignment_recorded_warnings(p_activity_id uuid)
+returns table (assignment_id uuid, eligibility_warnings text[], acknowledged_warnings text[])
+language plpgsql stable security definer set search_path = pg_catalog, public
+as $$
+declare
+  v_activity activities%rowtype;
+begin
+  select * into v_activity from activities where id = p_activity_id;
+  if not found or not (v_activity.church_id = any (app.church_ids_for_user()))
+     or not app.module_enabled(v_activity.church_id, 'serving') then
+    return;
+  end if;
+  return query
+  select aa.id, aa.eligibility_warnings, aa.acknowledged_warnings
+  from activity_assignments aa
+  where aa.activity_id = p_activity_id
+    and app.assignment_manage_cap(v_activity.church_id, v_activity.campus_id, v_activity.id, aa.service_area_id);
+end;
+$$;
+
+-- Turnos que la persona todavía puede responder (para contadores): pendientes,
+-- actividad planificada o publicada y plazo sin vencer.
+create or replace function public.my_respondable_assignments_count(p_church_id uuid)
+returns integer
+language sql stable security definer set search_path = pg_catalog, public
+as $$
+  select count(*)::integer
+  from activity_assignments aa
+  join activities a on a.id = aa.activity_id
+  where aa.church_id = p_church_id
+    and p_church_id = any (app.church_ids_for_user())
+    and aa.person_id in (select app.current_person_ids())
+    and aa.status = 'pending'
+    and a.status in ('planned', 'published')
+    and (app.activity_response_deadline(a) is null or app.activity_response_deadline(a) > now());
+$$;
+
+-- ===========================================================================
+-- Wrappers públicos
+-- ===========================================================================
+create or replace function public.create_activity_assignment(p_activity_position_id uuid, p_person_id uuid, p_input jsonb default '{}')
+returns jsonb language sql security invoker set search_path = pg_catalog, public
+as $$ select app.create_activity_assignment(p_activity_position_id, p_person_id, p_input); $$;
+
+create or replace function public.send_activity_assignments(p_activity_id uuid, p_assignment_ids uuid[] default null)
+returns jsonb language sql security invoker set search_path = pg_catalog, public
+as $$ select app.send_activity_assignments(p_activity_id, p_assignment_ids); $$;
+
+create or replace function public.cancel_activity_assignment(p_assignment_id uuid, p_expected_version integer default null)
+returns jsonb language sql security invoker set search_path = pg_catalog, public
+as $$ select app.cancel_activity_assignment(p_assignment_id, p_expected_version); $$;
+
+create or replace function public.respond_activity_assignment(p_assignment_id uuid, p_response text, p_expected_version integer default null, p_note text default null)
+returns jsonb language sql security invoker set search_path = pg_catalog, public
+as $$ select app.respond_activity_assignment(p_assignment_id, p_response, p_expected_version, p_note); $$;
+
+create or replace function public.record_assignment_response(p_assignment_id uuid, p_response text, p_expected_version integer default null)
+returns jsonb language sql security invoker set search_path = pg_catalog, public
+as $$ select app.record_assignment_response(p_assignment_id, p_response, p_expected_version); $$;
+
+create or replace function public.request_assignment_substitution(p_assignment_id uuid)
+returns jsonb language sql security invoker set search_path = pg_catalog, public
+as $$ select app.request_assignment_substitution(p_assignment_id); $$;
+
+create or replace function public.propose_substitution_candidate(p_request_id uuid, p_person_id uuid, p_acknowledged_warnings text[] default '{}')
+returns jsonb language sql security invoker set search_path = pg_catalog, public
+as $$ select app.propose_substitution_candidate(p_request_id, p_person_id, p_acknowledged_warnings); $$;
+
+create or replace function public.cancel_substitution_request(p_request_id uuid)
+returns void language sql security invoker set search_path = pg_catalog, public
+as $$ select app.cancel_substitution_request(p_request_id); $$;
+
+do $grants$
+declare
+  v_signature text;
+begin
+  foreach v_signature in array array[
+    'public.create_activity_assignment(uuid, uuid, jsonb)',
+    'public.send_activity_assignments(uuid, uuid[])',
+    'public.cancel_activity_assignment(uuid, integer)',
+    'public.respond_activity_assignment(uuid, text, integer, text)',
+    'public.record_assignment_response(uuid, text, integer)',
+    'public.request_assignment_substitution(uuid)',
+    'public.propose_substitution_candidate(uuid, uuid, text[])',
+    'public.cancel_substitution_request(uuid)',
+    'public.activity_position_coverage(uuid)',
+    'public.activity_staffing_summary(uuid[])',
+    'public.activity_assignment_review(uuid)',
+    'public.activity_assignment_recorded_warnings(uuid)',
+    'public.my_respondable_assignments_count(uuid)',
+    'app.create_activity_assignment(uuid, uuid, jsonb)',
+    'app.send_activity_assignments(uuid, uuid[])',
+    'app.cancel_activity_assignment(uuid, integer)',
+    'app.respond_activity_assignment(uuid, text, integer, text)',
+    'app.record_assignment_response(uuid, text, integer)',
+    'app.request_assignment_substitution(uuid)',
+    'app.propose_substitution_candidate(uuid, uuid, text[])',
+    'app.cancel_substitution_request(uuid)'
+  ]
+  loop
+    execute format('revoke all on function %s from public, anon', v_signature);
+    execute format('grant execute on function %s to authenticated', v_signature);
+  end loop;
+end;
+$grants$;

@@ -240,6 +240,190 @@ export type Database = {
           },
         ]
       }
+      activity_assignment_notes: {
+        Row: {
+          assignment_id: string
+          church_id: string
+          note: string
+          person_id: string
+          updated_at: string
+        }
+        Insert: {
+          assignment_id: string
+          church_id: string
+          note: string
+          person_id: string
+          updated_at?: string
+        }
+        Update: {
+          assignment_id?: string
+          church_id?: string
+          note?: string
+          person_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "activity_assignment_notes_assignment_id_church_id_fkey"
+            columns: ["assignment_id", "church_id"]
+            isOneToOne: false
+            referencedRelation: "activity_assignments"
+            referencedColumns: ["id", "church_id"]
+          },
+          {
+            foreignKeyName: "activity_assignment_notes_church_id_fkey"
+            columns: ["church_id"]
+            isOneToOne: false
+            referencedRelation: "churches"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      activity_assignments: {
+        Row: {
+          acknowledged_warnings: string[]
+          activity_id: string
+          activity_position_id: string | null
+          cancel_cause: string | null
+          cancelled_at: string | null
+          cancelled_by: string | null
+          church_id: string
+          confirmed_ends_at: string | null
+          confirmed_starts_at: string | null
+          created_at: string
+          created_by: string | null
+          eligibility_blocking: string[]
+          eligibility_checked_at: string
+          eligibility_warnings: string[]
+          id: string
+          person_id: string
+          position_name: string
+          reconfirmation_requested_at: string | null
+          responded_at: string | null
+          responded_by: string | null
+          response_source:
+            | Database["public"]["Enums"]["activity_assignment_response_source"]
+            | null
+          sent_at: string | null
+          sent_by: string | null
+          service_area_id: string | null
+          status: Database["public"]["Enums"]["activity_assignment_status"]
+          substituted_at: string | null
+          substitutes_assignment_id: string | null
+          updated_at: string
+          version: number
+        }
+        Insert: {
+          acknowledged_warnings?: string[]
+          activity_id: string
+          activity_position_id?: string | null
+          cancel_cause?: string | null
+          cancelled_at?: string | null
+          cancelled_by?: string | null
+          church_id: string
+          confirmed_ends_at?: string | null
+          confirmed_starts_at?: string | null
+          created_at?: string
+          created_by?: string | null
+          eligibility_blocking?: string[]
+          eligibility_checked_at?: string
+          eligibility_warnings?: string[]
+          id?: string
+          person_id: string
+          position_name: string
+          reconfirmation_requested_at?: string | null
+          responded_at?: string | null
+          responded_by?: string | null
+          response_source?:
+            | Database["public"]["Enums"]["activity_assignment_response_source"]
+            | null
+          sent_at?: string | null
+          sent_by?: string | null
+          service_area_id?: string | null
+          status?: Database["public"]["Enums"]["activity_assignment_status"]
+          substituted_at?: string | null
+          substitutes_assignment_id?: string | null
+          updated_at?: string
+          version?: number
+        }
+        Update: {
+          acknowledged_warnings?: string[]
+          activity_id?: string
+          activity_position_id?: string | null
+          cancel_cause?: string | null
+          cancelled_at?: string | null
+          cancelled_by?: string | null
+          church_id?: string
+          confirmed_ends_at?: string | null
+          confirmed_starts_at?: string | null
+          created_at?: string
+          created_by?: string | null
+          eligibility_blocking?: string[]
+          eligibility_checked_at?: string
+          eligibility_warnings?: string[]
+          id?: string
+          person_id?: string
+          position_name?: string
+          reconfirmation_requested_at?: string | null
+          responded_at?: string | null
+          responded_by?: string | null
+          response_source?:
+            | Database["public"]["Enums"]["activity_assignment_response_source"]
+            | null
+          sent_at?: string | null
+          sent_by?: string | null
+          service_area_id?: string | null
+          status?: Database["public"]["Enums"]["activity_assignment_status"]
+          substituted_at?: string | null
+          substitutes_assignment_id?: string | null
+          updated_at?: string
+          version?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "activity_assignments_activity_id_church_id_fkey"
+            columns: ["activity_id", "church_id"]
+            isOneToOne: false
+            referencedRelation: "activities"
+            referencedColumns: ["id", "church_id"]
+          },
+          {
+            foreignKeyName: "activity_assignments_activity_position_id_church_id_fkey"
+            columns: ["activity_position_id", "church_id"]
+            isOneToOne: false
+            referencedRelation: "activity_positions"
+            referencedColumns: ["id", "church_id"]
+          },
+          {
+            foreignKeyName: "activity_assignments_church_id_fkey"
+            columns: ["church_id"]
+            isOneToOne: false
+            referencedRelation: "churches"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "activity_assignments_church_id_person_id_fkey"
+            columns: ["church_id", "person_id"]
+            isOneToOne: false
+            referencedRelation: "church_people"
+            referencedColumns: ["church_id", "person_id"]
+          },
+          {
+            foreignKeyName: "activity_assignments_person_id_fkey"
+            columns: ["person_id"]
+            isOneToOne: false
+            referencedRelation: "people"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "activity_assignments_substitutes_fkey"
+            columns: ["substitutes_assignment_id", "church_id"]
+            isOneToOne: false
+            referencedRelation: "activity_assignments"
+            referencedColumns: ["id", "church_id"]
+          },
+        ]
+      }
       activity_plan_items: {
         Row: {
           activity_id: string
@@ -696,6 +880,83 @@ export type Database = {
             columns: ["service_area_id", "church_id"]
             isOneToOne: false
             referencedRelation: "service_areas"
+            referencedColumns: ["id", "church_id"]
+          },
+        ]
+      }
+      activity_substitution_requests: {
+        Row: {
+          activity_id: string
+          cancelled_at: string | null
+          cancelled_by: string | null
+          candidate_assignment_id: string | null
+          church_id: string
+          completed_at: string | null
+          id: string
+          original_assignment_id: string
+          requested_at: string
+          requested_by: string | null
+          requested_by_self: boolean
+          status: Database["public"]["Enums"]["activity_substitution_status"]
+          updated_at: string
+        }
+        Insert: {
+          activity_id: string
+          cancelled_at?: string | null
+          cancelled_by?: string | null
+          candidate_assignment_id?: string | null
+          church_id: string
+          completed_at?: string | null
+          id?: string
+          original_assignment_id: string
+          requested_at?: string
+          requested_by?: string | null
+          requested_by_self: boolean
+          status?: Database["public"]["Enums"]["activity_substitution_status"]
+          updated_at?: string
+        }
+        Update: {
+          activity_id?: string
+          cancelled_at?: string | null
+          cancelled_by?: string | null
+          candidate_assignment_id?: string | null
+          church_id?: string
+          completed_at?: string | null
+          id?: string
+          original_assignment_id?: string
+          requested_at?: string
+          requested_by?: string | null
+          requested_by_self?: boolean
+          status?: Database["public"]["Enums"]["activity_substitution_status"]
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "activity_substitution_requests_activity_id_church_id_fkey"
+            columns: ["activity_id", "church_id"]
+            isOneToOne: false
+            referencedRelation: "activities"
+            referencedColumns: ["id", "church_id"]
+          },
+          {
+            foreignKeyName: "activity_substitution_requests_candidate_fkey"
+            columns: ["candidate_assignment_id", "church_id"]
+            isOneToOne: false
+            referencedRelation: "activity_assignments"
+            referencedColumns: ["id", "church_id"]
+          },
+          {
+            foreignKeyName: "activity_substitution_requests_church_id_fkey"
+            columns: ["church_id"]
+            isOneToOne: false
+            referencedRelation: "churches"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "activity_substitution_requests_original_fkey"
+            columns: ["original_assignment_id", "church_id"]
+            isOneToOne: false
+            referencedRelation: "activity_assignments"
             referencedColumns: ["id", "church_id"]
           },
         ]
@@ -3204,6 +3465,22 @@ export type Database = {
           warnings: number
         }[]
       }
+      activity_assignment_recorded_warnings: {
+        Args: { p_activity_id: string }
+        Returns: {
+          acknowledged_warnings: string[]
+          assignment_id: string
+          eligibility_warnings: string[]
+        }[]
+      }
+      activity_assignment_review: {
+        Args: { p_activity_id: string }
+        Returns: {
+          assignment_id: string
+          blocking: string[]
+          warnings: string[]
+        }[]
+      }
       activity_capabilities: { Args: { p_activity_id: string }; Returns: Json }
       activity_creation_scopes: { Args: { p_church_id: string }; Returns: Json }
       activity_dashboard: { Args: { p_church_id: string }; Returns: Json }
@@ -3214,8 +3491,11 @@ export type Database = {
           activity_service_area_id: string
           assigned_count: number
           coverage_status: string
+          expected_count: number
           max_people: number
           min_people: number
+          pending_count: number
+          proposed_count: number
         }[]
       }
       activity_position_effective_requirements: {
@@ -3247,6 +3527,18 @@ export type Database = {
           isOneToOne: false
           isSetofReturn: true
         }
+      }
+      activity_staffing_summary: {
+        Args: { p_activity_ids: string[] }
+        Returns: {
+          activity_id: string
+          confirmed: number
+          pending: number
+          positions: number
+          positions_requiring_people: number
+          proposed: number
+          uncovered_positions: number
+        }[]
       }
       activity_structure_issues: {
         Args: { p_activity_id: string }
@@ -3296,8 +3588,24 @@ export type Database = {
           invitation_token: string
         }[]
       }
+      cancel_activity_assignment: {
+        Args: { p_assignment_id: string; p_expected_version?: number }
+        Returns: Json
+      }
+      cancel_substitution_request: {
+        Args: { p_request_id: string }
+        Returns: undefined
+      }
       create_activity: {
         Args: { p_church_id: string; p_input: Json }
+        Returns: Json
+      }
+      create_activity_assignment: {
+        Args: {
+          p_activity_position_id: string
+          p_input?: Json
+          p_person_id: string
+        }
         Returns: Json
       }
       create_person: {
@@ -3385,6 +3693,10 @@ export type Database = {
         Args: { p_church_id: string; p_module_key: string }
         Returns: boolean
       }
+      my_respondable_assignments_count: {
+        Args: { p_church_id: string }
+        Returns: number
+      }
       preview_activity_recurrence: {
         Args: { p_church_id: string; p_input: Json }
         Returns: {
@@ -3392,6 +3704,21 @@ export type Database = {
           occurrence_date: string
           starts_at: string
         }[]
+      }
+      preview_assignment_eligibility: {
+        Args: { p_activity_position_id: string; p_person_id: string }
+        Returns: {
+          blocking: string[]
+          warnings: string[]
+        }[]
+      }
+      propose_substitution_candidate: {
+        Args: {
+          p_acknowledged_warnings?: string[]
+          p_person_id: string
+          p_request_id: string
+        }
+        Returns: Json
       }
       provision_church: {
         Args: {
@@ -3420,6 +3747,14 @@ export type Database = {
           person_id: string
         }[]
       }
+      record_assignment_response: {
+        Args: {
+          p_assignment_id: string
+          p_expected_version?: number
+          p_response: string
+        }
+        Returns: Json
+      }
       remove_activity_area: {
         Args: { p_activity_service_area_id: string }
         Returns: undefined
@@ -3440,6 +3775,19 @@ export type Database = {
         Args: { p_activity_id: string; p_item_ids: string[] }
         Returns: undefined
       }
+      request_assignment_substitution: {
+        Args: { p_assignment_id: string }
+        Returns: Json
+      }
+      respond_activity_assignment: {
+        Args: {
+          p_assignment_id: string
+          p_expected_version?: number
+          p_note?: string
+          p_response: string
+        }
+        Returns: Json
+      }
       save_activity_position_requirement: {
         Args: {
           p_activity_position_id: string
@@ -3451,6 +3799,10 @@ export type Database = {
       save_activity_template: {
         Args: { p_church_id: string; p_input: Json; p_template_id: string }
         Returns: string
+      }
+      send_activity_assignments: {
+        Args: { p_activity_id: string; p_assignment_ids?: string[] }
+        Returns: Json
       }
       set_activity_template_archived: {
         Args: { p_archived: boolean; p_template_id: string }
@@ -3507,6 +3859,14 @@ export type Database = {
     }
     Enums: {
       activity_area_requirement: "required" | "optional"
+      activity_assignment_response_source: "self" | "representative"
+      activity_assignment_status:
+        | "proposed"
+        | "pending"
+        | "accepted"
+        | "declined"
+        | "cancelled"
+        | "substituted"
       activity_monthly_mode: "day_of_month" | "nth_weekday"
       activity_plan_item_type:
         | "section"
@@ -3527,6 +3887,7 @@ export type Database = {
         | "cancelled"
         | "completed"
         | "archived"
+      activity_substitution_status: "open" | "completed" | "cancelled"
       activity_type:
         | "service"
         | "meeting"
@@ -3738,6 +4099,15 @@ export const Constants = {
   public: {
     Enums: {
       activity_area_requirement: ["required", "optional"],
+      activity_assignment_response_source: ["self", "representative"],
+      activity_assignment_status: [
+        "proposed",
+        "pending",
+        "accepted",
+        "declined",
+        "cancelled",
+        "substituted",
+      ],
       activity_monthly_mode: ["day_of_month", "nth_weekday"],
       activity_plan_item_type: [
         "section",
@@ -3760,6 +4130,7 @@ export const Constants = {
         "completed",
         "archived",
       ],
+      activity_substitution_status: ["open", "completed", "cancelled"],
       activity_type: [
         "service",
         "meeting",

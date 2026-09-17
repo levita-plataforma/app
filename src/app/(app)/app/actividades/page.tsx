@@ -10,6 +10,7 @@ import {
   type ActivitySummary,
 } from "@/server/activities/activities-service";
 import { getStructureStatusFor } from "@/server/activities/activities-dashboard-service";
+import { getStaffingSummaries, type StaffingSummary } from "@/server/assignments/assignments-service";
 import {
   LOCAL_DAY_FETCH_CAP,
   listActivitiesByLocalDays,
@@ -118,12 +119,13 @@ export default async function ActividadesPage({ searchParams }: { searchParams: 
   // Con fechas explícitas se descartan las tareas que solo entran por el margen de zona.
   const flexible = byLocalDays ? flexibleRaw.filter((a) => overlapsLocalDays(a, desde, hasta)) : flexibleRaw;
 
-  let structure = new Map<string, { blocking: number; warnings: number }>();
-  try {
-    structure = await getStructureStatusFor([...list.items, ...flexible].map((a) => a.id));
-  } catch {
+  const visibleIds = [...list.items, ...flexible].map((a) => a.id);
+  const [structure, staffing] = await Promise.all([
     // Sin indicador de estructura si la validación falla; el listado sigue siendo útil.
-  }
+    getStructureStatusFor(visibleIds).catch(() => new Map<string, { blocking: number; warnings: number }>()),
+    // Cobertura de personas (Fase 5). null = no se pudo calcular: la tabla muestra «—».
+    getStaffingSummaries(visibleIds).catch((): Map<string, StaffingSummary> | null => null),
+  ]);
 
   const canCreate = canCreateAnywhere(scopes);
   const currentParams: Record<string, string> = {};
@@ -295,7 +297,7 @@ export default async function ActividadesPage({ searchParams }: { searchParams: 
             ) : null}
           </div>
         ) : (
-          <ActivitiesTable activities={list.items} structure={structure} caption="Actividades" />
+          <ActivitiesTable activities={list.items} structure={structure} staffing={staffing} caption="Actividades" />
         )}
       </section>
 
@@ -314,7 +316,12 @@ export default async function ActividadesPage({ searchParams }: { searchParams: 
           {flexible.length === 0 ? (
             <p className="serving-meta">No hay tareas sin hora fija pendientes en este periodo.</p>
           ) : (
-            <ActivitiesTable activities={flexible} structure={structure} caption="Tareas sin hora fija" />
+            <ActivitiesTable
+              activities={flexible}
+              structure={structure}
+              staffing={staffing}
+              caption="Tareas sin hora fija"
+            />
           )}
         </section>
       ) : null}

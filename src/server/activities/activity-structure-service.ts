@@ -8,7 +8,8 @@ import type { AreaRequirement, PlanItemType } from "@/lib/activities/constants";
  * Estructura de servicio de una actividad (áreas, puestos, requisitos) y su
  * orden del servicio. Reutiliza el catálogo de Serving: las filas por
  * actividad son copias con snapshot; los cambios del catálogo no alteran
- * actividades ya preparadas. Sin asignaciones en Fase 4: assignedCount = 0.
+ * actividades ya preparadas. Desde Fase 5 la cobertura usa asignaciones reales:
+ * assignedCount = confirmadas (accepted); pendientes y borradores aparte.
  */
 
 export type RequirementOrigin = "inherited" | "added";
@@ -46,8 +47,14 @@ export type ActivityPosition = {
   sortOrder: number;
   catalogSnapshot: Record<string, unknown> | null;
   snapshotTakenAt: string | null;
-  /** Fase 4: siempre 0 (las asignaciones llegan en Fase 5). */
+  /** Confirmadas (accepted). La cobertura se calcula con este número. */
   assignedCount: number;
+  /** Enviadas sin respuesta. Nulo si quien consulta no gestiona el puesto. */
+  pendingCount: number | null;
+  /** Borradores. Nulo si quien consulta no gestiona el puesto. */
+  proposedCount: number | null;
+  /** La cobertura por asignaciones no se pudo calcular (los recuentos son 0 provisionales). */
+  coverageUnavailable: boolean;
   coverage: CoverageStatusValue;
   requirements: ActivityPositionRequirement[];
 };
@@ -84,15 +91,29 @@ export type StructureSummary = {
   minPeopleTotal: number;
   /** Cobertura estructural: puestos cuyo mínimo exige personas. */
   positionsRequiringPeople: number;
+  /** Confirmadas en toda la actividad. */
   assignedPeople: number;
+  /** Solo de los puestos que quien consulta gestiona; nulo si no gestiona ninguno. */
+  pendingPeople: number | null;
+  proposedPeople: number | null;
+  /** La cobertura por asignaciones no se pudo calcular. */
+  coverageUnavailable: boolean;
+  /** Puestos con menos confirmadas que su mínimo. */
+  uncoveredPositions: number;
 };
 
-const REQUIREMENT_COMPARE_KEYS = ["strictness", "min_level", "min_operational_level", "requires_current_validity"] as const;
+/** Suma los recuentos visibles; nulo si ninguno lo es (no gestiona ningún puesto). */
+function sumManaged(values: (number | null)[]): number | null {
+  const visible = values.filter((v): v is number => v !== null);
+  return visible.length === 0 ? null : visible.reduce((sum, v) => sum + v, 0);
+}
+
+const REQUIREMENT_COMPARE_KEYS =["strictness", "min_level", "min_operational_level", "requires_current_validity"] as const;
 
 export async function getActivityStructure(activityId: string): Promise<{ areas: ActivityArea[]; summary: StructureSummary }> {
   const supabase = await createSupabaseServerClient();
 
-  const [areasRes, positionsRes, requirementsRes] = await Promise.all([
+  const [areasRes, positionsRes, requirementsRes, coverageRes] = await Promise.all([
     supabase
       .from("activity_service_areas")
       .select("id, service_area_id, area_name, area_campus_id, requirement, notes, sort_order")
@@ -114,12 +135,24 @@ export async function getActivityStructure(activityId: string): Promise<{ areas:
       )
       .eq("activity_id", activityId)
       .order("created_at"),
+    supabase.rpc("activity_position_coverage", { p_activity_id: activityId }),
   ]);
   const failed = areasRes.error ?? positionsRes.error ?? requirementsRes.error;
   if (failed) throw toDomainError(failed, "No se pudo cargar la estructura de la actividad.");
+  // Sin cobertura la estructura sigue siendo útil: se marca como no disponible.
+  const coverageUnavailable = Boolean(coverageRes.error);
   const areaRows = areasRes.data;
   const positionRows = positionsRes.data;
   const requirementRows = requirementsRes.data;
+  const counts = new Map<string, { accepted: number; pending: number | null; proposed: number | null }>();
+  for (const c of (coverageRes.error ? [] : (coverageRes.data ?? [])) as {
+    activity_position_id: string;
+    assigned_count: number;
+    pending_count: number | null;
+    proposed_count: number | null;
+  }[]) {
+    counts.set(c.activity_position_id, { accepted: c.assigned_count, pending: c.pending_count, proposed: c.proposed_count });
+  }
 
   const requirementsByPosition = new Map<string, ActivityPositionRequirement[]>();
   for (const r of (requirementRows ?? []) as Record<string, unknown>[]) {
@@ -171,8 +204,11 @@ export async function getActivityStructure(activityId: string): Promise<{ areas:
       sortOrder: Number(p.sort_order),
       catalogSnapshot: (p.catalog_snapshot as Record<string, unknown> | null) ?? null,
       snapshotTakenAt: (p.snapshot_taken_at as string | null) ?? null,
-      assignedCount: 0,
-      coverage: coverageStatus(minPeople, maxPeople, 0),
+      assignedCount: counts.get(p.id as string)?.accepted ?? 0,
+      pendingCount: counts.get(p.id as string)?.pending ?? null,
+      proposedCount: counts.get(p.id as string)?.proposed ?? null,
+      coverageUnavailable,
+      coverage: coverageStatus(minPeople, maxPeople, counts.get(p.id as string)?.accepted ?? 0),
       requirements: requirementsByPosition.get(p.id as string) ?? [],
     };
     const list = positionsByArea.get(position.activityServiceAreaId) ?? [];
@@ -201,7 +237,11 @@ export async function getActivityStructure(activityId: string): Promise<{ areas:
       criticalPositions: allPositions.filter((p) => p.critical).length,
       minPeopleTotal: allPositions.reduce((sum, p) => sum + p.minPeople, 0),
       positionsRequiringPeople: allPositions.filter((p) => p.minPeople > 0).length,
-      assignedPeople: 0,
+      assignedPeople: allPositions.reduce((sum, p) => sum + p.assignedCount, 0),
+      pendingPeople: sumManaged(allPositions.map((p) => p.pendingCount)),
+      proposedPeople: sumManaged(allPositions.map((p) => p.proposedCount)),
+      uncoveredPositions: allPositions.filter((p) => p.assignedCount < p.minPeople).length,
+      coverageUnavailable,
     },
   };
 }
