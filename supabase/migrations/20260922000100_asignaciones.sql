@@ -64,6 +64,9 @@ create table activity_assignments (
   foreign key (activity_position_id, church_id) references activity_positions (id, church_id)
     on delete set null (activity_position_id),
   foreign key (church_id, person_id) references church_people (church_id, person_id),
+  -- FK directa a people (además de la de pertenencia) para que la API pueda
+  -- embeber el nombre de la persona.
+  foreign key (person_id) references people (id),
   check ((status = 'cancelled') = (cancelled_at is not null)),
   check ((status = 'substituted') = (substituted_at is not null)),
   check (status = 'proposed' or sent_at is not null or response_source = 'representative'),
@@ -134,8 +137,11 @@ create table activity_substitution_requests (
   cancelled_by uuid,
   updated_at timestamptz not null default now(),
   foreign key (activity_id, church_id) references activities (id, church_id) on delete cascade,
-  foreign key (original_assignment_id, church_id) references activity_assignments (id, church_id),
-  foreign key (candidate_assignment_id, church_id) references activity_assignments (id, church_id),
+  -- Nombres explícitos: la API los usa para desambiguar embebidos.
+  constraint activity_substitution_requests_original_fkey
+    foreign key (original_assignment_id, church_id) references activity_assignments (id, church_id),
+  constraint activity_substitution_requests_candidate_fkey
+    foreign key (candidate_assignment_id, church_id) references activity_assignments (id, church_id),
   check ((status = 'completed') = (completed_at is not null)),
   check ((status = 'cancelled') = (cancelled_at is not null))
 );
