@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useTransition, type ReactNode } from "react";
+import { useEffect, useRef, useState, useTransition, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
 import type { ChipTone } from "@/lib/activities/constants";
 import { eligibilityCodeLabel } from "@/lib/assignments/constants";
@@ -41,6 +41,34 @@ export function CodeList({ codes, tone }: { codes: string[]; tone: "danger" | "w
         <li key={code}>{eligibilityCodeLabel(code)}</li>
       ))}
     </ul>
+  );
+}
+
+/** Borradores que no se enviaron por bloqueos actuales (siguen en borrador). */
+export type BlockedSend = { assignmentId: string; name: string; blocking: string[] };
+
+export function SendBlockedBox({ blocked }: { blocked: BlockedSend[] }) {
+  if (blocked.length === 0) return null;
+  return (
+    <div className="eq-box is-danger" role="alert">
+      <strong>
+        {blocked.length === 1
+          ? "1 asignación no se envió y sigue en borrador:"
+          : `${blocked.length} asignaciones no se enviaron y siguen en borrador:`}
+      </strong>
+      <ul className="eq-blocked-list">
+        {blocked.map((b) => (
+          <li key={b.assignmentId}>
+            <strong>{b.name}</strong>
+            {b.blocking.length > 0 ? (
+              <CodeList codes={b.blocking} tone="danger" />
+            ) : (
+              <span className="eq-muted"> · no cumple las condiciones del puesto</span>
+            )}
+          </li>
+        ))}
+      </ul>
+    </div>
   );
 }
 
@@ -90,7 +118,11 @@ export function useEquipoAction() {
   return { pending, error, notice, setError, setNotice, run, clear };
 }
 
-/** Botón con confirmación en línea (sin diálogos del navegador). */
+/**
+ * Botón con confirmación en línea (sin diálogos del navegador). Al abrir, el
+ * foco pasa al botón de confirmar; Escape o Cancelar cierran y devuelven el
+ * foco al botón que la abrió.
+ */
 export function EqConfirm({
   label,
   confirmLabel,
@@ -107,12 +139,32 @@ export function EqConfirm({
   danger?: boolean;
 }) {
   const [asking, setAsking] = useState(false);
+  const triggerRef = useRef<HTMLButtonElement>(null);
+  const confirmRef = useRef<HTMLButtonElement>(null);
+  const returnFocus = useRef(false);
+
+  useEffect(() => {
+    if (asking) {
+      confirmRef.current?.focus();
+    } else if (returnFocus.current) {
+      returnFocus.current = false;
+      triggerRef.current?.focus();
+    }
+  }, [asking]);
+
+  function close() {
+    returnFocus.current = true;
+    setAsking(false);
+  }
+
   if (!asking) {
     return (
       <button
+        ref={triggerRef}
         type="button"
         className={`eq-btn is-ghost${danger ? " is-danger-text" : ""}`}
         disabled={disabled}
+        aria-haspopup="dialog"
         onClick={() => setAsking(true)}
       >
         {label}
@@ -120,21 +172,32 @@ export function EqConfirm({
     );
   }
   return (
-    <div className="eq-confirm" role="group" aria-label="Confirmación">
+    <div
+      className="eq-confirm"
+      role="alertdialog"
+      aria-label={confirmLabel}
+      onKeyDown={(e) => {
+        if (e.key === "Escape") {
+          e.stopPropagation();
+          close();
+        }
+      }}
+    >
       <p>{message}</p>
       <div className="eq-actions">
         <button
+          ref={confirmRef}
           type="button"
           className={`eq-btn ${danger ? "is-danger" : "is-primary"}`}
           disabled={disabled}
           onClick={() => {
-            setAsking(false);
+            close();
             onConfirm();
           }}
         >
           {confirmLabel}
         </button>
-        <button type="button" className="eq-btn" onClick={() => setAsking(false)}>
+        <button type="button" className="eq-btn" onClick={close}>
           Cancelar
         </button>
       </div>

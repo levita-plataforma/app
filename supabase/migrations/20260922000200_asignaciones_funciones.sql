@@ -79,6 +79,8 @@ grant execute on function app.activity_response_deadline(activities) to authenti
 -- ===========================================================================
 -- Previstos (proposed + pending + accepted) del puesto, excluyendo las
 -- asignaciones indicadas (p. ej. la original de una sustitución o la propia).
+-- Una original con candidato vigente y su candidato ocupan UNA plaza: se
+-- cuenta el candidato y no la original.
 create or replace function app.position_expected_count(p_activity_position_id uuid, p_exclude uuid[] default '{}')
 returns integer
 language sql
@@ -90,7 +92,13 @@ as $$
   from activity_assignments aa
   where aa.activity_position_id = p_activity_position_id
     and aa.status in ('proposed', 'pending', 'accepted')
-    and not (aa.id = any (coalesce(p_exclude, '{}')));
+    and not (aa.id = any (coalesce(p_exclude, '{}')))
+    and not exists (
+      select 1 from activity_assignments c
+      where c.substitutes_assignment_id = aa.id
+        and c.status in ('proposed', 'pending', 'accepted')
+        and not (c.id = any (coalesce(p_exclude, '{}')))
+    );
 $$;
 
 revoke all on function app.position_expected_count(uuid, uuid[]) from public, anon, authenticated;
@@ -108,10 +116,13 @@ revoke all on function app.position_expected_count(uuid, uuid[]) from public, an
 --   avisos: los mismos códigos de requisitos recomendados con sufijo
 --     _recommended, overlapping_assignment, unavailable, different_campus
 -- p_exclude: asignaciones que no cuentan para capacidad ni solapes.
+-- p_force_mask: enmascarar siempre los requisitos sensibles (para los códigos
+-- que se guardan en la asignación, que leen personas con distintos permisos).
 create or replace function app.evaluate_assignment_eligibility(
   p_activity_position_id uuid,
   p_person_id uuid,
-  p_exclude uuid[] default '{}'
+  p_exclude uuid[] default '{}',
+  p_force_mask boolean default false
 )
 returns table (blocking text[], warnings text[])
 language plpgsql
@@ -143,15 +154,17 @@ begin
 
   v_reference := app.activity_eligibility_reference(v_activity);
   v_range := app.activity_time_range(v_activity);
-  v_can_see_sensitive := auth.uid() is null
-    or app.has_capability(v_activity.church_id, 'credential.sensitive.read');
+  v_can_see_sensitive := not coalesce(p_force_mask, false) and (
+    auth.uid() is null or app.has_capability(v_activity.church_id, 'credential.sensitive.read'));
 
-  -- Pertenencia activa a la iglesia.
+  -- Pertenencia activa a la iglesia. Si no lo es, no se evalúa nada más
+  -- (tampoco se consulta su disponibilidad ni sus credenciales).
   select cp.archived_at is null, cp.primary_campus_id into v_person_active, v_primary_campus
   from church_people cp
   where cp.church_id = v_activity.church_id and cp.person_id = p_person_id;
   if v_person_active is null or not v_person_active then
-    v_blocking := array_append(v_blocking, 'inactive_person');
+    return query select array['inactive_person']::text[], '{}'::text[];
+    return;
   end if;
 
   if not app.activity_accepts_assignments_unchecked(v_activity.id) then
@@ -308,7 +321,7 @@ as $$
 $$;
 
 revoke all on function app.activity_accepts_assignments_unchecked(uuid) from public, anon, authenticated;
-revoke all on function app.evaluate_assignment_eligibility(uuid, uuid, uuid[]) from public, anon, authenticated;
+revoke all on function app.evaluate_assignment_eligibility(uuid, uuid, uuid[], boolean) from public, anon, authenticated;
 
 -- Lectura para la UI: solo quien gestiona asignaciones de ese puesto.
 create or replace function public.preview_assignment_eligibility(p_activity_position_id uuid, p_person_id uuid)
@@ -434,7 +447,10 @@ security definer
 set search_path = pg_catalog, public
 as $$
   select app.can_read_activity_row_base(p_activity_id, p_church_id, p_campus_id, p_status, p_visibility, p_organizer_person_id)
-    or (p_church_id = any (app.church_ids_for_user()) and app.is_assigned_to_activity(p_activity_id));
+    -- Lectura por asignación solo en estados que la persona puede tener que
+    -- consultar; nunca borradores ni archivadas (ocultas también a la audiencia).
+    or (p_status in ('planned', 'published', 'completed', 'cancelled')
+        and p_church_id = any (app.church_ids_for_user()) and app.is_assigned_to_activity(p_activity_id));
 $$;
 
 revoke all on function app.can_read_activity_row_base(uuid, uuid, uuid, activity_status, activity_visibility, uuid) from public, anon;

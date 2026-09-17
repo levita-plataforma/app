@@ -134,7 +134,13 @@ begin
     return old;
   end if;
 
-  if exists (select 1 from activity_assignments where activity_id = old.id) then
+  -- Solo se conserva si alguna asignación llegó a comunicarse (hay historia
+  -- para la persona). Los borradores nunca enviados se borran con la
+  -- ocurrencia y F4 sigue funcionando con activity.manage.
+  if exists (
+    select 1 from activity_assignments
+    where activity_id = old.id and (sent_at is not null or response_source is not null)
+  ) then
     if old.status not in ('draft', 'planned', 'published') then
       raise exception 'La actividad tiene historial de asignaciones y no se puede eliminar.' using errcode = '22023';
     end if;
@@ -163,6 +169,10 @@ security definer
 set search_path = pg_catalog, public
 as $$
 begin
+  -- Borrado en cascada de la iglesia o de la actividad: no interferir.
+  if not exists (select 1 from churches where id = old.church_id) then
+    return old;
+  end if;
   if exists (select 1 from activities a where a.id = old.activity_id)
      and exists (
        select 1 from activity_assignments aa

@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { requireTenantContext } from "@/server/tenant/tenant-context";
 import { DomainError } from "@/server/errors/domain-error";
-import { requestSubstitution, respondToAssignment } from "@/server/assignments/assignments-service";
+import { cancelSubstitutionRequest, requestSubstitution, respondToAssignment } from "@/server/assignments/assignments-service";
 import type { AssignmentStatus } from "@/lib/assignments/constants";
 
 export type TurnoActionResult =
@@ -72,6 +72,21 @@ export async function requestSubstitutionAction(assignmentId: string): Promise<T
     const result = await requestSubstitution(assignmentId);
     revalidateTurnos();
     return { ok: true, replayed: result.replayed };
+  } catch (error) {
+    return fromDomainError(error);
+  }
+}
+
+/** Retira la sustitución que pidió la propia persona (la base rechaza las abiertas por coordinación). */
+export async function cancelOwnSubstitutionAction(requestId: string): Promise<TurnoActionResult> {
+  await requireTenantContext();
+  if (typeof requestId !== "string" || !UUID_RE.test(requestId)) {
+    return { ok: false, error: "La solicitud no es válida." };
+  }
+  try {
+    await cancelSubstitutionRequest(requestId);
+    revalidateTurnos();
+    return { ok: true, replayed: false };
   } catch (error) {
     return fromDomainError(error);
   }

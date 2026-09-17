@@ -3465,6 +3465,14 @@ export type Database = {
           warnings: number
         }[]
       }
+      activity_assignment_recorded_warnings: {
+        Args: { p_activity_id: string }
+        Returns: {
+          acknowledged_warnings: string[]
+          assignment_id: string
+          eligibility_warnings: string[]
+        }[]
+      }
       activity_assignment_review: {
         Args: { p_activity_id: string }
         Returns: {
@@ -3685,6 +3693,10 @@ export type Database = {
         Args: { p_church_id: string; p_module_key: string }
         Returns: boolean
       }
+      my_respondable_assignments_count: {
+        Args: { p_church_id: string }
+        Returns: number
+      }
       preview_activity_recurrence: {
         Args: { p_church_id: string; p_input: Json }
         Returns: {
@@ -3702,7 +3714,7 @@ export type Database = {
       }
       propose_substitution_candidate: {
         Args: {
-          p_acknowledge_warnings?: boolean
+          p_acknowledged_warnings?: string[]
           p_person_id: string
           p_request_id: string
         }
@@ -3790,7 +3802,7 @@ export type Database = {
       }
       send_activity_assignments: {
         Args: { p_activity_id: string; p_assignment_ids?: string[] }
-        Returns: number
+        Returns: Json
       }
       set_activity_template_archived: {
         Args: { p_archived: boolean; p_template_id: string }

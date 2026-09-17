@@ -2,6 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { AlertTriangle, ArrowLeft, CalendarCheck, Clock, MapPin, RefreshCw } from "lucide-react";
 import { requireTenantContext } from "@/server/tenant/tenant-context";
+import { createSupabaseServerClient } from "@/server/supabase/server-client";
 import { getMyAssignment } from "@/server/assignments/assignments-service";
 import { ACTIVITY_STATUS_INFO, ACTIVITY_TYPE_INFO } from "@/lib/activities/constants";
 import { ASSIGNMENT_STATUS_INFO, SUBSTITUTION_STATUS_LABELS } from "@/lib/assignments/constants";
@@ -23,13 +24,27 @@ function currentTimeMs(): number {
   return Date.now();
 }
 
+/**
+ * Estado del módulo Servicios. A diferencia de isModuleEnabled, distingue
+ * «deshabilitado» de «no se pudo comprobar» para no mostrar un motivo falso.
+ */
+async function servingModuleState(churchId: string): Promise<"enabled" | "disabled" | "unknown"> {
+  const supabase = await createSupabaseServerClient();
+  const { data, error } = await supabase.rpc("module_enabled", { p_church_id: churchId, p_module_key: "serving" });
+  if (error) return "unknown";
+  return data ? "enabled" : "disabled";
+}
+
 export default async function MiTurnoPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   if (!UUID_RE.test(id)) notFound();
   const tenant = await requireTenantContext();
   if (!tenant.personId) notFound();
 
-  const assignment = await getMyAssignment(tenant.churchId, tenant.personId, id);
+  const [assignment, moduleState] = await Promise.all([
+    getMyAssignment(tenant.churchId, tenant.personId, id),
+    servingModuleState(tenant.churchId),
+  ]);
   if (!assignment) notFound();
 
   const { activity } = assignment;
@@ -52,6 +67,18 @@ export default async function MiTurnoPage({ params }: { params: Promise<{ id: st
   } else if (assignment.status === "substituted") {
     mode = "readonly";
     readOnlyReason = "Otra persona ocupa ahora este puesto. No tienes que hacer nada más.";
+  } else if (moduleState === "disabled") {
+    mode = "readonly";
+    readOnlyReason =
+      "El módulo Servicios no está habilitado en la iglesia: por ahora no se pueden responder turnos ni pedir sustituciones.";
+  } else if (moduleState === "unknown") {
+    mode = "readonly";
+    readOnlyReason = "No se pudo comprobar si puedes responder a este turno. Recarga la página para intentarlo de nuevo.";
+  } else if (assignment.substitutesAssignmentId && assignment.status === "declined") {
+    // Al rechazar, la propuesta de sustitución deja de estar activa: aceptarla después siempre se rechaza.
+    mode = "readonly";
+    readOnlyReason =
+      "Rechazaste esta propuesta de sustitución y ya no está activa. Si ahora puedes, habla con quien coordina el puesto.";
   } else if (!open) {
     mode = "readonly";
     readOnlyReason =
@@ -136,7 +163,7 @@ export default async function MiTurnoPage({ params }: { params: Promise<{ id: st
                 {activity.locationText ? ` · ${activity.locationText}` : ""}
               </dd>
             </div>
-            {open && !pastDeadline && (assignment.status === "pending" || assignment.status === "declined") ? (
+            {mode === "pending" || mode === "declined" ? (
               <div>
                 <dt>Plazo para responder</dt>
                 <dd>{deadline ? `Hasta el ${deadline}` : "Sin límite"}</dd>
@@ -167,6 +194,7 @@ export default async function MiTurnoPage({ params }: { params: Promise<{ id: st
             note={assignment.note}
             positionName={assignment.positionName}
             hasOpenSubstitution={Boolean(assignment.openSubstitutionRequestId)}
+            ownSubstitutionRequestId={assignment.openSubstitutionRequestedBySelf ? assignment.openSubstitutionRequestId : null}
           />
         </section>
       </div>

@@ -118,11 +118,13 @@ Las tres tablas tienen RLS forzado; `authenticated` solo tiene `SELECT` y la esc
 
 | Tabla | Columnas para consumidores | Notas |
 |---|---|---|
-| `activity_assignments` | `id`, `church_id`, `activity_id`, `activity_position_id` (nulo solo si el puesto se eliminó después), `person_id`, `status` (`activity_assignment_status`), `version`, `position_name` (snapshot), `service_area_id` (snapshot), `substitutes_assignment_id`, `eligibility_warnings`, `acknowledged_warnings`, `created_at`, `sent_at`, `responded_at`, `response_source` (`self`, `representative`), `confirmed_starts_at`, `confirmed_ends_at`, `reconfirmation_requested_at`, `cancelled_at`, `cancel_cause` (`coordinator`, `activity_cancelled`, `activity_archived`, `occurrence_removed`, `substitution_withdrawn`), `substituted_at`, `updated_at` | Las filas no se borran. `version` es monotónica: sube en cada mutación de la fila |
+| `activity_assignments` | `id`, `church_id`, `activity_id`, `activity_position_id` (nulo solo si el puesto se eliminó después), `person_id`, `status` (`activity_assignment_status`), `version`, `position_name` (snapshot), `service_area_id` (snapshot), `substitutes_assignment_id`, `created_at`, `sent_at`, `responded_at`, `response_source` (`self`, `representative`), `confirmed_starts_at`, `confirmed_ends_at`, `reconfirmation_requested_at`, `cancelled_at`, `cancel_cause` (`coordinator`, `activity_cancelled`, `activity_archived`, `occurrence_removed`, `substitution_withdrawn`), `substituted_at`, `updated_at` | Las filas no se borran. `version` es monotónica: sube en cada mutación de la fila |
 | `activity_assignment_notes` | `assignment_id`, `person_id`, `note` (1–1000), `updated_at` | Solo la lee la propia persona. **Nunca** se incluye en eventos ni avisos |
 | `activity_substitution_requests` | `id`, `church_id`, `activity_id`, `original_assignment_id`, `status` (`open`, `completed`, `cancelled`), `candidate_assignment_id`, `requested_by_self`, `requested_at`, `completed_at`, `cancelled_at` | Una solicitud abierta por asignación original |
 
-Columnas de trazabilidad (`created_by`, `sent_by`, `responded_by`, `cancelled_by`, `requested_by`, `eligibility_blocking`, `eligibility_checked_at`): internas.
+Columnas de trazabilidad (`created_by`, `sent_by`, `responded_by`, `cancelled_by`, `requested_by`, `eligibility_checked_at`): internas.
+
+Códigos de elegibilidad guardados (`eligibility_blocking`, `eligibility_warnings`, `acknowledged_warnings`): sin `SELECT` por columna para `authenticated`, porque pueden revelar datos personales (por ejemplo, una no disponibilidad confirmada). Se guardan siempre enmascarados y quien gestiona el puesto los lee con `activity_assignment_recorded_warnings`.
 
 ### 4.2 RPC
 
@@ -130,20 +132,22 @@ Todas son `public.*` (`security invoker`) que llaman a `app.*` (`security define
 
 | Función | Parámetros | Devuelve |
 |---|---|---|
-| `create_activity_assignment` | `p_activity_position_id uuid`, `p_person_id uuid`, `p_input jsonb` (`acknowledge_warnings` bool, `send` bool) | `{assignment_id, status, version, replayed, warnings}` |
-| `send_activity_assignments` | `p_activity_id uuid`, `p_assignment_ids uuid[]` (nulo = todas las `proposed` que gestione) | integer (enviadas) |
+| `create_activity_assignment` | `p_activity_position_id uuid`, `p_person_id uuid`, `p_input jsonb` (`acknowledged_warnings` array de códigos confirmados, `send` bool) | `{assignment_id, status, version, replayed, warnings}` |
+| `send_activity_assignments` | `p_activity_id uuid`, `p_assignment_ids uuid[]` (nulo = todas las `proposed` que gestione) | `{sent, blocked: [{assignment_id, blocking}]}` (las bloqueadas siguen en borrador) |
 | `cancel_activity_assignment` | `p_assignment_id uuid`, `p_expected_version integer` | `{status, version, replayed}` |
 | `respond_activity_assignment` | `p_assignment_id uuid`, `p_response text` (`accepted`, `declined`), `p_expected_version integer`, `p_note text` (`''` la borra) | `{status, version, replayed}` |
 | `record_assignment_response` | `p_assignment_id uuid`, `p_response text`, `p_expected_version integer` | `{status, version, replayed}` |
 | `request_assignment_substitution` | `p_assignment_id uuid` | `{request_id, replayed}` |
-| `propose_substitution_candidate` | `p_request_id uuid`, `p_person_id uuid`, `p_acknowledge_warnings boolean` | `{assignment_id, status, warnings}` |
-| `cancel_substitution_request` | `p_request_id uuid` | void |
+| `propose_substitution_candidate` | `p_request_id uuid`, `p_person_id uuid`, `p_acknowledged_warnings text[]` | `{assignment_id, status, warnings}` |
+| `cancel_substitution_request` | `p_request_id uuid` (la persona solo cancela las que pidió ella) | void |
 | `preview_assignment_eligibility` (`security definer`) | `p_activity_position_id uuid`, `p_person_id uuid` | tabla `(blocking text[], warnings text[])` |
 | `activity_position_coverage` (`security definer`) | `p_activity_id uuid` | ver §4.3 |
 | `activity_staffing_summary` (`security definer`) | `p_activity_ids uuid[]` (máx. 200) | tabla `(activity_id, positions, positions_requiring_people, confirmed, pending, proposed, uncovered_positions)` |
 | `activity_assignment_review` (`security definer`) | `p_activity_id uuid` | tabla `(assignment_id, blocking, warnings)` de las asignaciones vigentes que gestione, reevaluadas con los datos actuales |
+| `activity_assignment_recorded_warnings` (`security definer`) | `p_activity_id uuid` | tabla `(assignment_id, eligibility_warnings, acknowledged_warnings)` de las asignaciones que gestione |
+| `my_respondable_assignments_count` (`security definer`) | `p_church_id uuid` | integer: turnos propios `pending` que aún se pueden responder |
 
-**Errores (SQLSTATE):** `42501` no autorizado · `P0002` no encontrado · `22023` regla incumplida (bloqueos en `DETAIL` como códigos separados por comas) · `PT412` hay avisos sin confirmar (códigos en `DETAIL`) · `PT409` la asignación cambió respecto a `p_expected_version` (versión actual en `DETAIL`) · `23505` conflicto.
+**Errores (SQLSTATE):** `42501` no autorizado · `P0002` no encontrado · `22023` regla incumplida (bloqueos en `DETAIL` como códigos separados por comas) · `PT412` hay avisos sin confirmar (en `DETAIL`, solo los códigos que faltan por confirmar) · `PT409` la asignación cambió respecto a `p_expected_version` (versión actual en `DETAIL`) · `23505` conflicto.
 
 **Códigos de elegibilidad.**
 
@@ -161,18 +165,18 @@ Todas son `public.*` (`security invoker`) que llaman a `app.*` (`security define
 | `activity_position_id`, `activity_service_area_id`, `min_people`, `max_people` | Igual que F4 |
 | `assigned_count` | Confirmados (`accepted`) |
 | `coverage_status` | `app.position_coverage_status(min, max, confirmados)` |
-| `pending_count` | `pending` |
-| `proposed_count` | `proposed` |
-| `expected_count` | `accepted` + `pending` + `proposed` |
+| `pending_count` | `pending` (nulo si no gestiona el puesto) |
+| `proposed_count` | `proposed` (nulo si no gestiona el puesto) |
+| `expected_count` | `accepted` + `pending` + `proposed`, con la original y su candidato vigente como una plaza (nulo si no gestiona el puesto) |
 
-Es `security definer` y exige `app.can_read_activity`: cualquiera que pueda leer la actividad obtiene los mismos recuentos (sin nombres, incluidos borradores); sin lectura, 0 filas. `activity_staffing_summary` aplica el mismo criterio por actividad.
+Es `security definer` y exige `app.can_read_activity` (sin lectura, 0 filas). Confirmados y estado de cobertura llegan a cualquiera que lea la actividad; pendientes, borradores y previstos solo a quien gestiona el puesto (coherente con las decisiones 1 y 8: los borradores y el resto del equipo no son visibles para la audiencia). `activity_staffing_summary` suma `pending` y `proposed` solo de los puestos que gestiona y los devuelve nulos si no gestiona ninguno.
 
 ### 4.4 Modelo de lectura
 
 | Quién | Actividad y estructura | Asignaciones |
 |---|---|---|
 | `assignment.manage` en el ámbito | Sí, en cualquier estado (se añade a la lógica de F4) | Todas las del puesto |
-| Persona con asignación `pending`/`accepted` | Sí (actividad, estructura y orden del servicio); no notas administrativas | Solo las suyas, salvo borradores |
+| Persona con asignación `pending`/`accepted` | Sí, con la actividad `planned`/`published`/`completed`/`cancelled` (actividad, estructura y orden del servicio); no notas administrativas | Solo las suyas que llegaron a comunicarse; nunca borradores |
 | Lectura por el modelo de F4 (audiencia o capabilities) | Como en F4 | Solo las `accepted` (equipo confirmado, conforme a lo acordado) |
 
 `app.can_read_activity_row` pasa a ser `app.can_read_activity_row_base` (lógica de F4 más `assignment.manage`) **o** estar asignado. Las políticas de F4 que la usan no cambian.
@@ -233,6 +237,7 @@ Marcados con el comentario `EVENTO F5 (DI-02)`. No emiten nada hasta que exista 
 | `app.cancel_substitution_request` (`0500`) | Solicitud cancelada; candidato vigente → `cancelled` | `assignment.cancelled` y `assignment.substitution_cancelled` | Candidato retirado; quien pidió la sustitución |
 | `app.apply_assignment_response` (`0500`) | Candidato acepta y la original pasa a `substituted` | `assignment.cancelled` (sustituida) | Persona original |
 | `app.apply_assignment_response` (`0500`) | Respuesta propia o de representante | `assignment.accepted` / `assignment.declined` (sin la nota) | Quien gestiona el puesto |
+| `app.apply_assignment_response` (`0500`) | La original con sustitución abierta pasa a `declined`: candidato retirado | `assignment.cancelled` | Candidato retirado, si lo había |
 | `app.request_assignment_substitution` (`0500`) | Solicitud abierta | `assignment.substitution_requested` | Quien gestiona el puesto |
 | `app.propose_substitution_candidate` (`0500`) | Candidato creado en `pending` | `assignment.proposed` | Candidato |
 | `app.activities_assignments_sync` (`0300`) | Actividad cancelada, archivada u ocurrencia eliminada | `assignment.cancelled` por asignación afectada | Personas afectadas |

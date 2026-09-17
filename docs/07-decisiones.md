@@ -65,7 +65,7 @@ Toda la shell de aplicación (paleta, tipografía, estructura, iconografía por 
 
 ### D20 · Fase 5, parte de Carlos: asignaciones, respuestas y sustituciones — acordada por Carlos el 17 de septiembre de 2026; compartidas pendientes de Diogo
 - **Estados:** `proposed` (borrador no comunicado, invisible para la persona) → enviar → `pending` → `accepted`/`declined`; `cancelled` (retirada, con causa) y `substituted`.
-- **Cobertura:** confirmados = `accepted` (estado de cobertura y `assigned_count`); pendientes = `pending`; previstos = `proposed` + `pending` + `accepted`; `public.activity_position_coverage` añade `pending_count`, `proposed_count` y `expected_count`.
+- **Cobertura:** confirmados = `accepted` (estado de cobertura y `assigned_count`); pendientes = `pending`; previstos = `proposed` + `pending` + `accepted`; `public.activity_position_coverage` añade `pending_count`, `proposed_count` y `expected_count`, visibles solo para quien gestiona el puesto (la audiencia ve confirmados y estado de cobertura).
 - **Conflictos:** bloquean pertenencia, requisitos obligatorios en la fecha de la actividad, persona autónoma, estado de la actividad y máximo del puesto; avisan, con confirmación registrada, solapes, no disponibilidad, frecuencia (pendiente de contrato con Diogo), requisitos recomendados y sede distinta. Rangos semiabiertos.
 - **Respuestas:** hasta el inicio (flexibles: fin de ventana o sin límite); tras aceptar, la baja es mediante sustitución; desde el inicio, solo el coordinador.
 - **Cambios de F4:** cambio de hora → reconfirmación; cancelar, archivar (salvo completadas) o eliminar ocurrencia → `cancelled`; despublicar conserva; duplicar o aplicar estructura no copia personas; eliminar un puesto con personas se bloquea.

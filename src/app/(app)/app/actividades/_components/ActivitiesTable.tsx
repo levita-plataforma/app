@@ -63,13 +63,14 @@ function plural(n: number, singular: string, pluralForm: string): string {
   return `${n} ${n === 1 ? singular : pluralForm}`;
 }
 
-/** Texto de cobertura de personas: «2 confirmadas · 1 pendiente». */
+/**
+ * Texto de cobertura de personas: «2 confirmadas · 1 pendiente». Pendientes y
+ * borradores solo si quien consulta gestiona algún puesto (si no, llegan nulos).
+ */
 export function staffingCountsText(summary: StaffingSummary): string {
-  const counts = [
-    plural(summary.confirmed, "confirmada", "confirmadas"),
-    plural(summary.pending, "pendiente", "pendientes"),
-  ];
-  if (summary.proposed > 0) counts.push(plural(summary.proposed, "borrador", "borradores"));
+  const counts = [plural(summary.confirmed, "confirmada", "confirmadas")];
+  if (summary.pending !== null) counts.push(plural(summary.pending, "pendiente", "pendientes"));
+  if (summary.proposed !== null && summary.proposed > 0) counts.push(plural(summary.proposed, "borrador", "borradores"));
   return counts.join(" · ");
 }
 

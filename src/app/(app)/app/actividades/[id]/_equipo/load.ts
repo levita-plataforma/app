@@ -1,5 +1,5 @@
 import "server-only";
-import { hasCapability } from "@/server/tenant/authorize";
+import { createSupabaseServerClient } from "@/server/supabase/server-client";
 import type { ActivityDetail } from "@/server/activities/activities-service";
 import type { ActivityArea } from "@/server/activities/activity-structure-service";
 import {
@@ -14,10 +14,28 @@ import type { AssignmentManageScope, EquipoData } from "./types";
 
 /**
  * Carga de la pestaña Equipo. Los permisos calculados aquí solo sirven para
- * mostrar u ocultar acciones: cada RPC vuelve a comprobarlo todo.
+ * mostrar u ocultar acciones: cada RPC vuelve a comprobarlo todo. Nada de lo
+ * que se carga aquí debe tumbar la ficha: cada fallo se marca en EquipoData.
  */
 
 const CAPABILITY = "assignment.manage";
+const NO_MANAGE: AssignmentManageScope = { all: false, byServiceAreaId: {} };
+
+/**
+ * Como hasCapability, pero sin ocultar los errores: si la comprobación falla
+ * lanza, para que la pestaña distinga «sin permiso» de «no se pudo comprobar».
+ */
+async function checkCapability(churchId: string, scopeType: string, scopeId?: string): Promise<boolean> {
+  const supabase = await createSupabaseServerClient();
+  const { data, error } = await supabase.rpc("has_capability", {
+    p_church_id: churchId,
+    p_capability: CAPABILITY,
+    p_scope_type: scopeType,
+    p_scope_id: scopeId ?? null,
+  });
+  if (error) throw new Error(`No se pudo comprobar ${CAPABILITY} (${scopeType}): ${error.message}`);
+  return Boolean(data);
+}
 
 async function loadManageScope(
   churchId: string,
@@ -26,10 +44,10 @@ async function loadManageScope(
 ): Promise<AssignmentManageScope> {
   const serviceAreaIds = [...new Set(areas.map((a) => a.serviceAreaId).filter((id): id is string => Boolean(id)))];
   const [church, campus, own, ...byArea] = await Promise.all([
-    hasCapability(churchId, CAPABILITY),
-    activity.campusId ? hasCapability(churchId, CAPABILITY, "campus", activity.campusId) : Promise.resolve(false),
-    hasCapability(churchId, CAPABILITY, "activity", activity.id),
-    ...serviceAreaIds.map((id) => hasCapability(churchId, CAPABILITY, "service_area", id)),
+    checkCapability(churchId, "church"),
+    activity.campusId ? checkCapability(churchId, "campus", activity.campusId) : Promise.resolve(false),
+    checkCapability(churchId, "activity", activity.id),
+    ...serviceAreaIds.map((id) => checkCapability(churchId, "service_area", id)),
   ]);
   const byServiceAreaId: Record<string, boolean> = {};
   serviceAreaIds.forEach((id, i) => {
@@ -38,10 +56,16 @@ async function loadManageScope(
   return { all: church || campus || own, byServiceAreaId };
 }
 
+/**
+ * Misma regla que app.activity_accepts_assignments_unchecked: planificada o
+ * publicada y, con horario, fin en el futuro; flexible, sin fin o con el fin
+ * en el futuro.
+ */
 function activityAcceptsAssignments(activity: Pick<ActivityDetail, "status" | "scheduleKind" | "endsAt">): boolean {
   if (activity.status !== "planned" && activity.status !== "published") return false;
-  if (activity.scheduleKind === "flexible") return true;
-  return activity.endsAt !== null && new Date(activity.endsAt).getTime() > Date.now();
+  const endsInFuture = activity.endsAt !== null && new Date(activity.endsAt).getTime() > Date.now();
+  if (activity.scheduleKind === "flexible") return activity.endsAt === null || endsInFuture;
+  return endsInFuture;
 }
 
 export async function loadEquipo(
@@ -50,12 +74,15 @@ export async function loadEquipo(
   areas: ActivityArea[],
   servingEnabled: boolean,
 ): Promise<EquipoData> {
-  const managePromise: Promise<AssignmentManageScope> = servingEnabled
-    ? loadManageScope(churchId, activity, areas)
-    : Promise.resolve({ all: false, byServiceAreaId: {} });
+  const managePromise: Promise<{ manage: AssignmentManageScope; permissionsError: boolean }> = servingEnabled
+    ? loadManageScope(churchId, activity, areas).then(
+        (manage) => ({ manage, permissionsError: false }),
+        () => ({ manage: NO_MANAGE, permissionsError: true }),
+      )
+    : Promise.resolve({ manage: NO_MANAGE, permissionsError: false });
 
   const reviewPromise = managePromise.then(
-    (manage): Promise<{ reviews: AssignmentReview[]; reviewError: boolean }> =>
+    ({ manage }): Promise<{ reviews: AssignmentReview[]; reviewError: boolean }> =>
       manage.all || Object.values(manage.byServiceAreaId).some(Boolean)
         ? reviewActivityAssignments(activity.id).then(
             (reviews) => ({ reviews, reviewError: false }),
@@ -64,7 +91,7 @@ export async function loadEquipo(
         : Promise.resolve({ reviews: [], reviewError: false }),
   );
 
-  const [lists, manage, review] = await Promise.all([
+  const [lists, scope, review] = await Promise.all([
     // Si fallan las lecturas, la ficha sigue cargando y la pestaña lo indica.
     Promise.all([listActivityAssignments(activity.id), listSubstitutionRequests(activity.id)]).then(
       ([assignments, substitutions]) => ({ assignments, substitutions, loadError: false }),
@@ -78,9 +105,24 @@ export async function loadEquipo(
     assignments: lists.assignments,
     substitutions: lists.substitutions,
     reviews: review.reviews,
-    manage,
+    manage: scope.manage,
     acceptsAssignments: servingEnabled && activityAcceptsAssignments(activity),
     loadError: lists.loadError,
     reviewError: review.reviewError,
+    permissionsError: scope.permissionsError,
+  };
+}
+
+/** Datos de la pestaña cuando su carga no se pudo completar (la ficha sigue funcionando). */
+export function failedEquipo(): EquipoData {
+  return {
+    assignments: [],
+    substitutions: [],
+    reviews: [],
+    manage: NO_MANAGE,
+    acceptsAssignments: false,
+    loadError: true,
+    reviewError: false,
+    permissionsError: false,
   };
 }

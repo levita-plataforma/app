@@ -104,7 +104,7 @@ export function IssuesSummary({
   );
 }
 
-export function AreasTab({ activity, capabilities, data }: StructureTabsProps) {
+export function AreasTab({ activity, capabilities, capabilitiesError, data }: StructureTabsProps) {
   const { areas } = data.structure;
   const editable = isActivityEditable(activity.status);
   const canManage = capabilities.manage && editable && capabilities.servingEnabled;
@@ -113,7 +113,7 @@ export function AreasTab({ activity, capabilities, data }: StructureTabsProps) {
     <div className="est-stack">
       <IssuesSummary issues={data.issues} areas={areas} issuesError={data.issuesError} />
 
-      {!capabilities.servingEnabled ? (
+      {!capabilities.servingEnabled && !capabilitiesError ? (
         <div className="shell-card est-card">
           <p className="est-muted">
             Las áreas y puestos de servicio requieren el módulo <strong>Servicios</strong>. Pide a quien administra la

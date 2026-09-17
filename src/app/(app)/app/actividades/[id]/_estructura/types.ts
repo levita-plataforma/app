@@ -11,5 +11,7 @@ export type StructureTabActivity = Pick<
 export type StructureTabsProps = {
   activity: StructureTabActivity;
   capabilities: ActivityCapabilities;
+  /** No se pudieron cargar los permisos: `capabilities` va vacío pero NO significa módulo deshabilitado. */
+  capabilitiesError?: boolean;
   data: StructureTabsData;
 };

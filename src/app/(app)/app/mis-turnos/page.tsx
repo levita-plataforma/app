@@ -11,10 +11,14 @@ import { ASSIGNMENT_STATUS_INFO, SUBSTITUTION_STATUS_LABELS } from "@/lib/assign
 import { formatDateLong, localDateKey } from "@/lib/activities/time";
 import { chipClass } from "../actividades/_components/describe";
 import { keyParts, monthShortLabel, weekdayShortLabel } from "../calendario/calendar-utils";
-import { needsReconfirmation, turnoScheduleText } from "./_lib/turno";
+import { isActivityOpenForResponses, isPastDeadline, needsReconfirmation, turnoScheduleText } from "./_lib/turno";
 import "./mis-turnos.css";
 
 type SearchParams = { ver?: string };
+
+function currentTimeMs(): number {
+  return Date.now();
+}
 
 export default async function MisTurnosPage({ searchParams }: { searchParams: Promise<SearchParams> }) {
   const params = await searchParams;
@@ -25,7 +29,7 @@ export default async function MisTurnosPage({ searchParams }: { searchParams: Pr
   const [items, pendingCount] = hasPerson
     ? await Promise.all([
         listMyAssignments(tenant.churchId, tenant.personId, { scope }),
-        countMyPendingAssignments(tenant.churchId, tenant.personId),
+        countMyPendingAssignments(tenant.churchId),
       ])
     : [[] as MyAssignment[], 0];
 
@@ -46,7 +50,9 @@ export default async function MisTurnosPage({ searchParams }: { searchParams: Pr
       {hasPerson && pendingCount > 0 ? (
         <p className="mt-pending-banner" role="status">
           <strong>{pendingCount}</strong>{" "}
-          {pendingCount === 1 ? "turno pendiente de tu respuesta" : "turnos pendientes de tu respuesta"}
+          {pendingCount === 1
+            ? "turno espera tu respuesta y aún estás a tiempo de responder"
+            : "turnos esperan tu respuesta y aún estás a tiempo de responder"}
         </p>
       ) : null}
 
@@ -83,7 +89,7 @@ export default async function MisTurnosPage({ searchParams }: { searchParams: Pr
       ) : (
         <ul className="mt-list">
           {items.map((assignment) => (
-            <TurnoCard key={assignment.id} assignment={assignment} />
+            <TurnoCard key={assignment.id} assignment={assignment} nowMs={currentTimeMs()} />
           ))}
         </ul>
       )}
@@ -91,7 +97,7 @@ export default async function MisTurnosPage({ searchParams }: { searchParams: Pr
   );
 }
 
-function TurnoCard({ assignment }: { assignment: MyAssignment }) {
+function TurnoCard({ assignment, nowMs }: { assignment: MyAssignment; nowMs: number }) {
   const { activity } = assignment;
   const tz = activity.timezone;
   const dateIso = activity.startsAt ?? activity.endsAt;
@@ -100,6 +106,9 @@ function TurnoCard({ assignment }: { assignment: MyAssignment }) {
   const schedule = turnoScheduleText(activity);
   const place = [activity.campusName, activity.locationText].filter(Boolean).join(" · ");
   const cancelled = activity.status === "cancelled";
+  // Pendiente pero ya sin posibilidad de responder (plazo vencido o actividad cerrada): no cuenta como pendiente.
+  const noLongerRespondable =
+    assignment.status === "pending" && !cancelled && (!isActivityOpenForResponses(activity) || isPastDeadline(activity, nowMs));
 
   return (
     <li className="shell-card mt-card">
@@ -148,7 +157,8 @@ function TurnoCard({ assignment }: { assignment: MyAssignment }) {
               <AlertTriangle size={11} aria-hidden="true" /> Actividad cancelada
             </span>
           ) : null}
-          {needsReconfirmation(assignment) ? (
+          {noLongerRespondable ? <span className="serving-chip is-muted">Ya no se puede responder</span> : null}
+          {needsReconfirmation(assignment) && !noLongerRespondable ? (
             <span className="serving-chip is-warning">
               <RefreshCw size={11} aria-hidden="true" /> La hora cambió: confirma de nuevo
             </span>

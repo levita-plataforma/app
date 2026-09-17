@@ -1,7 +1,8 @@
 "use client";
 
-import { useState } from "react";
-import { Info } from "lucide-react";
+import { useState, useTransition } from "react";
+import { useRouter } from "next/navigation";
+import { AlertTriangle, Info } from "lucide-react";
 import type {
   ActivityCapabilities,
   ActivityDetail,
@@ -30,6 +31,8 @@ export type HistoryData = { canRead: boolean; entries: ActivityHistoryEntry[]; e
 type Props = {
   activity: ActivityDetail;
   capabilities: ActivityCapabilities;
+  /** No se pudieron cargar los permisos: la ficha se muestra en lectura y se ofrece reintentar. */
+  capabilitiesError: boolean;
   data: StructureTabsData;
   equipo: EquipoData;
   history: HistoryData;
@@ -46,6 +49,8 @@ type Tab = (typeof TABS)[number];
 export default function ActivityFicha(props: Props) {
   const { activity, capabilities, data } = props;
   const [tab, setTab] = useState<Tab>("Resumen");
+  const router = useRouter();
+  const [refreshing, startRefresh] = useTransition();
 
   const structureActivity: StructureTabActivity = {
     id: activity.id,
@@ -59,7 +64,7 @@ export default function ActivityFicha(props: Props) {
     seriesId: activity.seriesId,
     occurrenceDate: activity.occurrenceDate,
   };
-  const structureProps = { activity: structureActivity, capabilities, data };
+  const structureProps = { activity: structureActivity, capabilities, capabilitiesError: props.capabilitiesError, data };
   const blockingIssues = data.issues.filter((i) => i.severity === "blocking").length;
 
   function onTabKey(e: React.KeyboardEvent<HTMLButtonElement>, index: number) {
@@ -78,6 +83,24 @@ export default function ActivityFicha(props: Props) {
         blockingIssues={blockingIssues}
         onShowIssues={() => setTab("Resumen")}
       />
+
+      {props.capabilitiesError ? (
+        <div className="act-notice is-danger" role="alert">
+          <AlertTriangle size={16} aria-hidden="true" />
+          <div>
+            <strong>No se pudieron cargar tus permisos sobre esta actividad.</strong>{" "}
+            Mientras tanto la ficha se muestra solo en lectura; no significa que el módulo Servicios esté deshabilitado.{" "}
+            <button
+              type="button"
+              className="act-link-button"
+              disabled={refreshing}
+              onClick={() => startRefresh(() => router.refresh())}
+            >
+              {refreshing ? "Reintentando…" : "Reintentar"}
+            </button>
+          </div>
+        </div>
+      ) : null}
 
       {props.createdOccurrences ? (
         <div className="act-notice is-info" role="status">
@@ -141,7 +164,13 @@ export default function ActivityFicha(props: Props) {
         {tab === "Áreas" ? <AreasTab {...structureProps} /> : null}
         {tab === "Puestos" ? <PuestosTab {...structureProps} /> : null}
         {tab === "Equipo" ? (
-          <EquipoTab activity={activity} capabilities={capabilities} data={data} equipo={props.equipo} />
+          <EquipoTab
+            activity={activity}
+            capabilities={capabilities}
+            capabilitiesError={props.capabilitiesError}
+            data={data}
+            equipo={props.equipo}
+          />
         ) : null}
         {tab === "Notas" ? <NotasTab activity={activity} capabilities={capabilities} /> : null}
         {tab === "Historial" ? <HistorialTab history={props.history} timezone={activity.timezone} /> : null}

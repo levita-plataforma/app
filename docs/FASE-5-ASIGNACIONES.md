@@ -76,12 +76,12 @@ No añaden valores a tipos enum existentes.
 | Estado | `status` (def. `proposed`), `version` (def. 1, ≥ 1) | `version` sube en cada mutación |
 | Snapshot | `position_name`, `service_area_id` | Los fija el trigger de inserción desde el puesto |
 | Sustitución | `substitutes_assignment_id` | FK `(id, church_id)` a la misma tabla; distinto de `id` |
-| Elegibilidad | `eligibility_blocking`, `eligibility_warnings`, `acknowledged_warnings` (text[]), `eligibility_checked_at` | Solo códigos, sin datos sensibles |
+| Elegibilidad | `eligibility_blocking`, `eligibility_warnings`, `acknowledged_warnings` (text[]), `eligibility_checked_at` | Solo códigos, guardados siempre enmascarados (§5.2). Sin `SELECT` por columna para `authenticated`: quien gestiona los lee con `activity_assignment_recorded_warnings` (§10) |
 | Trazabilidad | `created_by`, `created_at`, `sent_by`, `sent_at`, `responded_at`, `responded_by`, `response_source` | — |
 | Horario confirmado | `confirmed_starts_at`, `confirmed_ends_at`, `reconfirmation_requested_at` | Se fija al aceptar |
 | Cierre | `cancelled_at`, `cancelled_by`, `cancel_cause`, `substituted_at`, `updated_at` | `cancel_cause`: `coordinator`, `activity_cancelled`, `activity_archived`, `occurrence_removed`, `substitution_withdrawn` |
 
-Constraints: `cancelled` ⇔ `cancelled_at` no nulo; `substituted` ⇔ `substituted_at` no nulo; fuera de `proposed` exige `sent_at` o `response_source = representative`; `accepted`/`declined` exigen `responded_at`; `unique (id, church_id)`.
+Constraints: `cancelled` ⇔ `cancelled_at` no nulo; `substituted` ⇔ `substituted_at` no nulo; fuera de `proposed` y `cancelled` exige `sent_at` (un borrador puede cancelarse sin enviarse); `accepted`/`declined` exigen `responded_at`; `unique (id, church_id)`.
 
 Además, FK directa `person_id` → `people (id)` para que la API pueda embeber el nombre de la persona.
 
@@ -124,20 +124,20 @@ proposed ─────────► pending ◄─────────�
 
 | Desde → Hacia | Quién (RPC) | Cuándo | Efectos |
 |---|---|---|---|
-| — → `proposed` | Gestor (`create_activity_assignment`, `send = false`) | Sin bloqueos (incluye `activity_not_assignable`); avisos confirmados | `version = 1`; códigos guardados; `assignment.created` |
-| — → `pending` | Gestor (`create_activity_assignment`, `send = true`) | Ídem | `sent_at`, `sent_by`; `assignment.created` (`sent: true`) |
+| — → `proposed` | Gestor (`create_activity_assignment`, `send = false`) | Sin bloqueos (incluye `activity_not_assignable`); cada aviso confirmado por su código | `version = 1`; códigos guardados enmascarados; `assignment.created` |
+| — → `pending` | Gestor (`create_activity_assignment`, `send = true`) | Ídem. Reintento sobre un borrador existente de esa persona y puesto: lo envía revalidando bloqueos | `sent_at`, `sent_by`; `assignment.created` (`sent: true`) o `assignment.sent` en el reintento |
 | — → `pending` (candidato) | Gestor (`propose_substitution_candidate`) | Solicitud `open` sin candidato vigente; original `pending`/`accepted` con puesto; otra persona; sin bloqueos (la original no cuenta para capacidad ni solapes); avisos confirmados | Se crea directamente en `pending`, ya comunicado (conforme a lo acordado); `substitutes_assignment_id`; la solicitud apunta al candidato; `assignment.substitution_candidate_proposed` con los avisos confirmados |
-| `proposed` → `pending` | Gestor del área de cada asignación (`send_activity_assignments`) | Actividad «admite»; módulo `serving`; sin bloqueos al revalidar cada asignación (un bloqueo aborta todo el envío con `22023`) | `sent_at`, `sent_by`, versión +1; `assignment.sent` (agregado por actividad) |
+| `proposed` → `pending` | Gestor del área de cada asignación (`send_activity_assignments`) | Actividad «admite»; módulo `serving`; sin bloqueos al revalidar cada asignación (las bloqueadas siguen en `proposed` y se devuelven en `blocked`, sin impedir el resto) | `sent_at`, `sent_by`, versión +1; `assignment.sent` (agregado por actividad) |
 | `pending` → `accepted` | Persona (`respond_activity_assignment`) | Antes del límite; actividad `planned`/`published`; si es candidato, debe ser el candidato activo de una solicitud abierta (si no, `22023`); sin bloqueos al revalidar | `responded_*`, `response_source = self`, `confirmed_starts_at`/`confirmed_ends_at`, borra `reconfirmation_requested_at`, versión +1; `assignment.accepted`. Si es candidato: la original → `substituted` y la solicitud → `completed` |
 | `pending` → `accepted` | Gestor (`record_assignment_response`) | Actividad `planned`/`published`; sin límite temporal; misma regla de candidato activo; sin bloqueos al revalidar | Ídem con `response_source = representative`; `assignment.response_recorded` |
-| `pending` → `declined` | Persona antes del límite, o gestor como representante | Actividad `planned`/`published` | `responded_*`, versión +1; `assignment.declined` o `assignment.response_recorded`. Si es candidato: la solicitud queda sin candidato y sigue abierta |
+| `pending` → `declined` | Persona antes del límite, o gestor como representante | Actividad `planned`/`published` | `responded_*`, versión +1; `assignment.declined` o `assignment.response_recorded`. Si es candidato: la solicitud queda sin candidato y sigue abierta. Si es la original con solicitud abierta: la solicitud → `cancelled` y su candidato vigente → `cancelled` (`substitution_withdrawn`) |
 | `declined` → `accepted` | Persona antes del límite, o gestor | Como `pending` → `accepted` | Como `pending` → `accepted` |
 | `accepted` → `declined` | Solo gestor (`record_assignment_response`), también después del inicio (conforme a lo acordado) | Actividad `planned`/`published` | Como `pending` → `declined`. La persona recibe `22023` y debe pedir sustitución |
 | `accepted` → `pending` | Sistema (trigger) | Cambio de `starts_at`/`ends_at` con la actividad en `draft`/`planned`/`published` | `reconfirmation_requested_at`; versión +1 en todas las vigentes; `assignment.reconfirmation_requested` |
-| vigente → `cancelled` | Gestor (`cancel_activity_assignment`) | Cualquier momento | `cancel_cause = coordinator`, versión +1; si era candidato, la solicitud queda sin candidato; si era original con solicitud abierta, el candidato → `cancelled` (`substitution_withdrawn`) y la solicitud → `cancelled`; `assignment.cancelled` |
+| vigente → `cancelled` | Gestor (`cancel_activity_assignment`) | Actividad en `draft`/`planned`/`published` (cerrada: `22023`); también después del inicio | `cancel_cause = coordinator`, versión +1; si era candidato, la solicitud queda sin candidato; si era original con solicitud abierta, el candidato → `cancelled` (`substitution_withdrawn`) y la solicitud → `cancelled`; `assignment.cancelled` |
 | vigente → `cancelled` | Sistema (trigger) | Actividad cancelada, archivada desde `draft`/`planned`/`published` u ocurrencia eliminada | `cancel_cause` según el caso; solicitudes abiertas → `cancelled`; `assignment.cancelled_by_activity` |
-| vigente → `cancelled` | Persona original o gestor (`cancel_substitution_request`) | Solicitud `open` | Candidato vigente → `cancelled` (`substitution_withdrawn`); `assignment.substitution_cancelled` |
-| vigente → `substituted` | Sistema, al aceptar el candidato | — | `substituted_at`, versión +1; `assignment.substituted` |
+| vigente → `cancelled` | Persona original (solo si pidió ella la sustitución) o gestor (`cancel_substitution_request`) | Solicitud `open` | Candidato vigente → `cancelled` (`substitution_withdrawn`); `assignment.substitution_cancelled` |
+| vigente → `substituted` | Sistema, al aceptar el candidato | — | `substituted_at`, versión +1; `assignment.substituted` (solo si la original seguía vigente) |
 
 Reglas comunes de respuesta:
 
@@ -151,7 +151,7 @@ Reglas comunes de respuesta:
 
 ## 5. Elegibilidad y conflictos
 
-`app.evaluate_assignment_eligibility(puesto, persona, excluidas)` devuelve `(blocking text[], warnings text[])`. Se ejecuta al crear, al enviar y al aceptar (en estos dos casos solo se aplican los bloqueos), al proponer candidato, en la vista previa y en la revisión. Lee `activity_position_requirements` sin filas `disabled` (el mismo filtro que `app.activity_position_effective_requirements`).
+`app.evaluate_assignment_eligibility(puesto, persona, excluidas, p_force_mask)` devuelve `(blocking text[], warnings text[])`. Se ejecuta al crear, al enviar y al aceptar (en estos dos casos solo se aplican los bloqueos), al proponer candidato, en la vista previa y en la revisión. Lee `activity_position_requirements` sin filas `disabled` (el mismo filtro que `app.activity_position_effective_requirements`).
 
 ### 5.1 Referencia temporal
 
@@ -166,16 +166,16 @@ Reglas comunes de respuesta:
 
 | Código | Tipo | Significado |
 |---|---|---|
-| `inactive_person` | Bloqueo | No pertenece a la iglesia o está archivada en `church_people` |
+| `inactive_person` | Bloqueo | No pertenece a la iglesia o está archivada en `church_people`. Es el único código devuelto: no se consultan sus requisitos, solapes ni disponibilidad |
 | `not_area_member` | Bloqueo | El puesto tiene área de catálogo y la persona no es miembro activo (`status = active`, sin `left_at`) |
 | `insufficient_level` | Bloqueo | Puesto con persona autónoma y nivel distinto de `autonomous`/`leader`, o requisito `minimum_level` obligatorio no alcanzado |
 | `missing_qualification` | Bloqueo | Requisito obligatorio de cualificación (con nivel mínimo si lo hay) no cumplido |
 | `qualification_expired_at_activity` | Bloqueo | La cualificación existe pero caduca antes de la referencia temporal y el requisito exige vigencia |
 | `missing_credential` | Bloqueo | Sin credencial `valid` del tipo exigido |
 | `credential_expired_at_activity` | Bloqueo | Credencial `valid` que caduca antes de la referencia temporal, con vigencia exigida |
-| `requirement_not_met` | Bloqueo | Sustituye a los dos anteriores si el tipo de credencial es sensible y quien consulta no tiene `credential.sensitive.read` |
+| `requirement_not_met` | Bloqueo | Sustituye a los dos anteriores si el tipo de credencial es sensible y quien consulta no tiene `credential.sensitive.read`, y siempre en los códigos que se guardan (`p_force_mask`) |
 | `activity_not_assignable` | Bloqueo | La actividad no «admite» (§5.1) |
-| `position_full` | Bloqueo | `max_people` no nulo y previstos (sin las excluidas) ≥ máximo |
+| `position_full` | Bloqueo | `max_people` no nulo y previstos (sin las excluidas) ≥ máximo. Una original con candidato vigente y su candidato cuentan como una plaza |
 | `position_not_found` | Bloqueo | El puesto no existe |
 | `*_recommended` | Aviso | Cualquiera de los códigos de requisito anteriores sobre un requisito `recommended` |
 | `overlapping_assignment` | Aviso | Otra asignación vigente de la persona, en la misma iglesia y en otro puesto, cuyo rango se solapa |
@@ -183,7 +183,7 @@ Reglas comunes de respuesta:
 | `availability_unknown` | Aviso | `app.person_unavailability` existe pero la consulta falla o se deniega; la operación continúa |
 | `different_campus` | Aviso | La actividad tiene sede y la sede principal de la persona es otra |
 
-Confirmación de avisos: sin `acknowledge_warnings`, crear o proponer candidato con avisos falla con `PT412` y los códigos en `DETAIL`. Al confirmar, los avisos quedan en `acknowledged_warnings` y en la auditoría (`assignment.created` y `assignment.substitution_candidate_proposed`).
+Confirmación de avisos, código a código: crear (`p_input.acknowledged_warnings`, array) o proponer candidato (`p_acknowledged_warnings text[]`) falla con `PT412` si algún aviso no está en la lista; `DETAIL` contiene solo los no confirmados. Así un aviso nuevo aparecido entre la vista previa y la confirmación nunca se da por aceptado. Al confirmar, los avisos quedan (enmascarados) en `acknowledged_warnings` y en la auditoría (`assignment.created` y `assignment.substitution_candidate_proposed`).
 
 Al enviar y al aceptar solo se revalidan bloqueos: los avisos surgidos después (solape, no disponibilidad) no se muestran ni se registran (limitación, §14).
 
@@ -195,10 +195,10 @@ Frecuencia: sin implementar (pendiente de la firma de Diogo).
 
 | Lectura | Contenido |
 |---|---|
-| `public.activity_position_coverage(p_activity_id)` | Columnas de F4 + `pending_count`, `proposed_count`, `expected_count` al final. `assigned_count` y `coverage_status` usan confirmados (`accepted`) |
+| `public.activity_position_coverage(p_activity_id)` | Columnas de F4 + `pending_count`, `proposed_count`, `expected_count` al final. `assigned_count` y `coverage_status` usan confirmados (`accepted`). `expected_count` cuenta como una plaza la original con candidato vigente y su candidato |
 | `public.activity_staffing_summary(p_activity_ids)` | Por actividad (máx. 200): `positions`, `positions_requiring_people` (`min_people > 0`), `confirmed`, `pending`, `proposed`, `uncovered_positions` (confirmados < mínimo) |
 
-Ambas son `security definer` y exigen `app.can_read_activity`: los recuentos (sin nombres) son los mismos para cualquiera que pueda leer la actividad, incluida la persona asignada; sin lectura, 0 filas. `overstaffed` solo aparece si el máximo se reduce después, porque crear respeta el máximo sobre previstos.
+Ambas son `security definer` y exigen `app.can_read_activity` (sin lectura, 0 filas). Confirmados y cobertura (sin nombres) llegan a cualquiera que lea la actividad, incluida la persona asignada. Pendientes, borradores y previstos solo a quien gestiona el puesto: en la cobertura son nulos si no lo gestiona; en el resumen suman solo los puestos que gestiona y son nulos si no gestiona ninguno. `overstaffed` solo aparece si el máximo se reduce después, porque crear respeta el máximo sobre previstos.
 
 ---
 
@@ -214,9 +214,10 @@ Ambas son `security definer` y exigen `app.can_read_activity`: los recuentos (si
 | `planned` → `draft` | Sin cambios; mientras siga en `draft` no se crean, envían ni responden asignaciones |
 | Desarchivar o reactivar una cancelada | No se restauran las asignaciones canceladas |
 | Cambio de `starts_at`/`ends_at` (individual o por serie) en `draft`/`planned`/`published` | `accepted` → `pending` con `reconfirmation_requested_at`; versión +1 en todas las vigentes. No reevalúa elegibilidad (`activity_assignment_review`) |
-| Eliminar ocurrencia de serie (`update_activity_series_rule`) con asignaciones en cualquier estado | La fila no se borra: pasa a `cancelled` (motivo «Serie reprogramada» si no tenía) y sus vigentes → `cancelled` (`occurrence_removed`) |
-| Borrar una actividad `completed`/`cancelled`/`archived` con historial de asignaciones | Error `22023` |
-| Borrado en cascada de la iglesia | No interfiere |
+| Eliminar ocurrencia de serie (`update_activity_series_rule`) con alguna asignación que llegó a comunicarse (`sent_at` o `response_source`) | La fila no se borra: pasa a `cancelled` (motivo «Serie reprogramada» si no tenía) y sus vigentes → `cancelled` (`occurrence_removed`) |
+| Eliminar ocurrencia con solo borradores nunca enviados | Se borra como en F4 (los borradores caen en cascada) |
+| Borrar una actividad `completed`/`cancelled`/`archived` con historial comunicado | Error `22023` |
+| Borrado en cascada de la iglesia | No interfiere (tampoco el bloqueo de puestos con personas) |
 | Eliminar puesto o área con asignaciones vigentes | Error `22023`. Sin vigentes, el histórico queda con `activity_position_id` nulo y conserva `position_name` |
 | `apply_activity_structure_to_series` sobre ocurrencias con personas en los puestos | Error `22023` para toda la operación (reemplazar la estructura borra sus puestos) |
 | Duplicar actividad o crear desde plantilla | No copian asignaciones |
@@ -236,21 +237,25 @@ Ambas son `security definer` y exigen `app.can_read_activity`: los recuentos (si
 | Enviar | Gestor del área de cada asignación; con ids explícitos, todas o `42501` | Sí |
 | Responder | Persona asignada (`app.current_person_ids()`), sin capability | No |
 | Pedir sustitución | Persona (solo `accepted`, antes del límite) o gestor (`pending`/`accepted`) | Sí |
-| Cancelar solicitud | Persona original o gestor | Sí (si la solicitud sigue abierta) |
+| Cancelar solicitud | Persona original (solo las que pidió ella) o gestor | Sí (si la solicitud sigue abierta) |
 | Vista previa de elegibilidad | Gestor | Sí |
 | Revisión | Miembro; solo devuelve filas que gestione | Sí (sin módulo devuelve 0 filas) |
-| Cobertura y resumen | Lectura de la actividad (`app.can_read_activity`) | No |
+| Cobertura y resumen | Lectura de la actividad (`app.can_read_activity`); pendientes, borradores y previstos solo del puesto gestionado | No |
+| Avisos registrados | Filas de los puestos que gestione | No |
+| Turnos por responder | Propios (`my_respondable_assignments_count`) | No |
 
 ### 8.2 Lectura
 
 | Quién | `activities`, estructura y orden del servicio | `activity_assignments` | Notas privadas | Solicitudes de sustitución |
 |---|---|---|---|---|
 | Gestor | Sí, en cualquier estado | Todas las de su ámbito | No | De su ámbito |
-| Persona con asignación `pending`/`accepted` | Sí (no notas administrativas) | Las suyas, salvo `proposed` | Las suyas | Las de sus asignaciones |
+| Persona con asignación `pending`/`accepted` | Sí, con la actividad en `planned`/`published`/`completed`/`cancelled` (no notas administrativas) | Las suyas que llegaron a comunicarse (`sent_at` o `response_source`); nunca `proposed` ni borradores cancelados sin enviar | Las suyas | Las de esas asignaciones |
 | Lectura por el modelo de F4 | Como en F4 | Solo `accepted` (equipo confirmado, conforme a lo acordado) | No | No |
 | Resto | No | No | No | No |
 
-`app.can_read_activity_row` = `app.can_read_activity_row_base` (lógica de F4 más `assignment.manage`) o asignación `pending`/`accepted` de la persona. Las notas administrativas siguen con su función propia de F4.
+`app.can_read_activity_row` = `app.can_read_activity_row_base` (lógica de F4 más `assignment.manage`) o asignación `pending`/`accepted` de la persona con la actividad en `planned`/`published`/`completed`/`cancelled` (nunca borradores ni archivadas). Las notas administrativas siguen con su función propia de F4.
+
+Columnas de elegibilidad (`eligibility_blocking`, `eligibility_warnings`, `acknowledged_warnings`): sin `SELECT` para `authenticated` aunque la fila sea visible; pueden revelar, por ejemplo, una no disponibilidad confirmada.
 
 ---
 
@@ -282,20 +287,22 @@ Errores (SQLSTATE): `42501` no autorizado · `P0002` no encontrado · `22023` re
 
 | Función | Parámetros | Devuelve | Permiso | Idempotencia |
 |---|---|---|---|---|
-| `create_activity_assignment` | `p_activity_position_id`, `p_person_id`, `p_input` (`acknowledge_warnings`, `send`) | `{assignment_id, status, version, replayed, warnings}` | Gestor | Si ya hay una vigente para esa persona y puesto, la devuelve con `replayed: true` |
-| `send_activity_assignments` | `p_activity_id`, `p_assignment_ids` (nulo = todas) | integer | Gestor | Solo actúa sobre `proposed` |
-| `cancel_activity_assignment` | `p_assignment_id`, `p_expected_version` | `{status, version, replayed}` | Gestor | No vigente → `replayed: true` |
+| `create_activity_assignment` | `p_activity_position_id`, `p_person_id`, `p_input` (`acknowledged_warnings` array de códigos, `send`) | `{assignment_id, status, version, replayed, warnings}` | Gestor | Si ya hay una vigente para esa persona y puesto, la devuelve con `replayed: true`; si es borrador y `send = true`, la envía |
+| `send_activity_assignments` | `p_activity_id`, `p_assignment_ids` (nulo = todas) | `{sent, blocked: [{assignment_id, blocking}]}` | Gestor | Solo actúa sobre `proposed`; las bloqueadas se omiten |
+| `cancel_activity_assignment` | `p_assignment_id`, `p_expected_version` | `{status, version, replayed}` | Gestor; actividad no cerrada | No vigente → `replayed: true` |
 | `respond_activity_assignment` | `p_assignment_id`, `p_response`, `p_expected_version`, `p_note` | `{status, version, replayed}` | Persona asignada | Misma respuesta → `replayed: true` |
 | `record_assignment_response` | `p_assignment_id`, `p_response`, `p_expected_version` | `{status, version, replayed}` | Gestor | Ídem |
 | `request_assignment_substitution` | `p_assignment_id` | `{request_id, replayed}` | Persona o gestor | Solicitud abierta existente → `replayed: true` |
-| `propose_substitution_candidate` | `p_request_id`, `p_person_id`, `p_acknowledge_warnings` | `{assignment_id, status, warnings}` | Gestor | No: con candidato vigente, `23505` |
-| `cancel_substitution_request` | `p_request_id` | void | Persona original o gestor | Solicitud no abierta → sin cambios |
+| `propose_substitution_candidate` | `p_request_id`, `p_person_id`, `p_acknowledged_warnings text[]` | `{assignment_id, status, warnings}` | Gestor | No: con candidato vigente, `23505` |
+| `cancel_substitution_request` | `p_request_id` | void | Persona original si la pidió ella, o gestor | Solicitud no abierta → sin cambios |
 | `preview_assignment_eligibility` (`definer`) | `p_activity_position_id`, `p_person_id` | `(blocking, warnings)` | Gestor | Solo lectura |
 | `activity_position_coverage` (`definer`) | `p_activity_id` | §6 | `app.can_read_activity` | Solo lectura |
 | `activity_staffing_summary` (`definer`) | `p_activity_ids` | §6 | `app.can_read_activity` por actividad | Solo lectura |
 | `activity_assignment_review` (`definer`) | `p_activity_id` | `(assignment_id, blocking, warnings)` | Filas que gestione | Solo lectura |
+| `activity_assignment_recorded_warnings` (`definer`) | `p_activity_id` | `(assignment_id, eligibility_warnings, acknowledged_warnings)` | Filas que gestione | Solo lectura |
+| `my_respondable_assignments_count` (`definer`) | `p_church_id` | integer: propias `pending`, actividad `planned`/`published` y límite nulo o futuro | Propias | Solo lectura |
 
-Funciones internas sin `EXECUTE` para `authenticated`: `app.position_expected_count`, `app.evaluate_assignment_eligibility`, `app.activity_accepts_assignments_unchecked`, `app.lock_assignment_context`, `app.require_assignment_manage`, `app.raise_assignment_blocked`, `app.check_expected_version`, `app.apply_assignment_response`.
+Funciones internas sin `EXECUTE` para `authenticated`: `app.position_expected_count`, `app.evaluate_assignment_eligibility`, `app.activity_accepts_assignments_unchecked`, `app.lock_assignment_context`, `app.require_assignment_manage`, `app.raise_assignment_blocked`, `app.check_expected_version`, `app.require_acknowledged_warnings`, `app.send_locked_assignment`, `app.apply_assignment_response`.
 
 ---
 
@@ -431,13 +438,15 @@ Las ocurrencias que el trigger convirtió en canceladas en lugar de borrarse no 
 
 | Riesgo / punto | Detalle | Tratamiento |
 |---|---|---|
-| Pruebas | Suites pgTAP en desarrollo en esta rama; sin resultados que registrar | Pendiente |
+| Pruebas | Suites pgTAP `fase5_asignaciones`, `fase5_respuestas` y `fase5_permisos`; resultados en la PR | Ver PR |
 | Aceptación y envío sin avisos nuevos | Solo se revalidan bloqueos; avisos surgidos después (solape, no disponibilidad) no se muestran ni se registran | Limitación conocida |
-| Ocurrencia eliminada por serie | Con asignaciones, la ocurrencia se cancela: exige `activity.cancel` (si falta, falla la edición de la regla con `42501`) y F4 la sigue contando como `removed` y auditando como `activity.series_occurrence_removed` | Limitación conocida |
+| Ocurrencia eliminada por serie | Con asignaciones comunicadas, la ocurrencia se cancela: exige `activity.cancel` (si falta, falla la edición de la regla con `42501`) y F4 la sigue contando como `removed` y auditando como `activity.series_occurrence_removed` | Limitación conocida |
+| Evaluación doble al guardar | Crear y proponer candidato evalúan dos veces (lo que ve quien opera y lo que se guarda enmascarado); la disponibilidad se consulta dos veces | Aceptado |
+| Mis turnos | Límite de 200 por ámbito (próximos o pasados), ordenado por creación dentro del ámbito | Limitación conocida |
 | Aplicar estructura a la serie | Se bloquea con `22023` toda la operación si alguna ocurrencia tiene personas en sus puestos | Limitación conocida |
 | Solape dentro de la misma actividad | Dos puestos de la misma actividad para una persona generan `overlapping_assignment` | Limitación conocida |
 | Cambios de estado sin efecto | Completar no cambia `proposed`/`pending`; `planned` → `draft` no afecta; desarchivar o reactivar no restaura las canceladas | Limitación conocida |
 | Requisitos leídos de la tabla | F5 lee `activity_position_requirements` con el mismo filtro (`not disabled`) que `app.activity_position_effective_requirements`, no mediante esa función; un cambio de su lógica en F4 debe replicarse | Limitación conocida |
 | Contrato de disponibilidad | Firma y autorización aún no acordadas; un fallo solo produce `availability_unknown` | Acordar (contrato §9) |
 | Orden de migraciones con Diogo | `20260921…` anterior a `20260922…` ya aplicadas | `--dry-run` antes de aplicar |
-| Tipos TypeScript | Regenerar desde el esquema combinado | Pendiente |
+| Tipos TypeScript | Regenerados en esta rama; regenerar desde el esquema combinado si entran migraciones de Diogo | Hecho en la rama |

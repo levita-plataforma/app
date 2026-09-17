@@ -69,7 +69,9 @@ create table activity_assignments (
   foreign key (person_id) references people (id),
   check ((status = 'cancelled') = (cancelled_at is not null)),
   check ((status = 'substituted') = (substituted_at is not null)),
-  check (status = 'proposed' or sent_at is not null or response_source = 'representative'),
+  -- Fuera de borrador, la asignación se comunicó (un borrador puede cancelarse
+  -- sin llegar a enviarse). Las respuestas de representante también exigen envío.
+  check (status in ('proposed', 'cancelled') or sent_at is not null),
   check (status not in ('accepted', 'declined') or responded_at is not null),
   check (substitutes_assignment_id is null or substitutes_assignment_id <> id)
 );

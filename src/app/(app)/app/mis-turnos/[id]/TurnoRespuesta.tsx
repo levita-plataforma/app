@@ -4,7 +4,12 @@ import { useEffect, useId, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { Check, Loader2, Repeat, X } from "lucide-react";
 import { eligibilityCodeLabel } from "@/lib/assignments/constants";
-import { requestSubstitutionAction, respondTurnoAction, type TurnoActionResult } from "../actions";
+import {
+  cancelOwnSubstitutionAction,
+  requestSubstitutionAction,
+  respondTurnoAction,
+  type TurnoActionResult,
+} from "../actions";
 
 export type TurnoRespuestaMode = "pending" | "accepted" | "declined" | "readonly";
 
@@ -24,6 +29,7 @@ export default function TurnoRespuesta({
   note,
   positionName,
   hasOpenSubstitution,
+  ownSubstitutionRequestId,
 }: {
   assignmentId: string;
   version: number;
@@ -32,6 +38,8 @@ export default function TurnoRespuesta({
   note: string | null;
   positionName: string;
   hasOpenSubstitution: boolean;
+  /** Id de la sustitución abierta solo si la pidió la propia persona: solo esa puede retirar. */
+  ownSubstitutionRequestId: string | null;
 }) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
@@ -81,7 +89,7 @@ export default function TurnoRespuesta({
         if (action === "note") message = "Nota guardada.";
         else if (result.replayed) message = noteArg !== undefined ? "Nota guardada; tu respuesta no ha cambiado." : "Tu respuesta ya estaba registrada.";
         else if (response === "accepted") message = "Has aceptado el turno. ¡Gracias!";
-        else message = "Has indicado que no puedes servir. Quien coordina el puesto verá tu respuesta.";
+        else message = "Has indicado que no puedes servir. Quien coordina el puesto lo verá en la ficha de la actividad.";
         setFeedback({ kind: "success", message });
       } catch {
         setFeedback({ kind: "error", message: "No se pudo guardar tu respuesta. Comprueba tu conexión e inténtalo de nuevo." });
@@ -107,10 +115,33 @@ export default function TurnoRespuesta({
           kind: "success",
           message: result.replayed
             ? "Ya había una solicitud de sustitución abierta para este turno."
-            : "Solicitud enviada. Sigues en el turno hasta que otra persona lo acepte.",
+            : "Sustitución solicitada. Quien coordina el puesto lo verá en la ficha de la actividad; sigues en el turno hasta que otra persona lo acepte.",
         });
       } catch {
         setFeedback({ kind: "error", message: "No se pudo solicitar la sustitución. Inténtalo de nuevo." });
+      } finally {
+        setBusy(null);
+      }
+    });
+  }
+
+  function cancelOwnSubstitution() {
+    if (isPending || !ownSubstitutionRequestId) return;
+    setBusy("substitution");
+    setFeedback(null);
+    startTransition(async () => {
+      try {
+        const result = await cancelOwnSubstitutionAction(ownSubstitutionRequestId);
+        if (!result.ok) {
+          handleFailure(result);
+          return;
+        }
+        setFeedback({
+          kind: "success",
+          message: "Has retirado la solicitud de sustitución. Sigues en el turno y quien coordina lo verá en la ficha.",
+        });
+      } catch {
+        setFeedback({ kind: "error", message: "No se pudo retirar la solicitud. Inténtalo de nuevo." });
       } finally {
         setBusy(null);
       }
@@ -162,7 +193,7 @@ export default function TurnoRespuesta({
       {mode === "pending" ? (
         <p className="mt-lead">¿Puedes servir en este turno?</p>
       ) : mode === "declined" ? (
-        <p className="mt-lead">Indicaste que no puedes servir. Si ahora puedes, avísalo mientras quede hueco.</p>
+        <p className="mt-lead">Indicaste que no puedes servir. Si ahora puedes, indícalo aquí mientras quede hueco.</p>
       ) : (
         <p className="mt-lead">Has confirmado este turno.</p>
       )}
@@ -254,6 +285,22 @@ export default function TurnoRespuesta({
 
       {feedbackBlock}
 
+      {mode === "accepted" && hasOpenSubstitution && ownSubstitutionRequestId ? (
+        <div className="mt-substitution">
+          <p className="mt-hint">¿Al final sí puedes servir? Puedes retirar la sustitución que pediste mientras nadie la haya aceptado.</p>
+          <button
+            type="button"
+            className="mt-btn is-secondary"
+            disabled={disabled}
+            aria-busy={busy === "substitution"}
+            onClick={cancelOwnSubstitution}
+          >
+            {busy === "substitution" ? spinner : <X size={14} aria-hidden="true" />}
+            {busy === "substitution" ? "Retirando…" : "Retirar la solicitud de sustitución"}
+          </button>
+        </div>
+      ) : null}
+
       {mode === "accepted" && !hasOpenSubstitution ? (
         <div className="mt-substitution">
           {confirmingSubstitution ? (
@@ -262,8 +309,8 @@ export default function TurnoRespuesta({
                 ¿Pedir una sustitución?
               </p>
               <p className="mt-hint">
-                Quien coordina el puesto buscará a otra persona. <strong>Sigues en el turno</strong> hasta que alguien
-                acepte sustituirte; hasta entonces cuenta contigo.
+                Quien coordina el puesto verá la solicitud en la ficha de la actividad y podrá buscar a otra persona.{" "}
+                <strong>Sigues en el turno</strong> hasta que alguien acepte sustituirte; hasta entonces cuenta contigo.
               </p>
               <div className="mt-button-row">
                 <button
@@ -275,7 +322,7 @@ export default function TurnoRespuesta({
                   onClick={requestSubstitution}
                 >
                   {busy === "substitution" ? spinner : <Repeat size={14} aria-hidden="true" />}
-                  {busy === "substitution" ? "Enviando…" : "Sí, pedir sustitución"}
+                  {busy === "substitution" ? "Solicitando…" : "Sí, pedir sustitución"}
                 </button>
                 <button
                   type="button"

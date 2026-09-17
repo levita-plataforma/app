@@ -17,6 +17,7 @@ import {
   type AssignmentAttempt,
   type AssignmentPerson,
   type EligibilityResult,
+  type SendResult,
 } from "@/server/assignments/assignments-service";
 
 /**
@@ -32,6 +33,12 @@ export type CandidatePerson = AssignmentPerson & { isAreaMember: boolean };
 export type ResponseOutcome =
   | AssignmentAttempt
   | { kind: "responded"; status: AssignmentStatus; version: number; replayed: boolean };
+
+/** Códigos de aviso confirmados: solo cadenas cortas y sin repetir (la base de datos los compara uno a uno). */
+function cleanWarningCodes(codes: unknown): string[] {
+  if (!Array.isArray(codes)) return [];
+  return [...new Set(codes.filter((c): c is string => typeof c === "string" && c.length > 0 && c.length <= 80))].slice(0, 50);
+}
 
 function revalidate() {
   revalidatePath("/app/actividades/[id]", "page");
@@ -77,13 +84,13 @@ export async function previewEligibilityAction(
 export async function createAssignmentAction(
   activityPositionId: string,
   personId: string,
-  options: { acknowledgeWarnings: boolean; send: boolean },
+  options: { acknowledgedWarnings: string[]; send: boolean },
 ): Promise<EquipoResult<{ attempt: AssignmentAttempt }>> {
   return guard(
     async () => ({
       attempt: await createAssignment(activityPositionId, personId, {
-        acknowledgeWarnings: options.acknowledgeWarnings,
-        send: options.send,
+        acknowledgedWarnings: cleanWarningCodes(options.acknowledgedWarnings),
+        send: Boolean(options.send),
       }),
     }),
     { revalidate: true },
@@ -93,7 +100,7 @@ export async function createAssignmentAction(
 export async function sendAssignmentsAction(
   activityId: string,
   assignmentIds?: string[],
-): Promise<EquipoResult<{ sent: number }>> {
+): Promise<EquipoResult<{ sent: SendResult }>> {
   return guard(async () => ({ sent: await sendAssignments(activityId, assignmentIds) }), { revalidate: true });
 }
 
@@ -121,10 +128,12 @@ export async function requestSubstitutionAction(
 export async function proposeCandidateAction(
   requestId: string,
   personId: string,
-  acknowledgeWarnings: boolean,
+  acknowledgedWarnings: string[],
 ): Promise<EquipoResult<{ attempt: AssignmentAttempt }>> {
   return guard(
-    async () => ({ attempt: await proposeSubstitutionCandidate(requestId, personId, acknowledgeWarnings) }),
+    async () => ({
+      attempt: await proposeSubstitutionCandidate(requestId, personId, cleanWarningCodes(acknowledgedWarnings)),
+    }),
     { revalidate: true },
   );
 }

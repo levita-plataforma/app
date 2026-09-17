@@ -5,7 +5,7 @@
 -- eliminar estructura, duplicar). Ver migraciones 20260922000100..0500.
 
 begin;
-select plan(87);
+select plan(105);
 
 create or replace function test_set_auth_uid(p_uid uuid) returns void as $$
 begin
@@ -235,6 +235,7 @@ select t_set('pos_cred', t_pos(t_id('area_main'), '{"name":"Auxilios"}')::text);
 select t_set('pos_sens', t_pos(t_id('area_main'), '{"name":"Menores"}')::text);
 select t_set('pos_rec', t_pos(t_id('area_main'), '{"name":"Recomendado"}')::text);
 select t_set('pos_cap', t_pos(t_id('area_main'), '{"name":"Capacidad","min_people":1,"max_people":2}')::text);
+select t_set('pos_mask', t_pos(t_id('area_main'), '{"name":"Enmascarado","min_people":0}')::text);
 
 select public.save_activity_position_requirement(t_id('pos_qual'), null,
   '{"requirement_type":"qualification","qualification_id":"a5000000-0000-0000-0000-0000000d0001","min_level":"intermediate"}'::jsonb);
@@ -246,6 +247,10 @@ select public.save_activity_position_requirement(t_id('pos_rec'), null,
   '{"requirement_type":"qualification","qualification_id":"a5000000-0000-0000-0000-0000000d0001","strictness":"recommended"}'::jsonb);
 select public.save_activity_position_requirement(t_id('pos_rec'), null,
   '{"requirement_type":"minimum_level","min_operational_level":"autonomous","strictness":"recommended"}'::jsonb);
+select public.save_activity_position_requirement(t_id('pos_mask'), null,
+  '{"requirement_type":"credential","credential_type_id":"a5000000-0000-0000-0000-0000000d0102","strictness":"recommended"}'::jsonb);
+select public.save_activity_position_requirement(t_id('pos_mask'), null,
+  '{"requirement_type":"qualification","qualification_id":"a5000000-0000-0000-0000-0000000d0001","strictness":"recommended"}'::jsonb);
 
 select public.transition_activity_status(t_id('act_main'), 'published');
 
@@ -258,8 +263,16 @@ select ok(
 select is(t_blocking(t_id('pos_free'), 'a5000000-0000-0000-0000-0000000e0002'), array['inactive_person'],
   'Pertenencia archivada bloquea con inactive_person');
 
-select ok('inactive_person' = any (t_blocking(t_id('pos_free'), 'a5000000-0000-0000-0000-0000000e0003')),
+select is(t_blocking(t_id('pos_free'), 'a5000000-0000-0000-0000-0000000e0003'), array['inactive_person'],
   'Una persona de otra iglesia bloquea con inactive_person');
+
+select ok(
+  t_blocking(t_id('pos_auto'), 'a5000000-0000-0000-0000-0000000e0003') = array['inactive_person']
+  and t_warnings(t_id('pos_auto'), 'a5000000-0000-0000-0000-0000000e0003') = '{}'
+  and t_blocking(t_id('pos_rec'), 'a5000000-0000-0000-0000-0000000e0002') = array['inactive_person']
+  and t_warnings(t_id('pos_rec'), 'a5000000-0000-0000-0000-0000000e0002') = '{}',
+  'Sin pertenencia activa (otra iglesia o archivada) solo se devuelve inactive_person, sin más bloqueos ni avisos'
+);
 
 select is(t_blocking(t_id('pos_free'), 'a5000000-0000-0000-0000-0000000e0005'), array['not_area_member'],
   'Quien no es miembro del área bloquea con not_area_member');
@@ -324,17 +337,54 @@ select is(t_err($q$ select public.create_activity_assignment(t_id('pos_rec'), 'a
   'PT412:insufficient_level_recommended',
   'Crear con avisos sin confirmarlos falla con PT412 y los avisos en DETAIL');
 
+select is(t_err($q$ select public.create_activity_assignment(t_id('pos_rec'), 'a5000000-0000-0000-0000-0000000e0004', '{"acknowledge_warnings":true}') $q$),
+  'PT412:insufficient_level_recommended',
+  'El antiguo acknowledge_warnings booleano ya no confirma nada: sigue fallando con PT412');
+
 select lives_ok(
-  $$ select t_set('asg_rec', t_asg(t_id('pos_rec'), 'a5000000-0000-0000-0000-0000000e0004', '{"acknowledge_warnings":true}')::text) $$,
-  'Crear confirmando los avisos funciona'
+  $$ select t_set('asg_rec', t_asg(t_id('pos_rec'), 'a5000000-0000-0000-0000-0000000e0004', '{"acknowledged_warnings":["insufficient_level_recommended"]}')::text) $$,
+  'Crear confirmando los avisos por su código funciona'
 );
 
 select ok(
   (select eligibility_warnings = array['insufficient_level_recommended'] and acknowledged_warnings = array['insufficient_level_recommended']
-      and eligibility_blocking = '{}'
-   from activity_assignments where id = t_id('asg_rec')),
-  'La asignación guarda los avisos evaluados y los confirmados'
+   from public.activity_assignment_recorded_warnings(t_id('act_main')) where assignment_id = t_id('asg_rec')),
+  'La asignación guarda los avisos evaluados y los confirmados (leídos por activity_assignment_recorded_warnings)'
 );
+
+-- Confirmación por lista y enmascarado de lo que se guarda.
+select ok(
+  (select cardinality(w) = 2 and w @> array['missing_credential_recommended', 'missing_qualification_recommended']
+   from (select t_warnings(t_id('pos_mask'), 'a5000000-0000-0000-0000-0000000e0009') w) s),
+  'Con credential.sensitive.read la previsualización detalla el requisito sensible recomendado'
+);
+
+select is(t_err($q$ select public.create_activity_assignment(t_id('pos_mask'), 'a5000000-0000-0000-0000-0000000e0009',
+    '{"acknowledged_warnings":["missing_credential_recommended"]}') $q$),
+  'PT412:missing_qualification_recommended',
+  'Si la lista no incluye todos los avisos falla con PT412 y DETAIL solo con los no confirmados');
+
+select t_set('asg_mask_res', public.create_activity_assignment(t_id('pos_mask'), 'a5000000-0000-0000-0000-0000000e0009',
+  '{"acknowledged_warnings":["missing_credential_recommended","missing_qualification_recommended"]}')::text);
+select t_set('asg_mask', current_setting('t5a.asg_mask_res')::jsonb ->> 'assignment_id');
+
+select ok(
+  (select cardinality(eligibility_warnings) = 2
+      and eligibility_warnings @> array['requirement_not_met_recommended', 'missing_qualification_recommended']
+      and acknowledged_warnings = eligibility_warnings
+      and not ('missing_credential_recommended' = any (eligibility_warnings))
+   from public.activity_assignment_recorded_warnings(t_id('act_main')) where assignment_id = t_id('asg_mask')),
+  'Los avisos guardados se enmascaran siempre (requirement_not_met_recommended) aunque quien crea lea credenciales sensibles'
+);
+
+reset role;
+select ok(
+  (select metadata -> 'acknowledged_warnings' @> '["requirement_not_met_recommended","missing_qualification_recommended"]'::jsonb
+      and not (metadata -> 'acknowledged_warnings' ? 'missing_credential_recommended')
+   from audit_logs where action = 'assignment.created' and entity_id = t_id('asg_mask')),
+  'La auditoría de assignment.created guarda los avisos confirmados enmascarados'
+);
+select test_set_auth_uid('a5000000-0000-0000-0000-000000000001');
 
 -- Actividad no asignable: borrador y actividad terminada.
 select t_set('act_draft', public.create_activity(t_id('church_a'),
@@ -424,7 +474,7 @@ select is(t_err($q$ select public.create_activity_assignment(t_id('pos_ov_c'), '
   'Crear con solape sin confirmarlo falla con PT412');
 
 select lives_ok(
-  $$ select t_asg(t_id('pos_ov_c'), 'a5000000-0000-0000-0000-0000000e0012', '{"acknowledge_warnings":true}') $$,
+  $$ select t_asg(t_id('pos_ov_c'), 'a5000000-0000-0000-0000-0000000e0012', '{"acknowledged_warnings":["overlapping_assignment"]}') $$,
   'Crear con solape confirmado funciona'
 );
 
@@ -533,8 +583,8 @@ select ok(
   'Reintentar la creación devuelve la misma asignación con replayed true sin duplicar'
 );
 
-select is(public.send_activity_assignments(t_id('act_flow'), array[t_id('flow1')]), 1,
-  'Enviar una propuesta devuelve 1');
+select is(public.send_activity_assignments(t_id('act_flow'), array[t_id('flow1')]), '{"sent":1,"blocked":[]}'::jsonb,
+  'Enviar una propuesta devuelve {"sent":1,"blocked":[]}');
 
 select ok(
   (select status = 'pending' and version = 2 and sent_at is not null and sent_by = 'a5000000-0000-0000-0000-000000000001'
@@ -548,7 +598,7 @@ select t_set('flow3', t_asg(t_id('pos_flow'), 'a5000000-0000-0000-0000-0000000e0
 select is(t_state(t_id('flow2')), 'pending:1',
   'Crear con send true nace ya comunicada (pending, versión 1)');
 
-select is(public.send_activity_assignments(t_id('act_flow'), null), 1,
+select is(public.send_activity_assignments(t_id('act_flow'), null), '{"sent":1,"blocked":[]}'::jsonb,
   'Enviar sin ids envía solo las propuestas restantes de la actividad');
 
 select throws_ok(
@@ -591,11 +641,50 @@ select t_set('reval', t_asg(t_id('pos_reval'), 'a5000000-0000-0000-0000-0000000e
 select public.save_activity_position_requirement(t_id('pos_reval'), null,
   '{"requirement_type":"qualification","qualification_id":"a5000000-0000-0000-0000-0000000d0001"}'::jsonb);
 
-select is(t_err($q$ select public.send_activity_assignments(t_id('act_flow'), array[t_id('reval')]) $q$), '22023:missing_qualification',
-  'Enviar revalida los bloqueos: si la persona ya no cumple un requisito nuevo falla con 22023 y el código');
+select is(public.send_activity_assignments(t_id('act_flow'), array[t_id('reval')]),
+  jsonb_build_object('sent', 0, 'blocked', jsonb_build_array(
+    jsonb_build_object('assignment_id', t_id('reval'), 'blocking', jsonb_build_array('missing_qualification')))),
+  'Enviar revalida los bloqueos: la que ya no cumple un requisito nuevo se informa en blocked con sus códigos (sin lanzar)');
 
 select is(t_state(t_id('reval')), 'proposed:1',
   'La propuesta que ya no cumple sigue sin enviarse');
+
+-- Envío en bloque parcial: las bloqueadas se quedan en borrador y el resto se
+-- envía (la reasignación de e13 y la nueva de e11).
+select t_set('flow_ok', t_asg(t_id('pos_flow'), 'a5000000-0000-0000-0000-0000000e0011')::text);
+
+select ok(
+  (select (r ->> 'sent')::int = 2
+      and jsonb_array_length(r -> 'blocked') = 1
+      and (r -> 'blocked' -> 0 ->> 'assignment_id')::uuid = t_id('reval')
+      and r -> 'blocked' -> 0 -> 'blocking' = '["missing_qualification"]'::jsonb
+   from (select public.send_activity_assignments(t_id('act_flow'), null) r) s)
+  and t_state(t_id('flow_ok')) = 'pending:2' and t_state(t_id('reval')) = 'proposed:1',
+  'Enviar todas: se envían las que cumplen y las bloqueadas se quedan en proposed y se informan'
+);
+
+-- Reintento de crear con send sobre un borrador existente.
+select is(t_err($q$ select public.create_activity_assignment(t_id('pos_reval'), 'a5000000-0000-0000-0000-0000000e0010', '{"send":true}') $q$),
+  '22023:missing_qualification',
+  'Reintentar crear con send sobre un borrador que ya no cumple falla con 22023 y los códigos en DETAIL');
+
+select is(t_state(t_id('reval')), 'proposed:1',
+  'El borrador que no cumple sigue sin enviarse tras el reintento con send');
+
+select t_set('resend', t_asg(t_id('pos_flow'), 'a5000000-0000-0000-0000-0000000e0009')::text);
+
+select ok(
+  (select (r ->> 'replayed')::boolean and (r ->> 'assignment_id')::uuid = t_id('resend')
+      and r ->> 'status' = 'pending' and (r ->> 'version')::int = 2
+   from public.create_activity_assignment(t_id('pos_flow'), 'a5000000-0000-0000-0000-0000000e0009', '{"send":true}') r),
+  'Reintentar crear con send sobre un borrador existente devuelve la misma asignación, ya pending, con replayed true'
+);
+
+select ok(
+  (select status = 'pending' and version = 2 and sent_at is not null and sent_by = 'a5000000-0000-0000-0000-000000000001'
+   from activity_assignments where id = t_id('resend')),
+  'El reintento con send deja el borrador enviado (pending, sent_at y sent_by)'
+);
 
 reset role;
 
@@ -768,6 +857,15 @@ values ('a5000000-0000-0000-0000-0000000aa001', t_id('church_a'), t_id('act_icom
   'a5000000-0000-0000-0000-0000000e0001', 'accepted', 'x', '2020-01-20 10:00+00', '2020-01-21 10:00+00', 'self');
 select test_set_auth_uid('a5000000-0000-0000-0000-000000000001');
 
+select is(t_err($q$ select public.cancel_activity_assignment('a5000000-0000-0000-0000-0000000aa001') $q$), '22023',
+  'Retirar una asignación vigente de una actividad completada falla con 22023 (la historia no se reescribe)');
+
+select ok(
+  (select (r ->> 'replayed')::boolean and r ->> 'status' = 'cancelled'
+   from public.cancel_activity_assignment(t_id('ic_acc')) r),
+  'Retirar una asignación que ya no está vigente en una actividad cerrada sigue devolviendo replayed'
+);
+
 select public.transition_activity_status(t_id('act_icomp'), 'archived');
 
 select is(t_state('a5000000-0000-0000-0000-0000000aa001'), 'accepted:1',
@@ -873,9 +971,12 @@ select t_pos(t_area(t_id('occ1'), 'a5000000-0000-0000-0000-0000000a0001'), '{"na
 select public.apply_activity_structure_to_series(t_id('occ1'), 'future');
 select public.transition_activity_status(t_id('occ2'), 'planned');
 select public.transition_activity_status(t_id('occ3'), 'planned');
+select public.transition_activity_status(t_id('occ4'), 'planned');
 select t_set('occ2_asg', t_asg(t_pos_of(t_id('occ2')), 'a5000000-0000-0000-0000-0000000e0001')::text);
 select t_respond(t_id('occ2_asg'), 'accepted');
-select t_set('occ3_asg', t_asg(t_pos_of(t_id('occ3')), 'a5000000-0000-0000-0000-0000000e0010')::text);
+select t_set('occ3_asg', t_asg(t_pos_of(t_id('occ3')), 'a5000000-0000-0000-0000-0000000e0010', '{"send":true}')::text);
+-- occ4 solo tiene un borrador nunca enviado.
+select t_set('occ4_asg', t_asg(t_pos_of(t_id('occ4')), 'a5000000-0000-0000-0000-0000000e0012')::text);
 
 select throws_ok(
   $$ select public.apply_activity_structure_to_series(t_id('occ1'), 'future') $$,
@@ -888,7 +989,7 @@ select public.update_activity_series(t_id('occ1'), '{"local_start_time":"12:00"}
 select ok(
   (select status = 'pending' and reconfirmation_requested_at is not null and version = 4
    from activity_assignments where id = t_id('occ2_asg'))
-  and t_state(t_id('occ3_asg')) = 'proposed:2',
+  and t_state(t_id('occ3_asg')) = 'pending:2' and t_state(t_id('occ4_asg')) = 'proposed:2',
   'Cambiar la hora de la serie (update_activity_series) pide reconfirmar y sube versiones'
 );
 
@@ -896,10 +997,41 @@ select public.update_activity_series_rule(t_id('occ1'), '{"frequency":"weekly","
 
 select ok(
   (select status = 'cancelled' from activities where id = t_id('occ3'))
-  and (select status = 'cancelled' and cancel_cause = 'occurrence_removed' from activity_assignments where id = t_id('occ3_asg'))
-  and not exists (select 1 from activities where id = t_id('occ4')),
-  'Cambiar la regla: la ocurrencia planificada con asignaciones se cancela (occurrence_removed) en vez de borrarse; la vacía se borra'
+  and (select status = 'cancelled' and cancel_cause = 'occurrence_removed' from activity_assignments where id = t_id('occ3_asg')),
+  'Cambiar la regla: la ocurrencia planificada con una asignación enviada se cancela (occurrence_removed) en vez de borrarse'
 );
+
+select ok(
+  not exists (select 1 from activities where id = t_id('occ4'))
+  and not exists (select 1 from activity_assignments where id = t_id('occ4_asg')),
+  'Cambiar la regla: la ocurrencia con solo borradores nunca enviados se borra normalmente (con sus borradores)'
+);
+
+-- Borrado directo de una actividad con solo borradores retirados sin enviar.
+select t_set('act_del', public.create_activity(t_id('church_a'),
+  '{"type":"service","title":"P5 borrar","local_start":"2031-08-03T10:00","duration_minutes":60}'::jsonb) ->> 'activity_id');
+select t_set('pos_del', t_pos(t_area(t_id('act_del'), 'a5000000-0000-0000-0000-0000000a0001'), '{"name":"Borrar","min_people":0}')::text);
+select public.transition_activity_status(t_id('act_del'), 'published');
+select t_set('del_draft', t_asg(t_id('pos_del'), 'a5000000-0000-0000-0000-0000000e0001')::text);
+select public.cancel_activity_assignment(t_id('del_draft'));
+select t_set('act_del_sent', public.create_activity(t_id('church_a'),
+  '{"type":"service","title":"P5 no borrar","local_start":"2031-08-10T10:00","duration_minutes":60}'::jsonb) ->> 'activity_id');
+select t_set('pos_del_sent', t_pos(t_area(t_id('act_del_sent'), 'a5000000-0000-0000-0000-0000000a0001'), '{"name":"No borrar","min_people":0}')::text);
+select public.transition_activity_status(t_id('act_del_sent'), 'published');
+select t_set('del_sent', t_asg(t_id('pos_del_sent'), 'a5000000-0000-0000-0000-0000000e0001', '{"send":true}')::text);
+select public.cancel_activity_assignment(t_id('del_sent'));
+
+reset role;
+delete from activities where id in (t_id('act_del'), t_id('act_del_sent'));
+
+select ok(
+  not exists (select 1 from activities where id = t_id('act_del'))
+  and not exists (select 1 from activity_assignments where id = t_id('del_draft'))
+  and (select status = 'cancelled' from activities where id = t_id('act_del_sent'))
+  and exists (select 1 from activity_assignments where id = t_id('del_sent')),
+  'Borrar una actividad: con solo borradores sin enviar se borra; si alguna asignación llegó a enviarse se cancela y se conserva'
+);
+select test_set_auth_uid('a5000000-0000-0000-0000-000000000001');
 
 -- 6.7 Duplicar no copia asignaciones.
 select t_set('ir_dup', public.duplicate_activity(t_id('act_ir'), '{"local_start":"2031-07-06T10:00"}'::jsonb) ->> 'activity_id');
@@ -908,6 +1040,29 @@ select ok(
   (select count(*) = 1 from activity_positions where activity_id = t_id('ir_dup'))
   and not exists (select 1 from activity_assignments where activity_id = t_id('ir_dup')),
   'Duplicar una actividad copia los puestos pero no las asignaciones'
+);
+
+-- ============================================================
+-- 7. Borrado de la iglesia en cascada
+-- ============================================================
+reset role;
+
+select ok(
+  exists (select 1 from activity_assignments aa
+          where aa.church_id = t_id('church_a') and aa.activity_position_id is not null
+            and aa.status in ('proposed', 'pending', 'accepted')),
+  'Antes de borrar la iglesia hay puestos con asignaciones vigentes'
+);
+
+select lives_ok(
+  $$ delete from churches where id = t_id('church_a') $$,
+  'Borrar la iglesia en cascada no falla aunque haya puestos con asignaciones vigentes'
+);
+
+select ok(
+  not exists (select 1 from activity_assignments where church_id = t_id('church_a'))
+  and not exists (select 1 from activities where church_id = t_id('church_a')),
+  'El borrado de la iglesia elimina sus actividades y asignaciones'
 );
 
 select * from finish();

@@ -69,7 +69,7 @@ export default async function InicioPage() {
     getActivitiesDashboard(tenant.churchId).catch((): ActivitiesDashboard | null => null),
     // Mis turnos (Fase 5). null = no se pudo contar: se muestra "—".
     tenant.personId
-      ? countMyPendingAssignments(tenant.churchId, tenant.personId).catch((): number | null => null)
+      ? countMyPendingAssignments(tenant.churchId).catch((): number | null => null)
       : Promise.resolve(null),
   ]);
 

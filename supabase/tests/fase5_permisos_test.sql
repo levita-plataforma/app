@@ -5,7 +5,7 @@
 -- iglesias. Ver migraciones 20260922000200 y 20260922000400.
 
 begin;
-select plan(66);
+select plan(79);
 
 create or replace function test_set_auth_uid(p_uid uuid) returns void as $$
 begin
@@ -238,7 +238,7 @@ select throws_ok(
   'Un miembro sin assignment.manage no crea asignaciones'
 );
 
-select is(public.send_activity_assignments(t_id('act_mem'), null), 0,
+select is(public.send_activity_assignments(t_id('act_mem'), null), '{"sent":0,"blocked":[]}'::jsonb,
   'Un miembro sin capability no envía nada al enviar todas las propuestas');
 
 select throws_ok(
@@ -355,6 +355,45 @@ select ok(
   'Un miembro no asignado sigue sin leer la actividad privada ni sus asignaciones'
 );
 
+-- La lectura por asignación depende del estado de la actividad.
+reset role;
+select set_config('request.jwt.claims', '', true);
+update activities set status = 'planned' where id = t_id('act_priv');
+select test_set_auth_uid('c5000000-0000-0000-0000-000000000008');
+select t_set('read_planned', (select count(*)::text from activities where id = t_id('act_priv')));
+
+reset role;
+select set_config('request.jwt.claims', '', true);
+update activities set status = 'draft' where id = t_id('act_priv');
+select test_set_auth_uid('c5000000-0000-0000-0000-000000000008');
+select t_set('read_draft', (select count(*)::text from activities where id = t_id('act_priv')));
+
+-- Archivar desde publicada cancelaría las asignaciones: se aísla la regla de
+-- lectura desactivando la sincronización solo dentro de esta transacción.
+reset role;
+select set_config('request.jwt.claims', '', true);
+update activities set status = 'planned' where id = t_id('act_priv');
+update activities set status = 'published' where id = t_id('act_priv');
+alter table activities disable trigger activities_assignments_sync;
+update activities set status = 'archived' where id = t_id('act_priv');
+select test_set_auth_uid('c5000000-0000-0000-0000-000000000008');
+select t_set('read_archived', (select count(*)::text from activities where id = t_id('act_priv')));
+
+reset role;
+select set_config('request.jwt.claims', '', true);
+update activities set status = 'published' where id = t_id('act_priv');
+alter table activities enable trigger activities_assignments_sync;
+select test_set_auth_uid('c5000000-0000-0000-0000-000000000008');
+
+select ok(
+  current_setting('t5p.read_planned') = '1'
+  and current_setting('t5p.read_draft') = '0'
+  and current_setting('t5p.read_archived') = '0'
+  and (select count(*) = 1 from activities where id = t_id('act_priv'))
+  and (select status = 'accepted' from activity_assignments where id = t_id('ap8')),
+  'La persona asignada lee la actividad privada planificada o publicada, pero no en borrador ni archivada'
+);
+
 -- Nota privada y pérdida de acceso al rechazar.
 select test_set_auth_uid('c5000000-0000-0000-0000-000000000007');
 
@@ -417,11 +456,12 @@ select ok(
 );
 
 select ok(
-  (select assigned_count = 1 and pending_count = 1 and proposed_count = 1 and expected_count = 3
+  (select assigned_count = 1 and coverage_status = 'covered'
+      and pending_count is null and proposed_count is null and expected_count is null
    from public.activity_position_coverage(t_id('act_mem')) where activity_position_id = t_id('pos_ms'))
-  and (select confirmed = 1 and pending = 1 and proposed = 1
+  and (select positions = 1 and confirmed = 1 and pending is null and proposed is null
        from public.activity_staffing_summary(array[t_id('act_mem')])),
-  'Quien lee la actividad obtiene los mismos conteos de cobertura y resumen que quien la gestiona (sin nombres)'
+  'Quien lee la actividad sin gestionarla solo obtiene confirmados y estado de cobertura; pendientes, borradores y previstos son nulos'
 );
 
 select ok(
@@ -441,10 +481,77 @@ select ok(
   'El líder del área lee la actividad por su modelo original: de otra área solo ve el equipo aceptado, no las propuestas'
 );
 
+select ok(
+  (select assigned_count = 0 and pending_count = 0 and proposed_count = 1 and expected_count = 1
+   from public.activity_position_coverage(t_id('act_priv')) where activity_position_id = t_id('pos_ps'))
+  and (select assigned_count = 1 and pending_count is null and proposed_count is null and expected_count is null
+       from public.activity_position_coverage(t_id('act_priv')) where activity_position_id = t_id('pos_pm')),
+  'Cobertura para el líder de área: detalle en los puestos de su área y nulos en los de otra área'
+);
+
+select ok(
+  (select confirmed = 1 and pending = 0 and proposed = 1
+   from public.activity_staffing_summary(array[t_id('act_priv')])),
+  'Resumen para el líder de área: pendientes y borradores suman solo los puestos que gestiona'
+);
+
+select test_set_auth_uid('c5000000-0000-0000-0000-000000000001');
+
+select ok(
+  (select confirmed = 1 and pending = 0 and proposed = 2
+   from public.activity_staffing_summary(array[t_id('act_priv')])),
+  'Resumen para el propietario: pendientes y borradores de todos los puestos'
+);
+
 select test_set_auth_uid('c5000000-0000-0000-0000-000000000003');
 
 select is((select count(*)::int from activity_assignments where activity_id = t_id('act_mem')), 1,
   'El admin de otra sede solo ve el equipo confirmado de una actividad para miembros');
+
+-- Códigos de elegibilidad guardados: sin SELECT por columna; solo por RPC.
+select test_set_auth_uid('c5000000-0000-0000-0000-000000000002');
+
+select ok(
+  t_err($q$ select eligibility_blocking from activity_assignments $q$) = '42501'
+  and t_err($q$ select eligibility_warnings from activity_assignments $q$) = '42501'
+  and t_err($q$ select acknowledged_warnings from activity_assignments $q$) = '42501',
+  'Un miembro no puede leer eligibility_blocking, eligibility_warnings ni acknowledged_warnings (42501)'
+);
+
+select throws_ok(
+  $$ select * from activity_assignments $$,
+  '42501', null,
+  'select * sobre activity_assignments falla con 42501 para authenticated'
+);
+
+select lives_ok(
+  $$ select id, status, version, person_id, position_name, sent_at, response_source from activity_assignments $$,
+  'Las demás columnas de activity_assignments siguen legibles'
+);
+
+select is((select count(*)::int from public.activity_assignment_recorded_warnings(t_id('act_mem'))), 0,
+  'Un miembro sin gestión no obtiene avisos registrados por activity_assignment_recorded_warnings');
+
+select test_set_auth_uid('c5000000-0000-0000-0000-000000000001');
+
+select is(t_err($q$ select eligibility_warnings from activity_assignments $q$), '42501',
+  'Tampoco el propietario lee las columnas de avisos directamente');
+
+select ok(
+  (select count(*) = 3 and bool_and(eligibility_warnings = '{}' and acknowledged_warnings = '{}')
+   from public.activity_assignment_recorded_warnings(t_id('act_mem'))),
+  'Quien gestiona obtiene los avisos registrados de todas las asignaciones por la RPC'
+);
+
+select test_set_auth_uid('c5000000-0000-0000-0000-000000000004');
+
+select ok(
+  (select count(*) = 2 and bool_and(ap.id = t_id('pos_ps'))
+   from public.activity_assignment_recorded_warnings(t_id('act_priv')) w
+   join activity_assignments aa on aa.id = w.assignment_id
+   join activity_positions ap on ap.id = aa.activity_position_id),
+  'El líder de área solo obtiene los avisos registrados de las asignaciones de los puestos que gestiona'
+);
 
 -- ============================================================
 -- 4. Solicitudes de sustitución
@@ -474,6 +581,39 @@ select throws_ok(
   $$ select public.propose_substitution_candidate(t_id('req8'), 'c5000000-0000-0000-0000-0000000e0010') $$,
   '42501', null,
   'El líder de otra área no propone candidatos'
+);
+
+-- La persona solo ve lo que llegó a comunicársele.
+select test_set_auth_uid('c5000000-0000-0000-0000-000000000001');
+select t_set('p7_draft', t_asg(t_id('pos_ms'), 'c5000000-0000-0000-0000-0000000e0007')::text);
+select public.cancel_activity_assignment(t_id('p7_draft'));
+select t_set('p7_sent', t_asg(t_id('pos_ms'), 'c5000000-0000-0000-0000-0000000e0007', '{"send":true}')::text);
+select public.cancel_activity_assignment(t_id('p7_sent'));
+
+select test_set_auth_uid('c5000000-0000-0000-0000-000000000007');
+
+select ok(
+  (select count(*) = 0 from activity_assignments where id = t_id('p7_draft'))
+  and (select count(*) = 1 from activity_assignments where id = t_id('p7_sent')),
+  'La persona no ve un borrador cancelado sin enviar, pero sí una asignación enviada y luego retirada'
+);
+
+-- Estado no alcanzable por RPC (no comunicada y no borrador) para aislar la
+-- condición de envío también en solicitudes de sustitución.
+reset role;
+insert into activity_assignments (id, church_id, activity_id, activity_position_id, person_id, status, position_name, cancelled_at)
+values ('c5000000-0000-0000-0000-0000000aa001', t_id('church_a'), t_id('act_mem'), t_id('pos_ms'),
+  'c5000000-0000-0000-0000-0000000e0008', 'cancelled', 'x', now());
+insert into activity_substitution_requests (id, church_id, activity_id, original_assignment_id, status, requested_by_self, cancelled_at)
+values ('c5000000-0000-0000-0000-0000000bb001', t_id('church_a'), t_id('act_mem'), 'c5000000-0000-0000-0000-0000000aa001',
+  'cancelled', true, now());
+select test_set_auth_uid('c5000000-0000-0000-0000-000000000008');
+
+select ok(
+  (select count(*) = 0 from activity_assignments where id = 'c5000000-0000-0000-0000-0000000aa001')
+  and (select count(*) = 0 from activity_substitution_requests where id = 'c5000000-0000-0000-0000-0000000bb001')
+  and (select count(*) = 1 from activity_substitution_requests where id = t_id('req8')),
+  'La persona no ve la solicitud de sustitución de una asignación suya que nunca se le comunicó'
 );
 
 -- ============================================================

@@ -14,7 +14,8 @@ import { CodeList, EqChip, EqMessages, useEquipoAction } from "./ui";
 export type PickerSubmit = {
   label: string;
   primary?: boolean;
-  submit: (personId: string, acknowledgeWarnings: boolean) => Promise<EquipoResult<{ attempt: AssignmentAttempt }>>;
+  /** acknowledgedWarnings: códigos de aviso que se han mostrado y confirmado expresamente. */
+  submit: (personId: string, acknowledgedWarnings: string[]) => Promise<EquipoResult<{ attempt: AssignmentAttempt }>>;
   /** Mensaje de éxito cuando se crea (no repetida). */
   successMessage: (personName: string) => string;
 };
@@ -32,10 +33,19 @@ type Props = {
 };
 
 const DEBOUNCE_MS = 300;
+/** Mismo límite que listCandidatePeople en el servicio. */
+const CANDIDATE_LIMIT = 50;
+
+function union(a: readonly string[], b: readonly string[]): string[] {
+  return [...new Set([...a, ...b])];
+}
 
 /**
  * Buscador de personas con evaluación de elegibilidad. Bloqueos en rojo,
  * avisos en ámbar; con avisos hay que confirmar explícitamente la revisión.
+ * La confirmación es por códigos: se envían los avisos mostrados y
+ * confirmados; si la base de datos detecta alguno más, se muestra y hay que
+ * confirmarlo también (se reenvía la unión).
  */
 export default function PersonPicker(props: Props) {
   const { activityPositionId, serviceAreaId, assignedPersonIds } = props;
@@ -51,6 +61,8 @@ export default function PersonPicker(props: Props) {
   const [previewError, setPreviewError] = useState<string | null>(null);
   const [previewing, startPreview] = useTransition();
   const [acknowledged, setAcknowledged] = useState(false);
+  /** Avisos ya confirmados en un intento anterior con esta persona. */
+  const [confirmedCodes, setConfirmedCodes] = useState<string[]>([]);
   const [blockedMessage, setBlockedMessage] = useState<string | null>(null);
   const action = useEquipoAction();
 
@@ -82,6 +94,7 @@ export default function PersonPicker(props: Props) {
     setEligibility(null);
     setPreviewError(null);
     setAcknowledged(false);
+    setConfirmedCodes([]);
     setBlockedMessage(null);
     action.clear();
     startPreview(async () => {
@@ -98,15 +111,22 @@ export default function PersonPicker(props: Props) {
   function submit(option: PickerSubmit) {
     if (!selected) return;
     const person = selected;
+    // Solo se confirman los avisos que se han mostrado: los ya confirmados y,
+    // si se ha marcado la casilla, los que están a la vista.
+    const sentCodes = union(confirmedCodes, acknowledged || pendingWarnings.length === 0 ? warnings : []);
     setBlockedMessage(null);
     action.run(
-      () => option.submit(person.id, acknowledged),
+      () => option.submit(person.id, sentCodes),
       ({ attempt }) => {
         if (attempt.kind === "needs_confirmation") {
-          // Avisos que no estaban en la vista previa: se muestran y se pide revisarlos.
-          setEligibility((prev) => ({ blocking: prev?.blocking ?? [], warnings: attempt.warnings }));
+          // Avisos que no estaban confirmados: se muestran junto a los anteriores y se pide revisarlos.
+          setConfirmedCodes(sentCodes);
+          setEligibility((prev) => ({
+            blocking: prev?.blocking ?? [],
+            warnings: union(prev?.warnings ?? [], attempt.warnings),
+          }));
           setAcknowledged(false);
-          return "Hay avisos que revisar antes de continuar. Márcalos como revisados y vuelve a intentarlo.";
+          return "Han aparecido avisos nuevos. Revísalos, márcalos como revisados y vuelve a intentarlo.";
         }
         if (attempt.kind === "blocked") {
           setEligibility((prev) => ({ blocking: attempt.blocking, warnings: prev?.warnings ?? [] }));
@@ -121,13 +141,14 @@ export default function PersonPicker(props: Props) {
 
   const blocking = eligibility?.blocking ?? [];
   const warnings = eligibility?.warnings ?? [];
+  const pendingWarnings = warnings.filter((w) => !confirmedCodes.includes(w));
   const canSubmit =
     selected !== null &&
     eligibility !== null &&
     !previewing &&
     !action.pending &&
     blocking.length === 0 &&
-    (warnings.length === 0 || acknowledged);
+    (pendingWarnings.length === 0 || acknowledged);
 
   return (
     <div className="eq-picker" role="group" aria-labelledby={`${baseId}-title`}>
@@ -158,9 +179,11 @@ export default function PersonPicker(props: Props) {
               ? ""
               : people.length === 0
                 ? "No hay personas que coincidan."
-                : serviceAreaId
-                  ? "Primero, las personas que sirven en el área."
-                  : `${people.length} ${people.length === 1 ? "persona" : "personas"}`}
+                : people.length >= CANDIDATE_LIMIT
+                  ? `Mostrando las primeras ${CANDIDATE_LIMIT}; afina la búsqueda.${serviceAreaId ? " Primero, las personas que sirven en el área." : ""}`
+                  : serviceAreaId
+                    ? "Primero, las personas que sirven en el área."
+                    : `${people.length} ${people.length === 1 ? "persona" : "personas"}`}
         </p>
         <EqMessages error={searchError} />
       </div>
@@ -214,8 +237,15 @@ export default function PersonPicker(props: Props) {
                 {warnings.length > 0 ? (
                   <div className="eq-box is-warning">
                     <strong>Avisos (se puede continuar confirmándolo; queda registrado):</strong>
-                    <CodeList codes={warnings} tone="warning" />
-                    {blocking.length === 0 ? (
+                    {pendingWarnings.length < warnings.length ? (
+                      <>
+                        <span className="eq-muted">Ya revisados:</span>
+                        <CodeList codes={warnings.filter((w) => confirmedCodes.includes(w))} tone="warning" />
+                        <span className="eq-muted">Nuevos, por revisar:</span>
+                      </>
+                    ) : null}
+                    <CodeList codes={pendingWarnings} tone="warning" />
+                    {blocking.length === 0 && pendingWarnings.length > 0 ? (
                       <label className="eq-check">
                         <input type="checkbox" checked={acknowledged} onChange={(e) => setAcknowledged(e.target.checked)} />
                         He revisado los avisos

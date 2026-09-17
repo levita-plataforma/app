@@ -22,7 +22,10 @@ type Props = {
   assignmentsById: Map<string, ActivityAssignment>;
   openRequestsByOriginal: Map<string, SubstitutionRequest>;
   reviewsById: Map<string, AssignmentReview>;
+  /** Puede crear, enviar, registrar respuestas y gestionar sustituciones (actividad abierta a asignaciones). */
   canAct: boolean;
+  /** Puede retirar asignaciones (gestiona el área y la actividad está en borrador, planificada o publicada). */
+  canWithdraw: boolean;
   timezone: string;
 };
 
@@ -40,7 +43,7 @@ function isVigente(a: ActivityAssignment): boolean {
 }
 
 export default function PositionCard(props: Props) {
-  const { position, assignments, openRequestsByOriginal, assignmentsById, reviewsById, canAct } = props;
+  const { position, assignments, openRequestsByOriginal, assignmentsById, reviewsById, canAct, canWithdraw } = props;
   const [adding, setAdding] = useState(false);
   const [notice, setNotice] = useState<string | null>(null);
   const coverage = COVERAGE_INFO[position.coverage];
@@ -48,6 +51,12 @@ export default function PositionCard(props: Props) {
 
   const vigentes = assignments.filter(isVigente);
   const assignedPersonIds = new Set(vigentes.map((a) => a.person.id));
+
+  // Candidatos activos de solicitudes abiertas: solo ellos pueden aceptar la sustitución.
+  const activeCandidateIds = new Set<string>();
+  for (const request of openRequestsByOriginal.values()) {
+    if (request.candidateAssignmentId) activeCandidateIds.add(request.candidateAssignmentId);
+  }
 
   // Candidatos vigentes de sustituciones abiertas: se muestran anidados bajo la original.
   const nestedCandidateIds = new Set<string>();
@@ -79,6 +88,8 @@ export default function PositionCard(props: Props) {
         assignment={a}
         timezone={props.timezone}
         canAct={canAct && !(inHistory && assignedPersonIds.has(a.person.id))}
+        canWithdraw={canWithdraw}
+        isActiveCandidate={activeCandidateIds.has(a.id)}
         review={reviewsById.get(a.id)}
         openRequest={isVigente(a) ? openRequestsByOriginal.get(a.id) : undefined}
         candidate={candidate}
@@ -102,19 +113,28 @@ export default function PositionCard(props: Props) {
         </div>
         <span className="eq-chips">
           {position.critical ? <EqChip tone="danger">Crítico</EqChip> : null}
-          <EqChip tone={coverage.tone} title="La cobertura cuenta solo las personas confirmadas.">
-            {coverage.label} · {position.assignedCount} {position.assignedCount === 1 ? "confirmada" : "confirmadas"}
-          </EqChip>
-          {position.pendingCount > 0 ? (
-            <EqChip tone="warning">
-              {position.pendingCount} {position.pendingCount === 1 ? "pendiente" : "pendientes"}
+          {position.coverageUnavailable ? (
+            <EqChip tone="muted" title="No se pudo calcular la cobertura de personas.">
+              Cobertura no disponible
             </EqChip>
-          ) : null}
-          {position.proposedCount > 0 ? (
-            <EqChip tone="muted">
-              {position.proposedCount} {position.proposedCount === 1 ? "borrador" : "borradores"}
-            </EqChip>
-          ) : null}
+          ) : (
+            <>
+              <EqChip tone={coverage.tone} title="La cobertura cuenta solo las personas confirmadas.">
+                {coverage.label} · {position.assignedCount}{" "}
+                {position.assignedCount === 1 ? "confirmada" : "confirmadas"}
+              </EqChip>
+              {position.pendingCount !== null && position.pendingCount > 0 ? (
+                <EqChip tone="warning">
+                  {position.pendingCount} {position.pendingCount === 1 ? "pendiente" : "pendientes"}
+                </EqChip>
+              ) : null}
+              {position.proposedCount !== null && position.proposedCount > 0 ? (
+                <EqChip tone="muted">
+                  {position.proposedCount} {position.proposedCount === 1 ? "borrador" : "borradores"}
+                </EqChip>
+              ) : null}
+            </>
+          )}
         </span>
       </div>
 
@@ -131,19 +151,19 @@ export default function PositionCard(props: Props) {
             activityPositionId={position.id}
             serviceAreaId={props.serviceAreaId}
             assignedPersonIds={assignedPersonIds}
-            help="Un borrador solo lo ves tú y quien coordina. Al enviar, la persona verá el turno en «Mis turnos» y podrá responder."
+            help="Un borrador solo lo ve quien gestiona el puesto. Al enviarlo, la persona verá el turno en «Mis turnos» y podrá responder; no se le envía ningún aviso aparte."
             submits={[
               {
                 label: "Añadir como borrador",
-                submit: (personId, ack) =>
-                  createAssignmentAction(position.id, personId, { acknowledgeWarnings: ack, send: false }),
+                submit: (personId, acknowledgedWarnings) =>
+                  createAssignmentAction(position.id, personId, { acknowledgedWarnings, send: false }),
                 successMessage: (name) => `${name} añadida como borrador.`,
               },
               {
                 label: "Añadir y enviar",
                 primary: true,
-                submit: (personId, ack) =>
-                  createAssignmentAction(position.id, personId, { acknowledgeWarnings: ack, send: true }),
+                submit: (personId, acknowledgedWarnings) =>
+                  createAssignmentAction(position.id, personId, { acknowledgedWarnings, send: true }),
                 successMessage: (name) => `${name} añadida. Verá el turno en «Mis turnos».`,
               },
             ]}

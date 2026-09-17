@@ -24,12 +24,17 @@ import {
   sendAssignmentsAction,
 } from "./actions";
 import PersonPicker from "./PersonPicker";
-import { CodeList, EqChip, EqConfirm, EqMessages, useEquipoAction } from "./ui";
+import { CodeList, EqChip, EqConfirm, EqMessages, SendBlockedBox, useEquipoAction, type BlockedSend } from "./ui";
 
 type Props = {
   assignment: ActivityAssignment;
   timezone: string;
+  /** Crear, enviar, registrar respuestas y sustituciones: la actividad admite asignaciones y gestionas el área. */
   canAct: boolean;
+  /** Retirar: gestionas el área y la actividad está en borrador, planificada o publicada. */
+  canWithdraw: boolean;
+  /** Es el candidato vigente de una solicitud de sustitución abierta. */
+  isActiveCandidate: boolean;
   review: AssignmentReview | undefined;
   /** Solicitud de sustitución abierta sobre esta asignación. */
   openRequest: SubstitutionRequest | undefined;
@@ -53,15 +58,23 @@ function reviewBlocking(review: AssignmentReview | undefined): string[] {
 }
 
 export default function AssignmentItem(props: Props) {
-  const { assignment: a, timezone, canAct, openRequest, candidate } = props;
+  const { assignment: a, timezone, canAct, canWithdraw, openRequest, candidate } = props;
   const info = ASSIGNMENT_STATUS_INFO[a.status];
   const action = useEquipoAction();
   const [proposing, setProposing] = useState(false);
+  const [blockedSend, setBlockedSend] = useState<BlockedSend[]>([]);
 
   const blocking = reviewBlocking(props.review);
   const newWarnings = (props.review?.warnings ?? []).filter((w) => !a.acknowledgedWarnings.includes(w));
   const hasOpenCandidate = candidate !== undefined;
   const isVigente = a.status === "proposed" || a.status === "pending" || a.status === "accepted";
+  // Un candidato de sustitución solo puede aceptar mientras su solicitud siga abierta con él como candidato.
+  const canRegisterAccept =
+    (a.status === "pending" || a.status === "declined") && (!a.substitutesAssignmentId || props.isActiveCandidate);
+  // Igual para titulares y para quien llegó por sustitución: aceptada, o pendiente si no es un candidato.
+  const canRequestSubstitution =
+    !openRequest && (a.status === "accepted" || (a.status === "pending" && !a.substitutesAssignmentId));
+  const showWithdraw = canWithdraw && isVigente;
 
   return (
     <li className={`eq-assignment${props.history ? " is-history" : ""}`}>
@@ -124,26 +137,33 @@ export default function AssignmentItem(props: Props) {
         </div>
       ) : null}
 
-      {canAct ? (
+      {canAct || showWithdraw ? (
         <div className="eq-actions">
-          {a.status === "proposed" ? (
+          {canAct && a.status === "proposed" ? (
             <button
               type="button"
               className="eq-btn is-primary"
               disabled={action.pending}
-              onClick={() =>
+              onClick={() => {
+                setBlockedSend([]);
                 action.run(
                   () => sendAssignmentsAction(a.activityId, [a.id]),
-                  ({ sent }) =>
-                    sent > 0 ? `Enviada. ${a.person.name} verá el turno en «Mis turnos».` : "No había nada que enviar.",
-                )
-              }
+                  ({ sent }) => {
+                    if (sent.sent > 0) return `Enviada. ${a.person.name} verá el turno en «Mis turnos».`;
+                    if (sent.blocked.length > 0) {
+                      setBlockedSend(sent.blocked.map((b) => ({ ...b, name: a.person.name })));
+                      return null;
+                    }
+                    return "No se envió: la asignación ya no estaba en borrador.";
+                  },
+                );
+              }}
             >
               Enviar
             </button>
           ) : null}
 
-          {a.status === "pending" || a.status === "declined" ? (
+          {canAct && canRegisterAccept ? (
             <button
               type="button"
               className={`eq-btn${!a.person.hasAccount ? " is-primary" : ""}`}
@@ -168,7 +188,7 @@ export default function AssignmentItem(props: Props) {
             </button>
           ) : null}
 
-          {a.status === "pending" ? (
+          {canAct && a.status === "pending" ? (
             <button
               type="button"
               className="eq-btn"
@@ -187,7 +207,7 @@ export default function AssignmentItem(props: Props) {
             </button>
           ) : null}
 
-          {(a.status === "pending" || a.status === "accepted") && !openRequest && !props.substitutesName ? (
+          {canAct && canRequestSubstitution ? (
             <button
               type="button"
               className="eq-btn"
@@ -206,13 +226,13 @@ export default function AssignmentItem(props: Props) {
             </button>
           ) : null}
 
-          {openRequest && !hasOpenCandidate && !proposing ? (
+          {canAct && openRequest && !hasOpenCandidate && !proposing ? (
             <button type="button" className="eq-btn is-primary" disabled={action.pending} onClick={() => setProposing(true)}>
               Proponer candidato
             </button>
           ) : null}
 
-          {openRequest ? (
+          {canAct && openRequest ? (
             <EqConfirm
               label="Cancelar sustitución"
               confirmLabel="Cancelar sustitución"
@@ -228,7 +248,7 @@ export default function AssignmentItem(props: Props) {
             />
           ) : null}
 
-          {isVigente ? (
+          {showWithdraw ? (
             <EqConfirm
               label="Retirar"
               confirmLabel="Retirar"
@@ -244,6 +264,7 @@ export default function AssignmentItem(props: Props) {
         </div>
       ) : null}
       <EqMessages error={action.error} notice={action.notice} />
+      <SendBlockedBox blocked={blockedSend} />
 
       {openRequest && proposing && canAct && a.activityPositionId ? (
         <PersonPicker
@@ -251,12 +272,12 @@ export default function AssignmentItem(props: Props) {
           activityPositionId={a.activityPositionId}
           serviceAreaId={props.serviceAreaId}
           assignedPersonIds={props.assignedPersonIds}
-          help={`El candidato recibirá el turno como pendiente y lo verá en «Mis turnos». ${a.person.name} sigue en el puesto hasta que el candidato acepte.`}
+          help={`El turno del candidato quedará pendiente y lo verá en «Mis turnos» para responder. ${a.person.name} sigue en el puesto hasta que el candidato acepte.`}
           submits={[
             {
               label: "Proponer candidato",
               primary: true,
-              submit: (personId, ack) => proposeCandidateAction(openRequest.id, personId, ack),
+              submit: (personId, acknowledgedWarnings) => proposeCandidateAction(openRequest.id, personId, acknowledgedWarnings),
               successMessage: (name) => `${name} propuesto como candidato.`,
             },
           ]}
@@ -276,6 +297,8 @@ export default function AssignmentItem(props: Props) {
               assignment={candidate}
               timezone={timezone}
               canAct={canAct}
+              canWithdraw={canWithdraw}
+              isActiveCandidate
               review={props.candidateReview}
               openRequest={undefined}
               candidate={undefined}

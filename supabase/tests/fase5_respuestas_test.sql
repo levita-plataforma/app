@@ -4,7 +4,7 @@
 -- cancelación). Ver migración 20260922000500_rpc_asignaciones.sql.
 
 begin;
-select plan(61);
+select plan(78);
 
 create or replace function test_set_auth_uid(p_uid uuid) returns void as $$
 begin
@@ -135,6 +135,14 @@ select t_set('act_st', public.create_activity(t_id('church_a'),
   '{"type":"service","title":"P5R en curso","local_start":"2031-10-19T10:00","duration_minutes":60}'::jsonb) ->> 'activity_id');
 select t_set('pos_st', t_pos(t_area(t_id('act_st'), 'b5000000-0000-0000-0000-0000000a0001'), '{"name":"En curso","min_people":0}')::text);
 select public.transition_activity_status(t_id('act_st'), 'published');
+
+select t_set('act_c', public.create_activity(t_id('church_a'),
+  '{"type":"service","title":"P5R plazas","local_start":"2031-10-26T10:00","duration_minutes":60}'::jsonb) ->> 'activity_id');
+select t_set('area_c', t_area(t_id('act_c'), 'b5000000-0000-0000-0000-0000000a0001')::text);
+select t_set('pos_c1', t_pos(t_id('area_c'), '{"name":"Dos plazas","max_people":2}')::text);
+select t_set('pos_c2', t_pos(t_id('area_c'), '{"name":"Retirada representante","max_people":1}')::text);
+select t_set('pos_c3', t_pos(t_id('area_c'), '{"name":"Retirada persona","max_people":1}')::text);
+select public.transition_activity_status(t_id('act_c'), 'published');
 
 -- ============================================================
 -- 1. Respuesta de la propia persona
@@ -297,6 +305,51 @@ select throws_ok(
   'La persona no puede pedir sustitución una vez empezada la actividad'
 );
 
+-- Contador de turnos que la persona todavía puede responder.
+select is(public.my_respondable_assignments_count(t_id('church_a')), 1,
+  'my_respondable_assignments_count cuenta la asignación pendiente propia con plazo abierto');
+
+select test_set_auth_uid('b5000000-0000-0000-0000-000000000004');
+
+select is(public.my_respondable_assignments_count(t_id('church_a')), 0,
+  'my_respondable_assignments_count no cuenta pendientes con el plazo vencido ni rechazadas');
+
+select test_set_auth_uid('b5000000-0000-0000-0000-000000000001');
+select t_set('cnt_pend', t_asg(t_id('pos_r'), 'b5000000-0000-0000-0000-0000000e0007', '{"send":true}')::text);
+select t_set('cnt_draft', t_asg(t_id('pos_c1'), 'b5000000-0000-0000-0000-0000000e0005')::text);
+
+select test_set_auth_uid('b5000000-0000-0000-0000-000000000005');
+
+select ok(
+  public.my_respondable_assignments_count(t_id('church_a')) = 1
+  and public.my_respondable_assignments_count(t_id('church_b')) = 0,
+  'my_respondable_assignments_count no cuenta borradores ni asignaciones de otras personas, ni de otra iglesia'
+);
+
+reset role;
+select set_config('request.jwt.claims', '', true);
+update activities set status = 'planned' where id = t_id('act_r');
+select test_set_auth_uid('b5000000-0000-0000-0000-000000000005');
+
+select is(public.my_respondable_assignments_count(t_id('church_a')), 1,
+  'my_respondable_assignments_count cuenta también actividades planificadas');
+
+reset role;
+select set_config('request.jwt.claims', '', true);
+update activities set status = 'draft' where id = t_id('act_r');
+select test_set_auth_uid('b5000000-0000-0000-0000-000000000005');
+
+select is(public.my_respondable_assignments_count(t_id('church_a')), 0,
+  'my_respondable_assignments_count no cuenta actividades que no están planificadas ni publicadas');
+
+reset role;
+select set_config('request.jwt.claims', '', true);
+update activities set status = 'planned' where id = t_id('act_r');
+update activities set status = 'published' where id = t_id('act_r');
+select test_set_auth_uid('b5000000-0000-0000-0000-000000000001');
+select public.cancel_activity_assignment(t_id('cnt_pend'));
+select public.cancel_activity_assignment(t_id('cnt_draft'));
+
 -- ============================================================
 -- 2. Respuesta registrada por un representante
 -- ============================================================
@@ -370,7 +423,10 @@ select throws_ok(
 );
 
 select test_set_auth_uid('b5000000-0000-0000-0000-000000000001');
-select t_set('draft5', t_asg(t_id('pos_r'), 'b5000000-0000-0000-0000-0000000e0005', '{"acknowledge_warnings":true}')::text);
+select is(t_err($q$ select public.create_activity_assignment(t_id('pos_r'), 'b5000000-0000-0000-0000-0000000e0005', '{"acknowledge_warnings":true}') $q$),
+  'PT412:overlapping_assignment',
+  'El antiguo acknowledge_warnings booleano se ignora: los avisos siguen sin confirmar (PT412)');
+select t_set('draft5', t_asg(t_id('pos_r'), 'b5000000-0000-0000-0000-0000000e0005', '{"acknowledged_warnings":["overlapping_assignment"]}')::text);
 
 select test_set_auth_uid('b5000000-0000-0000-0000-000000000005');
 
@@ -432,10 +488,22 @@ select ok(
   'El candidato nace pendiente, vinculado a la original y registrado en la solicitud'
 );
 
+select ok(
+  (select assigned_count = 1 and pending_count = 1 and proposed_count = 0 and expected_count = 1
+   from public.activity_position_coverage(t_id('act_s')) where activity_position_id = t_id('pos_s1')),
+  'La original y su candidato vigente cuentan como una sola plaza prevista (expected_count = 1)'
+);
+
 select throws_ok(
   $$ select public.propose_substitution_candidate(t_id('req1'), 'b5000000-0000-0000-0000-0000000e0004') $$,
-  '23505', null,
-  'Con un candidato vigente no se puede proponer otro (23505)'
+  '23505', 'La solicitud ya tiene un candidato pendiente: retíralo antes de proponer otro.',
+  'Con un candidato vigente no se puede proponer otro (23505) y no se sobrescribe'
+);
+
+select ok(
+  (select candidate_assignment_id = t_id('cand1') from activity_substitution_requests where id = t_id('req1'))
+  and t_state(t_id('cand1')) = 'pending:1',
+  'Tras el intento fallido, la solicitud conserva su candidato vigente'
 );
 
 select test_set_auth_uid('b5000000-0000-0000-0000-000000000003');
@@ -529,13 +597,21 @@ select throws_ok(
 
 select test_set_auth_uid('b5000000-0000-0000-0000-000000000005');
 
+select throws_ok(
+  $$ select public.cancel_substitution_request(t_id('req2')) $$,
+  '42501', null,
+  'La persona original no cancela una solicitud abierta por quien gestiona el puesto (requested_by_self false)'
+);
+
+select test_set_auth_uid('b5000000-0000-0000-0000-000000000001');
+
 select lives_ok(
   $$ select public.cancel_substitution_request(t_id('req2')) $$,
-  'La persona original cancela su solicitud'
+  'Quien gestiona el puesto cancela la solicitud que abrió'
 );
 
 select ok(
-  (select status = 'cancelled' and cancelled_at is not null and cancelled_by = 'b5000000-0000-0000-0000-000000000005'
+  (select status = 'cancelled' and cancelled_at is not null and cancelled_by = 'b5000000-0000-0000-0000-000000000001'
    from activity_substitution_requests where id = t_id('req2'))
   and t_state(t_id('cand3')) = 'cancelled:2'
   and t_state(t_id('s2')) = 'accepted:2',
@@ -545,7 +621,7 @@ select ok(
 reset role;
 select is((select cancel_cause from activity_assignments where id = t_id('cand3')), 'substitution_withdrawn',
   'El candidato retirado queda con causa substitution_withdrawn');
-select test_set_auth_uid('b5000000-0000-0000-0000-000000000005');
+select test_set_auth_uid('b5000000-0000-0000-0000-000000000001');
 
 select lives_ok(
   $$ select public.cancel_substitution_request(t_id('req2')) $$,
@@ -557,7 +633,12 @@ select test_set_auth_uid('b5000000-0000-0000-0000-000000000001');
 select t_set('s3', t_asg(t_id('pos_s3'), 'b5000000-0000-0000-0000-0000000e0003', '{"send":true}')::text);
 select public.record_assignment_response(t_id('s3'), 'accepted');
 select t_set('req3', public.request_assignment_substitution(t_id('s3')) ->> 'request_id');
-select t_set('cand4', public.propose_substitution_candidate(t_id('req3'), 'b5000000-0000-0000-0000-0000000e0004', true) ->> 'assignment_id');
+select ok(
+  t_err($q$ select public.propose_substitution_candidate(t_id('req3'), 'b5000000-0000-0000-0000-0000000e0004') $q$) = 'PT412:overlapping_assignment'
+  and t_err($q$ select public.propose_substitution_candidate(t_id('req3'), 'b5000000-0000-0000-0000-0000000e0004', array['different_campus']) $q$) = 'PT412:overlapping_assignment',
+  'Proponer un candidato con avisos sin confirmar su código (lista vacía u otros códigos) falla con PT412 y los no confirmados'
+);
+select t_set('cand4', public.propose_substitution_candidate(t_id('req3'), 'b5000000-0000-0000-0000-0000000e0004', array['overlapping_assignment']) ->> 'assignment_id');
 select public.cancel_activity_assignment(t_id('s3'));
 
 select ok(
@@ -575,7 +656,7 @@ select public.respond_activity_assignment(t_id('s4'), 'accepted');
 select t_set('req4', public.request_assignment_substitution(t_id('s4')) ->> 'request_id');
 
 select test_set_auth_uid('b5000000-0000-0000-0000-000000000001');
-select t_set('cand5', public.propose_substitution_candidate(t_id('req4'), 'b5000000-0000-0000-0000-0000000e0003', true) ->> 'assignment_id');
+select t_set('cand5', public.propose_substitution_candidate(t_id('req4'), 'b5000000-0000-0000-0000-0000000e0003') ->> 'assignment_id');
 
 select test_set_auth_uid('b5000000-0000-0000-0000-000000000003');
 select public.respond_activity_assignment(t_id('cand5'), 'declined');
@@ -593,7 +674,96 @@ select ok(
 );
 
 -- ============================================================
--- 5. Auditoría
+-- 5. Plazas de una sustitución y original que deja de estar vigente
+-- ============================================================
+select test_set_auth_uid('b5000000-0000-0000-0000-000000000001');
+
+-- Original + candidato vigente ocupan una sola plaza.
+select t_set('c_orig', t_asg(t_id('pos_c1'), 'b5000000-0000-0000-0000-0000000e0002', '{"send":true}')::text);
+select public.record_assignment_response(t_id('c_orig'), 'accepted');
+select t_set('c_req', public.request_assignment_substitution(t_id('c_orig')) ->> 'request_id');
+select t_set('c_cand', public.propose_substitution_candidate(t_id('c_req'), 'b5000000-0000-0000-0000-0000000e0003',
+  array['overlapping_assignment']) ->> 'assignment_id');
+
+select lives_ok(
+  $$ select t_set('c_third', t_asg(t_id('pos_c1'), 'b5000000-0000-0000-0000-0000000e0004',
+       '{"send":true,"acknowledged_warnings":["overlapping_assignment"]}')::text) $$,
+  'En un puesto de 2 plazas con original y candidato vigente (una plaza) cabe otra persona'
+);
+
+select ok(
+  (select assigned_count = 1 and pending_count = 2 and expected_count = 2
+   from public.activity_position_coverage(t_id('act_c')) where activity_position_id = t_id('pos_c1')),
+  'Cobertura: original + candidato + tercera persona son 2 plazas previstas'
+);
+
+select is(t_err($q$ select public.create_activity_assignment(t_id('pos_c1'), 'b5000000-0000-0000-0000-0000000e0005',
+    '{"acknowledged_warnings":["overlapping_assignment"]}') $q$),
+  '22023:position_full',
+  'Con las 2 plazas ocupadas (una por el par original-candidato) crear otra falla con position_full');
+
+-- El representante rechaza una original aceptada con solicitud abierta.
+select t_set('c2_orig', t_asg(t_id('pos_c2'), 'b5000000-0000-0000-0000-0000000e0005',
+  '{"send":true,"acknowledged_warnings":["overlapping_assignment"]}')::text);
+select public.record_assignment_response(t_id('c2_orig'), 'accepted');
+select t_set('c2_req', public.request_assignment_substitution(t_id('c2_orig')) ->> 'request_id');
+select t_set('c2_cand', public.propose_substitution_candidate(t_id('c2_req'), 'b5000000-0000-0000-0000-0000000e0007',
+  array['overlapping_assignment']) ->> 'assignment_id');
+select public.record_assignment_response(t_id('c2_orig'), 'declined');
+
+select ok(
+  t_state(t_id('c2_orig')) like 'declined:%'
+  and (select status = 'cancelled' and cancelled_at is not null from activity_substitution_requests where id = t_id('c2_req'))
+  and t_state(t_id('c2_cand')) = 'cancelled:2'
+  and (select cancel_cause = 'substitution_withdrawn' from activity_assignments where id = t_id('c2_cand')),
+  'Si el representante rechaza una original aceptada con solicitud abierta, se cancelan la solicitud y su candidato (substitution_withdrawn)'
+);
+
+-- La persona rechaza una original pendiente con solicitud abierta por quien gestiona.
+select t_set('c3_orig', t_asg(t_id('pos_c3'), 'b5000000-0000-0000-0000-0000000e0004',
+  '{"send":true,"acknowledged_warnings":["overlapping_assignment"]}')::text);
+select t_set('c3_req', public.request_assignment_substitution(t_id('c3_orig')) ->> 'request_id');
+select t_set('c3_cand', public.propose_substitution_candidate(t_id('c3_req'), 'b5000000-0000-0000-0000-0000000e0002',
+  array['overlapping_assignment']) ->> 'assignment_id');
+
+select test_set_auth_uid('b5000000-0000-0000-0000-000000000004');
+select public.respond_activity_assignment(t_id('c3_orig'), 'declined');
+
+select test_set_auth_uid('b5000000-0000-0000-0000-000000000001');
+
+select ok(
+  t_state(t_id('c3_orig')) = 'declined:2'
+  and (select status = 'cancelled' and cancelled_by = 'b5000000-0000-0000-0000-000000000004'
+       from activity_substitution_requests where id = t_id('c3_req'))
+  and (select status = 'cancelled' and cancel_cause = 'substitution_withdrawn' from activity_assignments where id = t_id('c3_cand')),
+  'Si la persona rechaza su original pendiente con solicitud abierta, se cancelan la solicitud y su candidato'
+);
+
+select test_set_auth_uid('b5000000-0000-0000-0000-000000000002');
+
+select is(t_err($q$ select public.respond_activity_assignment(t_id('c3_cand'), 'accepted') $q$), '22023',
+  'El candidato retirado por el rechazo de la original ya no puede aceptar');
+
+-- La original deja de estar vigente sin pasar por las RPC: al aceptar el
+-- candidato no se marca substituted ni se audita assignment.substituted.
+reset role;
+select set_config('request.jwt.claims', '', true);
+update activity_assignments set status = 'declined' where id = t_id('c_orig');
+
+select test_set_auth_uid('b5000000-0000-0000-0000-000000000003');
+select public.respond_activity_assignment(t_id('c_cand'), 'accepted');
+
+reset role;
+select ok(
+  (select status = 'declined' and substituted_at is null from activity_assignments where id = t_id('c_orig'))
+  and t_state(t_id('c_cand')) = 'accepted:2'
+  and (select status = 'completed' from activity_substitution_requests where id = t_id('c_req'))
+  and not exists (select 1 from audit_logs where action = 'assignment.substituted' and entity_id = t_id('c_orig')),
+  'assignment.substituted solo se audita si la original pasó realmente a substituted'
+);
+
+-- ============================================================
+-- 6. Auditoría
 -- ============================================================
 reset role;
 

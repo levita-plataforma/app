@@ -22,13 +22,23 @@ export type EquipoData = {
   /** Revisión actual de las asignaciones vigentes que gestionas. */
   reviews: AssignmentReview[];
   manage: AssignmentManageScope;
-  /** planned/published y no terminada (o flexible). La base de datos lo vuelve a comprobar. */
+  /**
+   * planned/published y sin terminar (flexible: sin fin o fin futuro). Misma
+   * regla que la base de datos, que lo vuelve a comprobar.
+   */
   acceptsAssignments: boolean;
   /** No se pudieron cargar las asignaciones: no equivale a "sin asignaciones". */
   loadError: boolean;
   /** No se pudo revisar la elegibilidad actual. */
   reviewError: boolean;
+  /** No se pudieron comprobar los permisos de gestión: no equivale a "sin permiso". */
+  permissionsError: boolean;
 };
+
+/** Estados de la actividad en los que la base de datos permite retirar asignaciones. */
+export function canWithdrawInStatus(status: string): boolean {
+  return status === "draft" || status === "planned" || status === "published";
+}
 
 export function canManageServiceArea(manage: AssignmentManageScope, serviceAreaId: string | null): boolean {
   return manage.all || (serviceAreaId !== null && Boolean(manage.byServiceAreaId[serviceAreaId]));
