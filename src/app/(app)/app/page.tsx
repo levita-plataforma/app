@@ -1,5 +1,15 @@
 import Link from "next/link";
-import { Users, CalendarDays, UsersRound, UserX, CalendarRange, FilePen, TriangleAlert, ListTodo } from "lucide-react";
+import {
+  Users,
+  CalendarDays,
+  CalendarCheck,
+  UsersRound,
+  UserX,
+  CalendarRange,
+  FilePen,
+  TriangleAlert,
+  ListTodo,
+} from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import ModuleGrid from "@/components/shell/ModuleGrid";
 import StatCard from "@/components/shell/StatCard";
@@ -7,10 +17,17 @@ import { requireTenantContext } from "@/server/tenant/tenant-context";
 import { createSupabaseServerClient } from "@/server/supabase/server-client";
 import { getActivitiesDashboard, type ActivitiesDashboard } from "@/server/activities/activities-dashboard-service";
 import type { ActivitySummary } from "@/server/activities/activities-service";
+import {
+  countMyPendingAssignments,
+  getStaffingSummaries,
+  type StaffingSummary,
+} from "@/server/assignments/assignments-service";
 import { ACTIVITY_STATUS_INFO, ACTIVITY_TYPE_INFO } from "@/lib/activities/constants";
 import { formatDateLong, formatTime, localDateKey } from "@/lib/activities/time";
 import { keyParts, monthShortLabel, weekdayShortLabel } from "./calendario/calendar-utils";
+import { staffingCountsText, uncoveredText } from "./actividades/_components/ActivitiesTable";
 import "./dashboard-actividades.css";
+import "./mis-turnos/mis-turnos.css";
 
 export default async function InicioPage() {
   const tenant = await requireTenantContext();
@@ -22,6 +39,7 @@ export default async function InicioPage() {
     { data: peopleWithoutAccount },
     { data: enabledModules },
     activities,
+    myPendingCount,
   ] = await Promise.all([
     supabase
       .from("church_people")
@@ -49,7 +67,17 @@ export default async function InicioPage() {
     // Resumen real de actividades (Fase 4). Si la RPC falla se muestra un
     // aviso y "—", nunca ceros que parecerían datos reales.
     getActivitiesDashboard(tenant.churchId).catch((): ActivitiesDashboard | null => null),
+    // Mis turnos (Fase 5). null = no se pudo contar: se muestra "—".
+    tenant.personId
+      ? countMyPendingAssignments(tenant.churchId, tenant.personId).catch((): number | null => null)
+      : Promise.resolve(null),
   ]);
+
+  // Cobertura de personas de las actividades listadas. Si falla, "—".
+  const listedIds = [...(activities?.nextActivities ?? []), ...(activities?.nextServices ?? [])].map((a) => a.id);
+  const staffing = activities
+    ? await getStaffingSummaries([...new Set(listedIds)]).catch((): Map<string, StaffingSummary> | null => null)
+    : null;
 
   const peopleWithoutAccountCount = (peopleWithoutAccount ?? []).filter((row) => {
     const person = Array.isArray(row.people) ? row.people[0] : row.people;
@@ -101,6 +129,30 @@ export default async function InicioPage() {
         />
       </div>
 
+      {tenant.personId ? (
+        <section className="shell-card mt-dash-card" aria-labelledby="mt-dash-title">
+          <span className="mt-module-icon">
+            <CalendarCheck size={18} aria-hidden="true" />
+          </span>
+          <div className="mt-dash-card-main">
+            <h2 id="mt-dash-title" className="stat-label">
+              Mis turnos pendientes
+            </h2>
+            <p className="mt-dash-card-value">{myPendingCount === null ? "—" : String(myPendingCount)}</p>
+            <p className="serving-meta">
+              {myPendingCount === null
+                ? "No se pudieron contar tus turnos. Vuelve a intentarlo en unos minutos."
+                : myPendingCount === 0
+                  ? "No tienes turnos esperando tu respuesta."
+                  : myPendingCount === 1
+                    ? "Un turno espera tu respuesta."
+                    : `${myPendingCount} turnos esperan tu respuesta.`}
+            </p>
+          </div>
+          <Link href="/app/mis-turnos">Ver mis turnos →</Link>
+        </section>
+      ) : null}
+
       <section className="dash-section" aria-labelledby="dash-actividades-title">
         <div className="dash-section-header">
           <h2 id="dash-actividades-title">Actividades</h2>
@@ -147,6 +199,7 @@ export default async function InicioPage() {
           title="Próximas actividades"
           items={activities?.nextActivities ?? []}
           failed={!activities}
+          staffing={staffing}
           emptyTitle="No hay actividades próximas"
           emptyText="Cuando planifiques o publiques una actividad, aparecerá aquí."
           moreHref="/app/calendario?vista=lista"
@@ -155,6 +208,7 @@ export default async function InicioPage() {
           title="Próximos cultos"
           items={activities?.nextServices ?? []}
           failed={!activities}
+          staffing={staffing}
           emptyTitle="No hay cultos próximos"
           emptyText="Los cultos programados, incluidos los borradores, aparecerán aquí."
           moreHref="/app/calendario?vista=lista&tipo=service"
@@ -206,10 +260,13 @@ function ActivityListCard({
   emptyTitle,
   emptyText,
   moreHref,
+  staffing,
 }: {
   title: string;
   items: ActivitySummary[];
   failed: boolean;
+  /** Cobertura de personas; null si no se pudo calcular. */
+  staffing: Map<string, StaffingSummary> | null;
   emptyTitle: string;
   emptyText: string;
   moreHref: string;
@@ -233,7 +290,11 @@ function ActivityListCard({
       ) : (
         <ul className="dash-activity-list">
           {items.map((activity) => (
-            <DashboardActivityRow key={activity.id} activity={activity} />
+            <DashboardActivityRow
+              key={activity.id}
+              activity={activity}
+              staffing={staffing ? staffing.get(activity.id) : null}
+            />
           ))}
         </ul>
       )}
@@ -241,7 +302,37 @@ function ActivityListCard({
   );
 }
 
-function DashboardActivityRow({ activity }: { activity: ActivitySummary }) {
+/** null = no se pudo calcular («—»); undefined = sin datos visibles para esta actividad. */
+function StaffingLine({ summary }: { summary: StaffingSummary | null | undefined }) {
+  if (summary === null || summary === undefined) {
+    return (
+      <span className="mt-staffing">
+        Personas: —
+        {summary === null ? <span className="sr-only"> (no se pudo calcular la cobertura)</span> : null}
+      </span>
+    );
+  }
+  if (summary.positions === 0) return null;
+  return (
+    <span className="mt-staffing">
+      Personas: {staffingCountsText(summary)}
+      {summary.uncoveredPositions > 0 ? (
+        <>
+          {" · "}
+          <span className="mt-staffing-alert">{uncoveredText(summary.uncoveredPositions)}</span>
+        </>
+      ) : null}
+    </span>
+  );
+}
+
+function DashboardActivityRow({
+  activity,
+  staffing,
+}: {
+  activity: ActivitySummary;
+  staffing: StaffingSummary | null | undefined;
+}) {
   const tz = activity.timezone;
   const dayKey = activity.startsAt ? localDateKey(activity.startsAt, tz) : null;
   const status = ACTIVITY_STATUS_INFO[activity.status];
@@ -276,6 +367,7 @@ function DashboardActivityRow({ activity }: { activity: ActivitySummary }) {
           {time} · {ACTIVITY_TYPE_INFO[activity.type].label}
           {activity.campusName ? ` · ${activity.campusName}` : ""}
         </span>
+        <StaffingLine summary={staffing} />
       </div>
       <span className={`dash-status dash-tone-${status.tone}`}>{status.label}</span>
     </li>

@@ -8,6 +8,7 @@ import {
   UserRound,
   GraduationCap,
   CalendarDays,
+  CalendarCheck,
   Calendar,
   ListChecks,
   Baby,
@@ -43,6 +44,8 @@ export const NAV_ITEMS: NavItem[] = [
   // "Eventos" (más abajo) es el módulo de Fase 6 y tiene su propia ruta.
   { href: "/app/calendario", label: "Calendario", icon: Calendar, moduleKey: null, accent: "events" },
   { href: "/app/actividades", label: "Actividades", icon: ListChecks, moduleKey: null, accent: "events" },
+  // Mis turnos (Fase 5) es núcleo: cualquier persona asignada responde aquí, esté o no activo el módulo Servicios.
+  { href: "/app/mis-turnos", label: "Mis turnos", icon: CalendarCheck, moduleKey: null, accent: "serving" },
   { href: "/app/servicios", label: "Servicios", icon: CalendarClock, moduleKey: "serving", accent: "serving" },
   { href: "/app/alabanza", label: "Alabanza", icon: Music4, moduleKey: "worship", accent: "worship" },
   { href: "/app/grupos", label: "Grupos", icon: UserRound, moduleKey: "groups", accent: "groups" },
