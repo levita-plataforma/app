@@ -5,13 +5,14 @@ Fecha: **17 de septiembre de 2026**. Responsable: **Carlos** (CA-04/CA-05). Rama
 ## Estado
 
 ```
-EN DESARROLLO — rama feature/carlos-fase-5-asignaciones; nada aplicado en remoto
+F5-CARLOS: LISTA PARA VALIDACIÓN DE CARLOS — rama feature/carlos-fase-5-asignaciones (PR #4); nada aplicado en remoto
+FASE 5: PARCIAL — dependencia de DI-01/DI-02 (Diogo) y de la prueba conjunta CO-03
 ```
 
 - Documento técnico de entrega para revisión de Carlos. No autoriza integrar en `main` ni aplicar migraciones en producción.
 - Fuente de verdad: migraciones `20260922000100` a `20260922000500`. Este documento solo describe lo que hace ese SQL.
 - Decisiones de producto: acordadas por Carlos el 17 de septiembre de 2026 y registradas en [CONTRATO-F4-F5.md §3](CONTRATO-F4-F5.md). Lo compartido con Diogo sigue pendiente ([§9 del contrato](CONTRATO-F4-F5.md)).
-- Interfaz (`src/`) y pruebas pgTAP: **en desarrollo en esta rama**. Este documento no describe pantallas ni recoge resultados de pruebas.
+- Interfaz (`src/`) y pruebas pgTAP: completas en esta rama (pestaña Equipo, «Mis turnos», listado y dashboard; 731/731 en la batería local). Este documento describe el SQL, no las pantallas; los resultados de las comprobaciones están en la PR.
 - Base: F4 cerrada e integrada ([FASE-4-ACTIVIDADES.md](FASE-4-ACTIVIDADES.md)).
 
 ---
