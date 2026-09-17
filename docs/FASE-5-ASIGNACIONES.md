@@ -5,14 +5,16 @@ Fecha: **17 de septiembre de 2026**. Responsable: **Carlos** (CA-04/CA-05). Rama
 ## Estado
 
 ```
-F5-CARLOS: LISTA PARA VALIDACIÓN DE CARLOS — rama feature/carlos-fase-5-asignaciones (PR #4); nada aplicado en remoto
-FASE 5: PARCIAL — dependencia de DI-01/DI-02 (Diogo) y de la prueba conjunta CO-03
+F5-CARLOS: INTEGRADA EN MAIN Y APLICADA EN PRODUCCIÓN (17 de septiembre de 2026)
+FASE 5: PARCIAL — falta integrar disponibilidad y avisos (PR #5) y la prueba conjunta CO-03
 ```
 
-- Documento técnico de entrega para revisión de Carlos. No autoriza integrar en `main` ni aplicar migraciones en producción.
+- Validada expresamente por Carlos sobre el commit `f9cb5b4`, integrada con la PR #4 (merge `a9fd3c8`) y desplegada en producción.
+- Migraciones `20260922000100`–`20260922000500` aplicadas en producción por Carlos con `supabase db push` **antes** de integrar. Verificación posterior en solo lectura: las tres tablas responden, la capability `assignment.manage` existe con sus cuatro roles, las RPC nuevas responden y un cliente sin sesión no puede leerlas ni escribirlas (`42501`).
 - Fuente de verdad: migraciones `20260922000100` a `20260922000500`. Este documento solo describe lo que hace ese SQL.
-- Decisiones de producto: acordadas por Carlos el 17 de septiembre de 2026 y registradas en [CONTRATO-F4-F5.md §3](CONTRATO-F4-F5.md). Lo compartido con Diogo sigue pendiente ([§9 del contrato](CONTRATO-F4-F5.md)).
-- Interfaz (`src/`) y pruebas pgTAP: completas en esta rama (pestaña Equipo, «Mis turnos», listado y dashboard; 731/731 en la batería local). Este documento describe el SQL, no las pantallas; los resultados de las comprobaciones están en la PR.
+- Decisiones de producto: acordadas por Carlos el 17 de septiembre de 2026 y registradas en [CONTRATO-F4-F5.md §3](CONTRATO-F4-F5.md).
+- Interfaz (`src/`) y pruebas pgTAP: completas (pestaña Equipo, «Mis turnos», listado y dashboard; 731/731 en la batería local, más la CI con Supabase real).
+- Disponibilidad, frecuencia y avisos se entregan aparte, en la PR #5: hasta que se integre, el aviso `unavailable` no se produce y no se emite ningún evento.
 - Base: F4 cerrada e integrada ([FASE-4-ACTIVIDADES.md](FASE-4-ACTIVIDADES.md)).
 
 ---
@@ -324,16 +326,16 @@ Funciones internas sin `EXECUTE` para `authenticated`: `app.position_expected_co
 
 | Dependencia | Situación en F5-Carlos |
 |---|---|
-| `app.person_unavailability(church_id uuid, person_ids uuid[], from timestamptz, to timestamptz)` | Consulta dinámica solo si existe. Hoy no existe: el aviso `unavailable` no se produce. Sin tabla ni función sustituta. Si falla o deniega, aviso `availability_unknown` y la operación continúa |
-| `app.person_serving_preferences` | No se consume; sin aviso de frecuencia |
-| Punto de escritura de eventos (DI-02) | Sin emisión; puntos marcados `EVENTO F5` ([contrato §6.1](CONTRATO-F4-F5.md)) |
-| Recordatorios, silencio, escalado y transporte | Fuera de alcance |
+| `app.person_unavailability(church_id uuid, person_ids uuid[], from timestamptz, to timestamptz)` | Consulta dinámica solo si existe. En producción **todavía no existe**: llega con la PR #5 y entonces el aviso `unavailable` empieza a producirse sin tocar esta parte. Si falla o deniega, aviso `availability_unknown` y la operación continúa |
+| Preferencias de frecuencia | Llegan con la PR #5, que añade el aviso `frequency_exceeded` redefiniendo la evaluación con la misma firma |
+| Punto de escritura de eventos (DI-02) | Sin emisión en esta parte; puntos marcados `EVENTO F5`. La PR #5 los emite por triggers, sin reescribir nada de aquí |
+| Recordatorios, silencio, escalado y transporte | En la PR #5; el envío externo sigue desactivado |
 
 ---
 
 ## 13. Plan de migración y recuperación para producción
 
-> **No ejecutado.** Requiere validación expresa de Carlos sobre el commit concreto y autorización para producción.
+> **Ejecutado el 17 de septiembre de 2026.** Carlos aplicó las cinco migraciones con `supabase db push` sobre el commit validado `f9cb5b4`, antes de integrar. El proyecto no tenía datos de actividades, así que ninguna de las conversiones de §7 afectó a filas existentes. El plan se conserva para repetirlo en otro entorno y por si hace falta recuperar.
 
 ### 13.1 Antes de aplicar
 

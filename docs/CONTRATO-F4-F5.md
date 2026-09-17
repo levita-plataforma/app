@@ -10,15 +10,16 @@ Fecha: **16 de septiembre de 2026**; actualización: **17 de septiembre de 2026*
 
 ```
 F4:            INTEGRADA Y APLICADA EN PRODUCCIÓN (17 de septiembre de 2026)
-F5 · CARLOS:   DECISIONES DE SU DOMINIO ACORDADAS POR CARLOS (17 de septiembre de 2026)
-               EN DESARROLLO — rama feature/carlos-fase-5-asignaciones; nada aplicado en remoto
-F5 · COMPARTIDO Y DIOGO: PENDIENTE DE ACUERDO CON DIOGO
+F5 · CARLOS:   INTEGRADA EN MAIN Y APLICADA EN PRODUCCIÓN (17 de septiembre de 2026)
+F5 · COMPARTIDO Y DIOGO: DECIDIDO POR CARLOS COMO PROPIETARIO (17 de septiembre de 2026);
+               implementado en feature/fase-5-avisos-disponibilidad (PR #5), sin integrar
+               ni aplicar en remoto
 ```
 
 - **F4.** Los datos de §2 proceden de las migraciones `20260920000100`–`20260920000900` y de `src/server/activities/`, integradas en `main` con la PR #2 (merge `b3f5add`), validadas por Carlos en el commit `93eb369` y **aplicadas en producción el 17 de septiembre de 2026**. Detalle y evidencias: [FASE-4-ACTIVIDADES.md §9](FASE-4-ACTIVIDADES.md) y [ADR 0017](adr/0017-actividades-planificacion-fase-4.md).
-- **F5 · Carlos (CA-04/CA-05).** Las decisiones de §3 están acordadas por Carlos. Su implementación en base de datos son las migraciones `20260922000100`–`20260922000500` de la rama `feature/carlos-fase-5-asignaciones`, **no aplicadas en ningún entorno remoto**. La interfaz (`src/`) y las pruebas pgTAP están en desarrollo en esa rama. Detalle técnico: [FASE-5-ASIGNACIONES.md](FASE-5-ASIGNACIONES.md).
-- **F5 · Diogo (DI-01 a DI-04) y lo compartido.** §5, §6 y §9 siguen siendo propuestas: no existen tablas, funciones ni eventos de Diogo. Nada de este documento las da por acordadas.
-- Este documento no inicia ni autoriza trabajo de Diogo, ni integraciones en `main`, ni cambios en producción.
+- **F5 · Carlos (CA-04/CA-05).** Las decisiones de §3 están acordadas por Carlos. Las migraciones `20260922000100`–`20260922000500` se **aplicaron en producción el 17 de septiembre de 2026** y la PR #4 se integró en `main` (merge `a9fd3c8`) tras la validación expresa del commit `f9cb5b4`. Detalle técnico y evidencias: [FASE-5-ASIGNACIONES.md](FASE-5-ASIGNACIONES.md).
+- **F5 · Diogo (DI-01 a DI-04) y lo compartido.** Diogo no subió trabajo y las decisiones seguían abiertas, así que el 17 de septiembre de 2026 Carlos, como propietario, las decidió y encargó la implementación: está en la rama `feature/fase-5-avisos-disponibilidad` (PR #5, migraciones `20260923…`), **sin integrar y sin aplicar en remoto**, con el envío externo de email y push desactivado. Si Diogo tiene trabajo local, hay que reconciliarlo antes de integrar.
+- Este documento no autoriza por sí mismo integraciones en `main` ni cambios en producción: cada una necesita la validación expresa del propietario sobre el commit concreto.
 
 **Responsables.**
 

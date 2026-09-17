@@ -199,7 +199,9 @@ El coordinador prepara y publica una actividad —puntual o recurrente, desde ce
 
 ### Nota de estado — 17 de septiembre de 2026
 
-**Parte de Carlos (CA-04/CA-05): en desarrollo** en la rama `feature/carlos-fase-5-asignaciones`, sin nada aplicado en remoto, con las decisiones acordadas por Carlos (D20): estados, cobertura, conflictos, respuestas, cambios de F4, sustituciones, respuesta por representante, permisos y lectura mínima, tareas flexibles, publicación multiárea y enlaces solo autenticados. Lo compartido con Diogo (eventos, deduplicación, disponibilidad, frecuencia, recordatorios, destinatarios y transporte) sigue pendiente de acuerdo. La fase no está cerrada: requiere la parte de Diogo y el recorrido conjunto CO-03. Detalle en [FASE-5-ASIGNACIONES.md](FASE-5-ASIGNACIONES.md) y [CONTRATO-F4-F5.md](CONTRATO-F4-F5.md).
+**Parte de Carlos (CA-04/CA-05): integrada y aplicada en producción** el 17 de septiembre de 2026 (validación del commit `f9cb5b4`, PR #4, merge `a9fd3c8`), con las decisiones acordadas por Carlos (D20): estados, cobertura, conflictos, respuestas, cambios de F4, sustituciones, respuesta por representante, permisos y lectura mínima, tareas flexibles, publicación multiárea y enlaces solo autenticados. Detalle en [FASE-5-ASIGNACIONES.md](FASE-5-ASIGNACIONES.md).
+
+**Disponibilidad, frecuencia y avisos (DI-01 y DI-02): pendientes de integrar.** Los asumió Carlos (D21) ante la ausencia de trabajo de Diogo; están en la rama `feature/fase-5-avisos-disponibilidad` (PR #5), sin aplicar en remoto y con el envío externo desactivado. La fase se cierra al integrar esa parte y completar el recorrido conjunto CO-03.
 
 ### Alcance
 
