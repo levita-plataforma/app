@@ -497,15 +497,17 @@ select ok(
 );
 
 reset role;
-select ok(to_regprocedure('app.person_unavailability(uuid,uuid[],timestamptz,timestamptz)') is null,
-  'La función de disponibilidad de Diogo todavía no existe');
+select ok(to_regprocedure('app.person_unavailability(uuid,uuid[],timestamptz,timestamptz)') is not null,
+  'La función de disponibilidad de DI-01 (20260923000100) existe');
 select test_set_auth_uid('a5000000-0000-0000-0000-000000000001');
 
 select ok(not ('unavailable' = any (t_warnings(t_id('pos_ov_b'), 'a5000000-0000-0000-0000-0000000e0010'))),
-  'Sin la función de disponibilidad no se emite el aviso unavailable');
+  'Sin no disponibilidad registrada no se emite el aviso unavailable');
 
--- Stub temporal del contrato DI-01 (se revierte con la transacción).
+-- Stubs temporales del contrato DI-01 (se revierten con la transacción): se
+-- sustituye la función real para comprobar el contrato que consume F5-Carlos.
 reset role;
+drop function app.person_unavailability(uuid, uuid[], timestamptz, timestamptz);
 create function app.person_unavailability(p_church_id uuid, p_person_ids uuid[], p_from timestamptz, p_to timestamptz)
 returns table (person_id uuid)
 language sql

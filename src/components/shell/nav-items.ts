@@ -1,5 +1,7 @@
 import type { LucideIcon } from "lucide-react";
 import {
+  Bell,
+  CalendarX2,
   Home,
   Users,
   UsersRound,
@@ -46,6 +48,10 @@ export const NAV_ITEMS: NavItem[] = [
   { href: "/app/actividades", label: "Actividades", icon: ListChecks, moduleKey: null, accent: "events" },
   // Mis turnos (Fase 5) es núcleo: cualquier persona asignada responde aquí, esté o no activo el módulo Servicios.
   { href: "/app/mis-turnos", label: "Mis turnos", icon: CalendarCheck, moduleKey: null, accent: "serving" },
+  // Disponibilidad y avisos (Fase 5, DI-01 y DI-02): también núcleo, porque
+  // cualquier persona declara cuándo no puede y recibe sus avisos.
+  { href: "/app/mi-disponibilidad", label: "Mi disponibilidad", icon: CalendarX2, moduleKey: null, accent: "serving" },
+  { href: "/app/avisos", label: "Avisos", icon: Bell, moduleKey: null, accent: "communications" },
   { href: "/app/servicios", label: "Servicios", icon: CalendarClock, moduleKey: "serving", accent: "serving" },
   { href: "/app/alabanza", label: "Alabanza", icon: Music4, moduleKey: "worship", accent: "worship" },
   { href: "/app/grupos", label: "Grupos", icon: UserRound, moduleKey: "groups", accent: "groups" },

@@ -2292,6 +2292,262 @@ export type Database = {
         }
         Relationships: []
       }
+      notification_deliveries: {
+        Row: {
+          attempts: number
+          channel: Database["public"]["Enums"]["notification_channel"]
+          church_id: string
+          claimed_at: string | null
+          created_at: string
+          id: string
+          last_error: string | null
+          notification_id: string
+          person_id: string
+          scheduled_for: string
+          sent_at: string | null
+          status: Database["public"]["Enums"]["notification_delivery_status"]
+          updated_at: string
+        }
+        Insert: {
+          attempts?: number
+          channel: Database["public"]["Enums"]["notification_channel"]
+          church_id: string
+          claimed_at?: string | null
+          created_at?: string
+          id?: string
+          last_error?: string | null
+          notification_id: string
+          person_id: string
+          scheduled_for?: string
+          sent_at?: string | null
+          status?: Database["public"]["Enums"]["notification_delivery_status"]
+          updated_at?: string
+        }
+        Update: {
+          attempts?: number
+          channel?: Database["public"]["Enums"]["notification_channel"]
+          church_id?: string
+          claimed_at?: string | null
+          created_at?: string
+          id?: string
+          last_error?: string | null
+          notification_id?: string
+          person_id?: string
+          scheduled_for?: string
+          sent_at?: string | null
+          status?: Database["public"]["Enums"]["notification_delivery_status"]
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "notification_deliveries_church_id_fkey"
+            columns: ["church_id"]
+            isOneToOne: false
+            referencedRelation: "churches"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "notification_deliveries_notification_id_church_id_fkey"
+            columns: ["notification_id", "church_id"]
+            isOneToOne: false
+            referencedRelation: "notifications"
+            referencedColumns: ["id", "church_id"]
+          },
+          {
+            foreignKeyName: "notification_deliveries_person_id_fkey"
+            columns: ["person_id"]
+            isOneToOne: false
+            referencedRelation: "people"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      notification_events: {
+        Row: {
+          attempts: number
+          church_id: string
+          created_at: string
+          entity_id: string
+          entity_type: string
+          entity_version: number | null
+          event_type: string
+          id: string
+          idempotency_key: string
+          last_error: string | null
+          occurred_at: string
+          payload: Json
+          processed_at: string | null
+          recipient_person_ids: string[]
+        }
+        Insert: {
+          attempts?: number
+          church_id: string
+          created_at?: string
+          entity_id: string
+          entity_type: string
+          entity_version?: number | null
+          event_type: string
+          id?: string
+          idempotency_key: string
+          last_error?: string | null
+          occurred_at?: string
+          payload?: Json
+          processed_at?: string | null
+          recipient_person_ids?: string[]
+        }
+        Update: {
+          attempts?: number
+          church_id?: string
+          created_at?: string
+          entity_id?: string
+          entity_type?: string
+          entity_version?: number | null
+          event_type?: string
+          id?: string
+          idempotency_key?: string
+          last_error?: string | null
+          occurred_at?: string
+          payload?: Json
+          processed_at?: string | null
+          recipient_person_ids?: string[]
+        }
+        Relationships: [
+          {
+            foreignKeyName: "notification_events_church_id_fkey"
+            columns: ["church_id"]
+            isOneToOne: false
+            referencedRelation: "churches"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      notification_preferences: {
+        Row: {
+          channel: Database["public"]["Enums"]["notification_channel"]
+          church_id: string
+          enabled: boolean
+          person_id: string
+          updated_at: string
+        }
+        Insert: {
+          channel: Database["public"]["Enums"]["notification_channel"]
+          church_id: string
+          enabled?: boolean
+          person_id: string
+          updated_at?: string
+        }
+        Update: {
+          channel?: Database["public"]["Enums"]["notification_channel"]
+          church_id?: string
+          enabled?: boolean
+          person_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "notification_preferences_church_id_fkey"
+            columns: ["church_id"]
+            isOneToOne: false
+            referencedRelation: "churches"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "notification_preferences_church_id_person_id_fkey"
+            columns: ["church_id", "person_id"]
+            isOneToOne: false
+            referencedRelation: "church_people"
+            referencedColumns: ["church_id", "person_id"]
+          },
+          {
+            foreignKeyName: "notification_preferences_person_id_fkey"
+            columns: ["person_id"]
+            isOneToOne: false
+            referencedRelation: "people"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      notifications: {
+        Row: {
+          activity_id: string | null
+          body: string
+          church_id: string
+          created_at: string
+          entity_id: string
+          entity_type: string
+          event_id: string
+          event_type: string
+          id: string
+          person_id: string
+          read_at: string | null
+          title: string
+        }
+        Insert: {
+          activity_id?: string | null
+          body: string
+          church_id: string
+          created_at?: string
+          entity_id: string
+          entity_type: string
+          event_id: string
+          event_type: string
+          id?: string
+          person_id: string
+          read_at?: string | null
+          title: string
+        }
+        Update: {
+          activity_id?: string | null
+          body?: string
+          church_id?: string
+          created_at?: string
+          entity_id?: string
+          entity_type?: string
+          event_id?: string
+          event_type?: string
+          id?: string
+          person_id?: string
+          read_at?: string | null
+          title?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "notifications_activity_id_church_id_fkey"
+            columns: ["activity_id", "church_id"]
+            isOneToOne: false
+            referencedRelation: "activities"
+            referencedColumns: ["id", "church_id"]
+          },
+          {
+            foreignKeyName: "notifications_church_id_fkey"
+            columns: ["church_id"]
+            isOneToOne: false
+            referencedRelation: "churches"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "notifications_church_id_person_id_fkey"
+            columns: ["church_id", "person_id"]
+            isOneToOne: false
+            referencedRelation: "church_people"
+            referencedColumns: ["church_id", "person_id"]
+          },
+          {
+            foreignKeyName: "notifications_event_id_church_id_fkey"
+            columns: ["event_id", "church_id"]
+            isOneToOne: false
+            referencedRelation: "notification_events"
+            referencedColumns: ["id", "church_id"]
+          },
+          {
+            foreignKeyName: "notifications_person_id_fkey"
+            columns: ["person_id"]
+            isOneToOne: false
+            referencedRelation: "people"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       people: {
         Row: {
           archived_at: string | null
@@ -2500,6 +2756,58 @@ export type Database = {
           },
         ]
       }
+      person_serving_preferences: {
+        Row: {
+          church_id: string
+          created_at: string
+          id: string
+          max_activities_per_month: number | null
+          person_id: string
+          service_area_id: string | null
+          updated_at: string
+        }
+        Insert: {
+          church_id: string
+          created_at?: string
+          id?: string
+          max_activities_per_month?: number | null
+          person_id: string
+          service_area_id?: string | null
+          updated_at?: string
+        }
+        Update: {
+          church_id?: string
+          created_at?: string
+          id?: string
+          max_activities_per_month?: number | null
+          person_id?: string
+          service_area_id?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "person_serving_preferences_church_id_fkey"
+            columns: ["church_id"]
+            isOneToOne: false
+            referencedRelation: "churches"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "person_serving_preferences_church_id_person_id_fkey"
+            columns: ["church_id", "person_id"]
+            isOneToOne: false
+            referencedRelation: "church_people"
+            referencedColumns: ["church_id", "person_id"]
+          },
+          {
+            foreignKeyName: "person_serving_preferences_service_area_id_church_id_fkey"
+            columns: ["service_area_id", "church_id"]
+            isOneToOne: false
+            referencedRelation: "service_areas"
+            referencedColumns: ["id", "church_id"]
+          },
+        ]
+      }
       person_tags: {
         Row: {
           church_id: string
@@ -2543,6 +2851,111 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "tags"
             referencedColumns: ["id", "church_id"]
+          },
+        ]
+      }
+      person_unavailability_periods: {
+        Row: {
+          church_id: string
+          created_at: string
+          created_by: string | null
+          ends_at: string
+          id: string
+          person_id: string
+          reason: string | null
+          starts_at: string
+          updated_at: string
+        }
+        Insert: {
+          church_id: string
+          created_at?: string
+          created_by?: string | null
+          ends_at: string
+          id?: string
+          person_id: string
+          reason?: string | null
+          starts_at: string
+          updated_at?: string
+        }
+        Update: {
+          church_id?: string
+          created_at?: string
+          created_by?: string | null
+          ends_at?: string
+          id?: string
+          person_id?: string
+          reason?: string | null
+          starts_at?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "person_unavailability_periods_church_id_fkey"
+            columns: ["church_id"]
+            isOneToOne: false
+            referencedRelation: "churches"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "person_unavailability_periods_church_id_person_id_fkey"
+            columns: ["church_id", "person_id"]
+            isOneToOne: false
+            referencedRelation: "church_people"
+            referencedColumns: ["church_id", "person_id"]
+          },
+        ]
+      }
+      person_unavailability_weekly: {
+        Row: {
+          church_id: string
+          created_at: string
+          created_by: string | null
+          ends_time: string
+          id: string
+          person_id: string
+          reason: string | null
+          starts_time: string
+          updated_at: string
+          weekday: number
+        }
+        Insert: {
+          church_id: string
+          created_at?: string
+          created_by?: string | null
+          ends_time: string
+          id?: string
+          person_id: string
+          reason?: string | null
+          starts_time: string
+          updated_at?: string
+          weekday: number
+        }
+        Update: {
+          church_id?: string
+          created_at?: string
+          created_by?: string | null
+          ends_time?: string
+          id?: string
+          person_id?: string
+          reason?: string | null
+          starts_time?: string
+          updated_at?: string
+          weekday?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "person_unavailability_weekly_church_id_fkey"
+            columns: ["church_id"]
+            isOneToOne: false
+            referencedRelation: "churches"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "person_unavailability_weekly_church_id_person_id_fkey"
+            columns: ["church_id", "person_id"]
+            isOneToOne: false
+            referencedRelation: "church_people"
+            referencedColumns: ["church_id", "person_id"]
           },
         ]
       }
@@ -3596,6 +4009,31 @@ export type Database = {
         Args: { p_request_id: string }
         Returns: undefined
       }
+      claim_notification_deliveries: {
+        Args: { p_channel: string; p_limit?: number }
+        Returns: {
+          activity_id: string
+          attempts: number
+          body: string
+          channel: string
+          church_id: string
+          delivery_id: string
+          entity_id: string
+          entity_type: string
+          notification_id: string
+          person_id: string
+          scheduled_for: string
+          title: string
+        }[]
+      }
+      complete_notification_delivery: {
+        Args: { p_delivery_id: string; p_error?: string; p_status: string }
+        Returns: Json
+      }
+      count_my_unread_notifications: {
+        Args: { p_church_id: string }
+        Returns: number
+      }
       create_activity: {
         Args: { p_church_id: string; p_input: Json }
         Returns: Json
@@ -3623,6 +4061,8 @@ export type Database = {
         }
         Returns: string
       }
+      delete_my_unavailability_period: { Args: { p_id: string }; Returns: Json }
+      delete_my_weekly_unavailability: { Args: { p_id: string }; Returns: Json }
       duplicate_activity: {
         Args: { p_activity_id: string; p_input?: Json }
         Returns: Json
@@ -3639,6 +4079,8 @@ export type Database = {
           status: Database["public"]["Enums"]["eligibility_status"]
         }[]
       }
+      enqueue_due_reminders: { Args: never; Returns: Json }
+      escalate_uncovered_positions: { Args: never; Returns: Json }
       evaluate_person_eligibility: {
         Args: {
           p_church_id: string
@@ -3689,6 +4131,28 @@ export type Database = {
           out_invitation_token: string
         }[]
       }
+      list_my_notifications: {
+        Args: { p_church_id: string; p_limit?: number; p_only_unread?: boolean }
+        Returns: {
+          activity_id: string
+          body: string
+          created_at: string
+          entity_id: string
+          entity_type: string
+          event_type: string
+          id: string
+          read_at: string
+          title: string
+        }[]
+      }
+      mark_all_notifications_read: {
+        Args: { p_church_id: string }
+        Returns: Json
+      }
+      mark_notification_read: {
+        Args: { p_notification_id: string }
+        Returns: Json
+      }
       module_enabled: {
         Args: { p_church_id: string; p_module_key: string }
         Returns: boolean
@@ -3712,6 +4176,7 @@ export type Database = {
           warnings: string[]
         }[]
       }
+      process_notification_events: { Args: { p_limit?: number }; Returns: Json }
       propose_substitution_candidate: {
         Args: {
           p_acknowledged_warnings?: string[]
@@ -3808,6 +4273,20 @@ export type Database = {
         Args: { p_archived: boolean; p_template_id: string }
         Returns: undefined
       }
+      set_my_notification_preference: {
+        Args: { p_channel: string; p_enabled: boolean }
+        Returns: Json
+      }
+      set_my_serving_preference: {
+        Args: {
+          p_church_id: string
+          p_max_activities_per_month?: number
+          p_service_area_id?: string
+        }
+        Returns: Json
+      }
+      set_my_unavailability_period: { Args: { p_input: Json }; Returns: Json }
+      set_my_weekly_unavailability: { Args: { p_input: Json }; Returns: Json }
       show_limit: { Args: never; Returns: number }
       show_trgm: { Args: { "": string }; Returns: string[] }
       slug_available: { Args: { p_slug: string }; Returns: boolean }
@@ -3940,6 +4419,8 @@ export type Database = {
       file_classification: "public" | "internal" | "personal" | "restricted"
       invitation_status: "pending" | "accepted" | "expired" | "revoked"
       job_status: "queued" | "processing" | "succeeded" | "failed"
+      notification_channel: "inapp" | "email" | "push"
+      notification_delivery_status: "queued" | "sent" | "failed" | "suppressed"
       person_source:
         | "manual"
         | "import"
@@ -4183,6 +4664,8 @@ export const Constants = {
       file_classification: ["public", "internal", "personal", "restricted"],
       invitation_status: ["pending", "accepted", "expired", "revoked"],
       job_status: ["queued", "processing", "succeeded", "failed"],
+      notification_channel: ["inapp", "email", "push"],
+      notification_delivery_status: ["queued", "sent", "failed", "suppressed"],
       person_source: [
         "manual",
         "import",

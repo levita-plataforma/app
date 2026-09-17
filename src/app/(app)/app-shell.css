@@ -271,16 +271,8 @@
   height: 19px;
 }
 
-.shell-bell-dot {
-  position: absolute;
-  top: 6px;
-  right: 7px;
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
-  background: var(--shell-danger);
-  border: 2px solid var(--shell-bg);
-}
+/* El punto rojo decorativo se sustituyó por el contador real de la campana
+   (ShellNotificationsBell, Fase 5 DI-02). */
 
 .shell-profile {
   display: flex;

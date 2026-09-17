@@ -199,7 +199,9 @@ El coordinador prepara y publica una actividad —puntual o recurrente, desde ce
 
 ### Nota de estado — 17 de septiembre de 2026
 
-**Parte de Carlos (CA-04/CA-05): en desarrollo** en la rama `feature/carlos-fase-5-asignaciones`, sin nada aplicado en remoto, con las decisiones acordadas por Carlos (D20): estados, cobertura, conflictos, respuestas, cambios de F4, sustituciones, respuesta por representante, permisos y lectura mínima, tareas flexibles, publicación multiárea y enlaces solo autenticados. Lo compartido con Diogo (eventos, deduplicación, disponibilidad, frecuencia, recordatorios, destinatarios y transporte) sigue pendiente de acuerdo. La fase no está cerrada: requiere la parte de Diogo y el recorrido conjunto CO-03. Detalle en [FASE-5-ASIGNACIONES.md](FASE-5-ASIGNACIONES.md) y [CONTRATO-F4-F5.md](CONTRATO-F4-F5.md).
+**Parte de Carlos (CA-04/CA-05): lista para validación** en la rama `feature/carlos-fase-5-asignaciones` (PR #4), sin nada aplicado en remoto, con las decisiones acordadas por Carlos (D20): estados, cobertura, conflictos, respuestas, cambios de F4, sustituciones, respuesta por representante, permisos y lectura mínima, tareas flexibles, publicación multiárea y enlaces solo autenticados. Detalle en [FASE-5-ASIGNACIONES.md](FASE-5-ASIGNACIONES.md).
+
+**Disponibilidad, frecuencia y avisos (DI-01 y DI-02): también los asume Carlos** (D21), en la rama `feature/fase-5-avisos-disponibilidad` encima de la anterior, sin nada aplicado en remoto y con el envío externo de email y push desactivado. Las nueve decisiones compartidas quedaron resueltas. Detalle en [FASE-5-AVISOS-DISPONIBILIDAD.md](FASE-5-AVISOS-DISPONIBILIDAD.md) y [CONTRATO-F4-F5.md](CONTRATO-F4-F5.md). La fase se cierra tras validar ambas partes, aplicar sus migraciones y hacer el recorrido conjunto CO-03.
 
 ### Alcance
 

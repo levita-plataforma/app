@@ -12,12 +12,14 @@ Fecha: **16 de septiembre de 2026**; actualización: **17 de septiembre de 2026*
 F4:            INTEGRADA Y APLICADA EN PRODUCCIÓN (17 de septiembre de 2026)
 F5 · CARLOS:   DECISIONES DE SU DOMINIO ACORDADAS POR CARLOS (17 de septiembre de 2026)
                EN DESARROLLO — rama feature/carlos-fase-5-asignaciones; nada aplicado en remoto
-F5 · COMPARTIDO Y DIOGO: PENDIENTE DE ACUERDO CON DIOGO
+F5 · COMPARTIDO Y DIOGO: DECIDIDO POR CARLOS COMO PROPIETARIO (17 de septiembre de 2026)
+               e implementado en la rama feature/fase-5-avisos-disponibilidad; pendiente de
+               reconciliar con Diogo si tiene trabajo local
 ```
 
 - **F4.** Los datos de §2 proceden de las migraciones `20260920000100`–`20260920000900` y de `src/server/activities/`, integradas en `main` con la PR #2 (merge `b3f5add`), validadas por Carlos en el commit `93eb369` y **aplicadas en producción el 17 de septiembre de 2026**. Detalle y evidencias: [FASE-4-ACTIVIDADES.md §9](FASE-4-ACTIVIDADES.md) y [ADR 0017](adr/0017-actividades-planificacion-fase-4.md).
 - **F5 · Carlos (CA-04/CA-05).** Las decisiones de §3 están acordadas por Carlos. Su implementación en base de datos son las migraciones `20260922000100`–`20260922000500` de la rama `feature/carlos-fase-5-asignaciones`, **no aplicadas en ningún entorno remoto**. La interfaz (`src/`) y las pruebas pgTAP están en desarrollo en esa rama. Detalle técnico: [FASE-5-ASIGNACIONES.md](FASE-5-ASIGNACIONES.md).
-- **F5 · Diogo (DI-01 a DI-04) y lo compartido.** §5, §6 y §9 siguen siendo propuestas: no existen tablas, funciones ni eventos de Diogo. Nada de este documento las da por acordadas.
+- **F5 · Diogo (DI-01 a DI-04) y lo compartido.** El 17 de septiembre de 2026 Carlos, como propietario, decidió completar también esta parte: resolvió las nueve decisiones abiertas de §9 y encargó su implementación. Está en la rama `feature/fase-5-avisos-disponibilidad` (migraciones `20260923000100`–`20260923000500`), **no aplicada en ningún entorno remoto**, con el envío externo de email y push desactivado. Detalle y reglas: [FASE-5-AVISOS-DISPONIBILIDAD.md](FASE-5-AVISOS-DISPONIBILIDAD.md). Diogo no ha subido ninguna rama; si tiene trabajo local, hay que reconciliarlo antes de integrar.
 - Este documento no inicia ni autoriza trabajo de Diogo, ni integraciones en `main`, ni cambios en producción.
 
 **Responsables.**
@@ -305,21 +307,23 @@ Reglas:
 
 ---
 
-## 9. Decisiones abiertas
+## 9. Decisiones antes abiertas, ya resueltas
 
-Pendientes de Diogo o de ambos. Única lista vigente.
+Las nueve las decidió **Carlos como propietario el 17 de septiembre de 2026**, al asumir también esta parte. Implementadas en `feature/fase-5-avisos-disponibilidad`; el detalle está en [FASE-5-AVISOS-DISPONIBILIDAD.md](FASE-5-AVISOS-DISPONIBILIDAD.md).
 
-1. **Emisión de eventos:** mecanismo (propuesta: outbox en la misma transacción, esquema de Diogo) y punto de escritura que usará Carlos (§6.3).
-2. **Deduplicación:** clave propuesta `assignment_id` + `version` (§6.2) y ventana adicional del motor.
-3. **Silencio y recordatorios:** zona de referencia (destinatario, actividad o iglesia), offsets y excepciones urgentes al silencio.
-4. **Llegada por puesto:** F4 no tiene antelación de llegada por puesto; decidir si se incorpora, de forma compatible, antes de basar recordatorios en ella.
-5. **Frecuencia:** firma de `app.person_serving_preferences`, si se cuenta por actividad o por puesto y si es por área. Carlos la tratará como aviso (decisión 3).
-6. **Disponibilidad:** confirmar la firma de §5.1, qué columnas devuelve y la capability que autoriza la consulta. Si deniega o falla en los contextos de llamada de F5-Carlos, el resultado es el aviso `availability_unknown`.
-7. **Destinatarios de avisos y escalado:** quién recibe aceptaciones y rechazos, escalado por criticidad y sin líder, audiencia de `activity.published` y `activity.unpublished`, y si un cambio de serie emite un evento agregado o por ocurrencia.
-8. **Transporte:** proveedor de email/push y entorno de pruebas.
-9. **Prefijo `20260921…`** para las migraciones de Diogo.
+| # | Decisión |
+|---|---|
+| 1 | **Emisión de eventos:** outbox `notification_events` escrita por triggers en la misma transacción que la mutación. No se reescribe ninguna función de F5-Carlos |
+| 2 | **Deduplicación:** `idempotency_key` = `<event_type>:<entity_id>:<entity_version>`, con sufijo cuando hace falta distinguir (recordatorios y escalado). Conflicto = no se duplica |
+| 3 | **Silencio y recordatorios:** silencio 22:00–08:00 en la zona de la **actividad**; recordatorios a 7 y 2 días sin respuesta y la víspera si ya se aceptó; única excepción al silencio, la cancelación de una actividad del mismo día |
+| 4 | **Llegada por puesto:** no se incorpora; los recordatorios usan el inicio de la actividad |
+| 5 | **Frecuencia:** `person_serving_preferences` con máximo de **actividades al mes**, global y afinable por área; dos puestos de la misma actividad cuentan como una; produce el aviso `frequency_exceeded`, nunca un bloqueo |
+| 6 | **Disponibilidad:** `app.person_unavailability(church, person_ids[], from, to)` devuelve `(person_id, source, starts_at, ends_at)`, **sin el motivo**; la autoriza la propia persona o `assignment.manage` en la iglesia, en cualquier scope |
+| 7 | **Destinatarios y escalado:** respuestas a quien creó la asignación y a los líderes del área; sin líder, a la administración. Escalado a la administración si un puesto crítico sigue bajo mínimos a menos de 3 días. `activity.published`/`unpublished` siguen sin emitirse |
+| 8 | **Transporte:** ninguno configurado. Las entregas de email y push se quedan en cola (`NOTIFICATIONS_TRANSPORT=disabled`) |
+| 9 | **Prefijo:** `20260923…` en lugar de `20260921…`, para no quedar por detrás de migraciones ya aplicadas |
 
 ## Acuerdo
 
-- [x] Acordado por Carlos — solo las decisiones de su dominio (§3), el 17 de septiembre de 2026; no incluye lo compartido ni lo de Diogo (§5, §6, §9).
-- [ ] Acordado por Diogo
+- [x] Acordado por Carlos — las decisiones de su dominio (§3) y, como propietario, también las compartidas y las de Diogo (§5, §6 y §9), el 17 de septiembre de 2026.
+- [ ] Revisado con Diogo — pendiente: si tiene trabajo local sobre DI-01 o DI-02, hay que reconciliarlo antes de integrar.
