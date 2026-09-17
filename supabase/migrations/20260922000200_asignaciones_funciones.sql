@@ -266,12 +266,19 @@ begin
   -- acordada en el contrato. No se simula si no existe.
   if v_range is not null
      and to_regprocedure('app.person_unavailability(uuid,uuid[],timestamptz,timestamptz)') is not null then
-    execute 'select exists (select 1 from app.person_unavailability($1, $2, $3, $4))'
-      into v_code
-      using v_activity.church_id, array[p_person_id], lower(v_range), upper(v_range);
-    if v_code::boolean then
-      v_warnings := array_append(v_warnings, 'unavailable');
-    end if;
+    begin
+      execute 'select exists (select 1 from app.person_unavailability($1, $2, $3, $4))'
+        into v_code
+        using v_activity.church_id, array[p_person_id], lower(v_range), upper(v_range);
+      if v_code::boolean then
+        v_warnings := array_append(v_warnings, 'unavailable');
+      end if;
+    exception
+      when others then
+        -- Un fallo o una denegación de la consulta de disponibilidad no
+        -- impide asignar ni responder: se avisa de que no se pudo comprobar.
+        v_warnings := array_append(v_warnings, 'availability_unknown');
+    end;
   end if;
 
   return query select v_blocking, v_warnings;
@@ -288,8 +295,13 @@ security definer
 set search_path = pg_catalog, public
 as $$
   select coalesce((
+    -- Como F4, pero una tarea flexible con ventana ya vencida tampoco admite
+    -- asignaciones (decisión de Carlos sobre flexibles).
     select a.status in ('planned', 'published')
-      and (a.schedule_kind = 'flexible' or a.ends_at > now())
+      and (
+        (a.schedule_kind = 'flexible' and (a.ends_at is null or a.ends_at > now()))
+        or (a.schedule_kind = 'timed' and a.ends_at > now())
+      )
     from activities a
     where a.id = p_activity_id
   ), false);
@@ -316,6 +328,9 @@ begin
      or not (v_activity.church_id = any (app.church_ids_for_user()))
      or not app.assignment_manage_cap(v_activity.church_id, v_activity.campus_id, v_activity.id, v_position.service_area_id) then
     raise exception 'No tienes permiso para gestionar asignaciones de este puesto.' using errcode = '42501';
+  end if;
+  if not app.module_enabled(v_activity.church_id, 'serving') then
+    raise exception 'El módulo Servicios no está habilitado.' using errcode = '42501';
   end if;
   return query select * from app.evaluate_assignment_eligibility(p_activity_position_id, p_person_id, '{}');
 end;

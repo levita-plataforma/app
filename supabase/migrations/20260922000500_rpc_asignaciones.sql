@@ -186,6 +186,9 @@ begin
   if not app.activity_accepts_assignments_unchecked(v_activity.id) then
     raise exception 'La actividad no admite asignaciones en su estado actual.' using errcode = '22023';
   end if;
+  if not app.module_enabled(v_activity.church_id, 'serving') then
+    raise exception 'El módulo Servicios no está habilitado.' using errcode = '42501';
+  end if;
 
   for v_assignment in
     select * from activity_assignments
@@ -199,6 +202,11 @@ begin
       end if;
       continue;
     end if;
+    -- Se revalidan los bloqueos al comunicar (requisitos o fecha pudieron cambiar).
+    perform app.raise_assignment_blocked((
+      select e.blocking from app.evaluate_assignment_eligibility(
+        v_assignment.activity_position_id, v_assignment.person_id, array[v_assignment.id]) e
+    ));
     update activity_assignments
     set status = 'pending', sent_at = now(), sent_by = auth.uid(), version = version + 1
     where id = v_assignment.id;
@@ -250,6 +258,7 @@ begin
   update activity_assignments
   set status = 'cancelled', cancelled_at = now(), cancelled_by = auth.uid(), cancel_cause = 'substitution_withdrawn', version = version + 1
   where substitutes_assignment_id = v_assignment.id and status in ('proposed', 'pending', 'accepted');
+  -- EVENTO F5 (DI-02): assignment.cancelled al candidato retirado, si lo había.
   update activity_substitution_requests set status = 'cancelled', cancelled_at = now(), cancelled_by = auth.uid()
   where original_assignment_id = v_assignment.id and status = 'open';
 
@@ -300,6 +309,18 @@ begin
   -- Tras aceptar, la propia persona no rechaza: solicita sustitución.
   if p_source = 'self' and p_assignment.status = 'accepted' and v_to = 'declined' then
     raise exception 'Ya aceptaste este turno: solicita una sustitución para darte de baja.' using errcode = '22023';
+  end if;
+
+  -- Un candidato de sustitución solo puede aceptar mientras sea el candidato
+  -- activo de una solicitud abierta (si rechazó, se retiró o la solicitud se
+  -- canceló, ya no sustituye a nadie).
+  if v_to = 'accepted' and p_assignment.substitutes_assignment_id is not null and not exists (
+    select 1 from activity_substitution_requests r
+    where r.original_assignment_id = p_assignment.substitutes_assignment_id
+      and r.status = 'open'
+      and r.candidate_assignment_id = p_assignment.id
+  ) then
+    raise exception 'Esta propuesta de sustitución ya no está activa.' using errcode = '22023';
   end if;
 
   if v_to = 'accepted' then
@@ -458,6 +479,15 @@ begin
   v_activity := v_ctx.activity;
   v_self := v_assignment.person_id in (select app.current_person_ids());
 
+  -- Un borrador no existe para la persona (no revelar que se está preparando).
+  if v_self and v_assignment.status = 'proposed'
+     and not app.assignment_manage_cap(v_activity.church_id, v_activity.campus_id, v_activity.id, v_assignment.service_area_id) then
+    raise exception 'La asignación no existe.' using errcode = 'P0002';
+  end if;
+  if not app.module_enabled(v_activity.church_id, 'serving') then
+    raise exception 'El módulo Servicios no está habilitado.' using errcode = '42501';
+  end if;
+
   if v_self and v_assignment.status <> 'proposed'
      and not app.assignment_manage_cap(v_activity.church_id, v_activity.campus_id, v_activity.id, v_assignment.service_area_id) then
     if v_assignment.status <> 'accepted' then
@@ -562,7 +592,8 @@ begin
   update activity_substitution_requests set candidate_assignment_id = v_id where id = v_request.id;
 
   perform app.write_audit_log(v_activity.church_id, 'assignment.substitution_candidate_proposed', 'activity_assignments', v_id,
-    jsonb_build_object('activity_id', v_activity.id, 'request_id', v_request.id, 'original_assignment_id', v_original.id));
+    jsonb_build_object('activity_id', v_activity.id, 'request_id', v_request.id, 'original_assignment_id', v_original.id,
+      'acknowledged_warnings', case when p_acknowledge_warnings then to_jsonb(v_warnings) else '[]'::jsonb end));
   -- EVENTO F5 (DI-02): assignment.proposed al candidato.
 
   return jsonb_build_object('assignment_id', v_id, 'status', 'pending', 'warnings', to_jsonb(v_warnings));
@@ -598,7 +629,12 @@ begin
   if v_request.status <> 'open' then
     return;
   end if;
+  if not app.module_enabled(v_activity.church_id, 'serving') then
+    raise exception 'El módulo Servicios no está habilitado.' using errcode = '42501';
+  end if;
 
+  -- EVENTO F5 (DI-02): assignment.cancelled al candidato retirado y
+  -- assignment.substitution_cancelled a quien la pidió.
   update activity_assignments
   set status = 'cancelled', cancelled_at = now(), cancelled_by = auth.uid(), cancel_cause = 'substitution_withdrawn', version = version + 1
   where substitutes_assignment_id = v_original.id and status in ('proposed', 'pending', 'accepted');
@@ -632,8 +668,10 @@ returns table (
   proposed_count integer,
   expected_count integer
 )
-language sql stable security invoker set search_path = pg_catalog, public
+language sql stable security definer set search_path = pg_catalog, public
 as $$
+  -- Definer con comprobación de lectura: los conteos (sin nombres) son los
+  -- mismos para cualquier persona que pueda leer la actividad.
   select ap.id, ap.activity_service_area_id, ap.min_people::integer, ap.max_people::integer,
          coalesce(c.accepted, 0),
          app.position_coverage_status(ap.min_people, ap.max_people, coalesce(c.accepted, 0)),
@@ -648,6 +686,7 @@ as $$
     where aa.activity_position_id = ap.id
   ) c on true
   where ap.activity_id = p_activity_id
+    and app.can_read_activity(p_activity_id)
   order by ap.sort_order, ap.created_at;
 $$;
 
@@ -662,7 +701,7 @@ returns table (
   proposed integer,
   uncovered_positions integer
 )
-language sql stable security invoker set search_path = pg_catalog, public
+language sql stable security definer set search_path = pg_catalog, public
 as $$
   select a.id,
          count(ap.id)::integer,
@@ -680,6 +719,7 @@ as $$
     from activity_assignments aa where aa.activity_position_id = ap.id
   ) c on true
   where a.id = any (p_activity_ids[1:200])
+    and app.can_read_activity(a.id)
   group by a.id;
 $$;
 
@@ -694,7 +734,8 @@ declare
   v_activity activities%rowtype;
 begin
   select * into v_activity from activities where id = p_activity_id;
-  if not found or not (v_activity.church_id = any (app.church_ids_for_user())) then
+  if not found or not (v_activity.church_id = any (app.church_ids_for_user()))
+     or not app.module_enabled(v_activity.church_id, 'serving') then
     return;
   end if;
   return query

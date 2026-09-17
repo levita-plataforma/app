@@ -1,6 +1,6 @@
 # Decisiones y cuestiones abiertas
 
-Revisión: **16 de septiembre de 2026**.
+Revisión: **17 de septiembre de 2026**.
 
 Este documento distingue decisiones confirmadas de asuntos que deben cerrarse antes de la fase correspondiente. Las decisiones más recientes prevalecen sobre propuestas históricas del backlog.
 
@@ -63,6 +63,19 @@ Toda la shell de aplicación (paleta, tipografía, estructura, iconografía por 
 ### D19 · Fase 4 = actividades, plantillas, estructura de servicio y planificación; asignaciones pasan a Fase 5 — aceptado el 17 de septiembre de 2026 (validación de Carlos del commit `93eb369`)
 `activities` sigue siendo la raíz sin tabla de extensión; se añaden el estado `planned`, visibilidad por audiencias, horario `timed`/`flexible`, series recurrentes acotadas, plantillas que copian estructura, áreas/puestos/requisitos por actividad con snapshots y overrides, y orden del servicio. La escritura pasa solo por RPC y se sustituyen las políticas RLS de `activities`. Asignaciones, conflicto de persona, huecos con personas y composición se construyen en Fase 5. Ver [ADR 0017](adr/0017-actividades-planificacion-fase-4.md), [FASE-4-ACTIVIDADES.md](FASE-4-ACTIVIDADES.md) y [13-plan-por-fases.md](13-plan-por-fases.md).
 
+### D20 · Fase 5, parte de Carlos: asignaciones, respuestas y sustituciones — acordada por Carlos el 17 de septiembre de 2026; compartidas pendientes de Diogo
+- **Estados:** `proposed` (borrador no comunicado, invisible para la persona) → enviar → `pending` → `accepted`/`declined`; `cancelled` (retirada, con causa) y `substituted`.
+- **Cobertura:** confirmados = `accepted` (estado de cobertura y `assigned_count`); pendientes = `pending`; previstos = `proposed` + `pending` + `accepted`; `public.activity_position_coverage` añade `pending_count`, `proposed_count` y `expected_count`.
+- **Conflictos:** bloquean pertenencia, requisitos obligatorios en la fecha de la actividad, persona autónoma, estado de la actividad y máximo del puesto; avisan, con confirmación registrada, solapes, no disponibilidad, frecuencia (pendiente de contrato con Diogo), requisitos recomendados y sede distinta. Rangos semiabiertos.
+- **Respuestas:** hasta el inicio (flexibles: fin de ventana o sin límite); tras aceptar, la baja es mediante sustitución; desde el inicio, solo el coordinador.
+- **Cambios de F4:** cambio de hora → reconfirmación; cancelar, archivar (salvo completadas) o eliminar ocurrencia → `cancelled`; despublicar conserva; duplicar o aplicar estructura no copia personas; eliminar un puesto con personas se bloquea.
+- **Sustitución:** solicitud (persona o gestor) → candidato elegido por el gestor, revalidado y único → la original pasa a `substituted` cuando el candidato acepta.
+- **Personas sin cuenta:** respuesta por representante auditada (`response_source = representative`).
+- **Permisos:** `assignment.manage` (scopes `church`/`campus`/`activity`/`service_area`; roles `church_owner`, `church_admin`, `campus_admin` y `ministry_leader` en su área); responder las propias no requiere capability; la persona asignada (`pending`/`accepted`) lee la actividad, su estructura y el orden del servicio, sin notas administrativas ni el resto del equipo.
+- **Flexibles:** ventana si existe, sin hora inventada. **Publicación multiárea:** se mantiene A8; gestionar asignaciones no da `activity.publish`. **Enlaces de respuesta:** solo autenticados en la primera versión.
+
+Pendiente de Diogo o de ambos: mecanismo de emisión y deduplicación de eventos, disponibilidad y frecuencia, silencio y recordatorios, llegada por puesto, destinatarios y escalado, transporte y prefijo de sus migraciones. Implementación en desarrollo, no aplicada en remoto. Ver [CONTRATO-F4-F5.md](CONTRATO-F4-F5.md) y [FASE-5-ASIGNACIONES.md](FASE-5-ASIGNACIONES.md).
+
 ## Cuestiones abiertas antes de Fase 1
 
 ### A1 · Pricing
@@ -105,9 +118,11 @@ Resuelto (D19, aceptado): solo quien tiene `activity.publish` en el ámbito de l
 
 ### A9 · Ventana de respuesta
 Hasta qué momento se puede aceptar/rechazar/cambiar respuesta.
+Resuelto (D20, acordado por Carlos): hasta el inicio de la actividad (flexibles: fin de ventana o sin límite); tras aceptar, baja mediante sustitución; desde el inicio, solo el coordinador.
 
 ### A10 · Conflictos
 Cuáles bloquean y cuáles solo advierten. Por defecto, conflictos humanos informan; credenciales/reglas de seguridad pueden bloquear.
+Resuelto salvo frecuencia (D20, acordado por Carlos). El tratamiento de la frecuencia queda pendiente del contrato con Diogo.
 
 ## Cuestiones abiertas antes de Fase 6
 

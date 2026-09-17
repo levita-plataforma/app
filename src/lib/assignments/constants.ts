@@ -52,6 +52,7 @@ export const ELIGIBILITY_CODE_LABELS: Record<string, string> = {
   position_not_found: "El puesto ya no existe",
   overlapping_assignment: "Tiene otra asignación que se solapa en el tiempo",
   unavailable: "Ha indicado que no está disponible",
+  availability_unknown: "No se pudo comprobar su disponibilidad",
   different_campus: "Su sede principal es otra",
 };
 

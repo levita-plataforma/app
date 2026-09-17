@@ -197,6 +197,10 @@ El coordinador prepara y publica una actividad —puntual o recurrente, desde ce
 
 **Resultado:** cerrar el ciclo desde propuesta hasta confirmación.
 
+### Nota de estado — 17 de septiembre de 2026
+
+**Parte de Carlos (CA-04/CA-05): en desarrollo** en la rama `feature/carlos-fase-5-asignaciones`, sin nada aplicado en remoto, con las decisiones acordadas por Carlos (D20): estados, cobertura, conflictos, respuestas, cambios de F4, sustituciones, respuesta por representante, permisos y lectura mínima, tareas flexibles, publicación multiárea y enlaces solo autenticados. Lo compartido con Diogo (eventos, deduplicación, disponibilidad, frecuencia, recordatorios, destinatarios y transporte) sigue pendiente de acuerdo. La fase no está cerrada: requiere la parte de Diogo y el recorrido conjunto CO-03. Detalle en [FASE-5-ASIGNACIONES.md](FASE-5-ASIGNACIONES.md) y [CONTRATO-F4-F5.md](CONTRATO-F4-F5.md).
+
 ### Alcance
 
 - asignaciones de personas a puestos de actividad (movido desde la Fase 4 el 16 de septiembre de 2026);
