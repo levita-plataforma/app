@@ -11,6 +11,7 @@ import { toDomainError } from "@/server/activities/rpc";
 import { TEMPLATE_SKIP_REASON_LABELS } from "@/lib/activities/constants";
 import { isUuid } from "../../calendario/calendar-utils";
 import { loadStructureTabs } from "./_estructura/load";
+import { loadEquipo } from "./_equipo/load";
 import ActivityFicha, { type CampusOption, type HistoryData, type SkipNotice } from "./_ficha/ActivityFicha";
 import "../actividades.css";
 
@@ -74,9 +75,15 @@ export default async function ActividadDetallePage({
   if (!activity) notFound();
 
   const supabase = await createSupabaseServerClient();
-  const [capabilities, data, history, campusRes, currentCampusRes, { data: church }] = await Promise.all([
-    getActivityCapabilities(activity.id).catch(() => null),
-    loadStructureTabs(tenant.churchId, activity),
+  const capabilitiesPromise = getActivityCapabilities(activity.id).catch(() => null);
+  const structurePromise = loadStructureTabs(tenant.churchId, activity);
+  const [capabilities, data, equipo, history, campusRes, currentCampusRes, { data: church }] = await Promise.all([
+    capabilitiesPromise,
+    structurePromise,
+    // Equipo (Fase 5): asignaciones, sustituciones, permisos por área y revisión actual.
+    Promise.all([capabilitiesPromise, structurePromise]).then(([c, structure]) =>
+      loadEquipo(tenant.churchId, activity, structure.structure.areas, Boolean(c?.servingEnabled)),
+    ),
     // El historial es secundario: si falla, la pestaña lo indica sin tumbar la ficha.
     getActivityHistory(tenant.churchId, activity).catch(
       (): HistoryData => ({ canRead: true, entries: [], error: true }),
@@ -159,6 +166,7 @@ export default async function ActividadDetallePage({
       activity={activity}
       capabilities={caps}
       data={data}
+      equipo={equipo}
       history={history}
       campuses={campuses}
       churchTimezone={(church?.timezone as string | null) ?? "UTC"}

@@ -211,12 +211,24 @@ export default function ResumenTab({ activity, capabilities, data, campuses, chu
             <span>Personas mínimas requeridas</span>
           </div>
           <div className="act-stat">
-            <strong>0</strong>
-            <span>Personas asignadas</span>
+            <strong>{summary.assignedPeople}</strong>
+            <span>Personas confirmadas</span>
+          </div>
+          <div className="act-stat">
+            <strong>{summary.pendingPeople}</strong>
+            <span>Pendientes de respuesta</span>
+          </div>
+          <div className="act-stat">
+            <strong>{summary.proposedPeople}</strong>
+            <span>Borradores sin enviar</span>
+          </div>
+          <div className="act-stat">
+            <strong>{summary.uncoveredPositions}</strong>
+            <span>Puestos sin cubrir</span>
           </div>
         </div>
         <p className="act-hint" style={{ marginTop: 10 }}>
-          Personas asignadas: 0 — las asignaciones llegan en la Fase 5.
+          Un puesto se cubre con personas confirmadas. Gestiona las asignaciones en la pestaña Equipo.
         </p>
 
         {data.issuesError ? (

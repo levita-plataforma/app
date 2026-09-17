@@ -8,6 +8,7 @@ import type {
   ActivityHistoryEntry,
 } from "@/server/activities/activities-service";
 import type { StructureTabsData } from "../_estructura/load";
+import type { EquipoData } from "../_equipo/types";
 import { AreasTab, PlanTab, PuestosTab, type StructureTabActivity } from "../_estructura/StructureTabs";
 import FichaHeader from "./FichaHeader";
 import ResumenTab from "./ResumenTab";
@@ -30,6 +31,7 @@ type Props = {
   activity: ActivityDetail;
   capabilities: ActivityCapabilities;
   data: StructureTabsData;
+  equipo: EquipoData;
   history: HistoryData;
   campuses: CampusOption[];
   churchTimezone: string;
@@ -138,7 +140,9 @@ export default function ActivityFicha(props: Props) {
         {tab === "Plan" ? <PlanTab {...structureProps} /> : null}
         {tab === "Áreas" ? <AreasTab {...structureProps} /> : null}
         {tab === "Puestos" ? <PuestosTab {...structureProps} /> : null}
-        {tab === "Equipo" ? <EquipoTab data={data} /> : null}
+        {tab === "Equipo" ? (
+          <EquipoTab activity={activity} capabilities={capabilities} data={data} equipo={props.equipo} />
+        ) : null}
         {tab === "Notas" ? <NotasTab activity={activity} capabilities={capabilities} /> : null}
         {tab === "Historial" ? <HistorialTab history={props.history} timezone={activity.timezone} /> : null}
       </div>
