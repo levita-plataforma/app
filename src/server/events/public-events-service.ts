@@ -241,6 +241,16 @@ export async function registerForEvent(
   });
 
   if (error || !data || data.length === 0) {
+    // La RPC también limita el abuso por su cuenta (hotfix F-06: el límite en
+    // memoria de este proceso se rodea llamando a la API directamente), y
+    // rechaza con 53400. Se traduce al código de dominio correspondiente.
+    if (error?.code === "53400") throw new DomainError("RATE_LIMITED", error.message);
+    if (error?.code === "P0002") {
+      throw new DomainError("RESOURCE_NOT_FOUND", "Evento no encontrado.");
+    }
+    if (error?.code === "42501") {
+      throw new DomainError("FORBIDDEN", "No puedes inscribir a otra persona.");
+    }
     throw new DomainError("VALIDATION_ERROR", error?.message ?? "No se pudo completar la inscripción.");
   }
 
@@ -263,37 +273,52 @@ export type PublicConsentDefinition = {
   version: number;
 };
 
+type PublicConsentDefinitionRow = {
+  consent_key: string;
+  purpose_type: string;
+  title: string;
+  body: string;
+  version: number;
+};
+
+type PublicConsentDefinitionsRpc = {
+  public_consent_definitions: {
+    Args: { p_church_slug: string };
+    Returns: PublicConsentDefinitionRow[];
+  };
+};
+
 /**
- * Consentimientos activos de una iglesia, resueltos por slug, para mostrarlos
- * en el formulario público de inscripción. Usa un SELECT directo (no RPC):
- * la política `consent_definitions_select_public` (migración
- * 20260924000500_rls_eventos.sql) ya concede SELECT a `anon` sobre
- * `consent_definitions` cuando `active = true`, así que no hace falta una
- * función nueva ni una migración.
+ * Consentimientos activos de UNA iglesia, resueltos por slug, para mostrarlos
+ * en el formulario público de inscripción.
+ *
+ * Usa la RPC `public.public_consent_definitions` (migración
+ * 20260925000200_hotfix_consentimientos_publicos.sql). Antes hacía un SELECT
+ * directo sobre `consent_definitions` apoyándose en la política
+ * `consent_definitions_select_public`, que concedía a `anon` la lectura de
+ * TODAS las cláusulas de TODAS las iglesias, sin filtro de church_id: una
+ * fuga entre inquilinos, porque el cuerpo del texto suele incluir la razón
+ * social y los datos del responsable del tratamiento. Esa política se eliminó
+ * y la superficie pública es ahora esta función `security definer` de
+ * superficie mínima.
+ *
+ * Igual que `public_form_fields`, la función es posterior al último
+ * `database.types.ts` generado, así que se invoca con `.rpc` sin el
+ * autocompletado de tipos y se castea el resultado.
  */
 export async function getPublicConsentDefinitions(
   churchSlug: string,
 ): Promise<PublicConsentDefinition[]> {
   const supabase = await createSupabaseServerClient();
 
-  const { data: church, error: churchError } = await supabase
-    .from("churches")
-    .select("id")
-    .eq("slug", churchSlug)
-    .maybeSingle();
-
-  if (churchError || !church) return [];
-
-  const { data, error } = await supabase
-    .from("consent_definitions")
-    .select("key, purpose_type, title, body, version")
-    .eq("church_id", church.id)
-    .eq("active", true);
+  const { data, error } = await (
+    supabase as unknown as { rpc: <K extends keyof PublicConsentDefinitionsRpc>(fn: K, args: PublicConsentDefinitionsRpc[K]["Args"]) => Promise<{ data: PublicConsentDefinitionsRpc[K]["Returns"] | null; error: { message: string } | null }> }
+  ).rpc("public_consent_definitions", { p_church_slug: churchSlug });
 
   if (error || !data) return [];
 
-  return data.map((row) => ({
-    consentKey: row.key,
+  return (data as PublicConsentDefinitionRow[]).map((row) => ({
+    consentKey: row.consent_key,
     purposeType: row.purpose_type === "marketing" ? "marketing" : "operational",
     title: row.title,
     body: row.body,

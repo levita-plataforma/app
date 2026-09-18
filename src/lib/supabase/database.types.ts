@@ -4887,6 +4887,16 @@ export type Database = {
           person_id: string
         }[]
       }
+      public_consent_definitions: {
+        Args: { p_church_slug: string }
+        Returns: {
+          body: string
+          consent_key: string
+          purpose_type: string
+          title: string
+          version: number
+        }[]
+      }
       public_event_by_slug: {
         Args: { p_church_slug: string; p_event_slug: string }
         Returns: {
