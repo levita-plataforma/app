@@ -20,6 +20,8 @@ export const env = {
   supabaseAnonKey: required("NEXT_PUBLIC_SUPABASE_ANON_KEY"),
   supabaseServiceRoleKey: process.env.SUPABASE_SERVICE_ROLE_KEY,
   appUrl: process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000",
+  /** URL pública del sitio de marketing. Hoy el mismo dominio que appUrl. */
+  marketingUrl: process.env.NEXT_PUBLIC_MARKETING_URL ?? "http://localhost:3000",
   nodeEnv: process.env.NODE_ENV ?? "development",
   /** Secreto de la tarea programada de avisos. Sin él, la ruta no hace nada. */
   cronSecret: process.env.CRON_SECRET,

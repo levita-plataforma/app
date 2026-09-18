@@ -2726,6 +2726,39 @@ export type Database = {
           },
         ]
       }
+      marketing_leads: {
+        Row: {
+          community_size: string | null
+          created_at: string
+          email: string
+          id: string
+          kind: string
+          message: string | null
+          name: string
+          organization: string | null
+        }
+        Insert: {
+          community_size?: string | null
+          created_at?: string
+          email: string
+          id?: string
+          kind: string
+          message?: string | null
+          name: string
+          organization?: string | null
+        }
+        Update: {
+          community_size?: string | null
+          created_at?: string
+          email?: string
+          id?: string
+          kind?: string
+          message?: string | null
+          name?: string
+          organization?: string | null
+        }
+        Relationships: []
+      }
       modules: {
         Row: {
           description: string | null
@@ -5031,6 +5064,17 @@ export type Database = {
       show_trgm: { Args: { "": string }; Returns: string[] }
       slug_available: { Args: { p_slug: string }; Returns: boolean }
       slugify: { Args: { p_input: string }; Returns: string }
+      submit_marketing_lead: {
+        Args: {
+          p_community_size: string
+          p_email: string
+          p_kind: string
+          p_message: string
+          p_name: string
+          p_organization: string
+        }
+        Returns: string
+      }
       transition_activity_status: {
         Args: {
           p_activity_id: string

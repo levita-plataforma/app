@@ -1,12 +1,13 @@
 import type { Metadata, Viewport } from "next";
 import { DM_Sans, Libre_Caslon_Display } from "next/font/google";
+import { env } from "@/server/env";
 import "./globals.css";
 
 const sans = DM_Sans({ subsets: ["latin"], variable: "--font-sans", display: "swap" });
 const serif = Libre_Caslon_Display({ weight: "400", subsets: ["latin"], variable: "--font-serif", display: "swap" });
-const description = "LEVITA es una plataforma para ayudar a las iglesias a gestionar personas, equipos, eventos, comunicación y comunidad desde un solo lugar.";
+const description = "LEVITA es la plataforma que conecta, organiza y fortalece tu iglesia: personas, equipos, servicios, grupos, eventos, comunicación y mucho más desde un único lugar.";
 export const metadata: Metadata = {
-  metadataBase: new URL("https://levitaapp.com"),
+  metadataBase: new URL(env.marketingUrl),
   title: "LEVITA | Plataforma para iglesias", description,
   alternates: { canonical: "/" },
   robots: { index: true, follow: true },
