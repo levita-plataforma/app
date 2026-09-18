@@ -56,7 +56,7 @@ export default async function InicioPage() {
     // directo, porque el filtro atraviesa la relación.
     supabase
       .from("church_people")
-      .select("people!inner(user_id)")
+      .select("people!church_people_person_id_fkey!inner(user_id)")
       .eq("church_id", tenant.churchId)
       .is("archived_at", null),
     supabase

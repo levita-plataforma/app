@@ -52,7 +52,7 @@ export async function listPeople(
   let query = supabase
     .from("church_people")
     .select(
-      "id, relationship, joined_at, archived_at, primary_campus_id, campuses(name), people!inner(id, first_name, last_name, preferred_name, email, phone, user_id)",
+      "id, relationship, joined_at, archived_at, primary_campus_id, campuses(name), people!church_people_person_id_fkey!inner(id, first_name, last_name, preferred_name, email, phone, user_id)",
       { count: "exact" },
     )
     .eq("church_id", churchId);
