@@ -2148,12 +2148,14 @@ export type Database = {
           activity_id: string
           attendance_recorded_at: string | null
           attendance_recorded_by: string | null
+          cancellation_reason: string | null
+          cancelled_at: string | null
+          cancelled_by: string | null
           church_id: string
           cohort_id: string
           created_at: string
           created_by: string | null
           id: string
-          leader_notes: string | null
           session_number: number
           topic: string | null
           updated_at: string
@@ -2162,12 +2164,14 @@ export type Database = {
           activity_id: string
           attendance_recorded_at?: string | null
           attendance_recorded_by?: string | null
+          cancellation_reason?: string | null
+          cancelled_at?: string | null
+          cancelled_by?: string | null
           church_id: string
           cohort_id: string
           created_at?: string
           created_by?: string | null
           id?: string
-          leader_notes?: string | null
           session_number: number
           topic?: string | null
           updated_at?: string
@@ -2176,12 +2180,14 @@ export type Database = {
           activity_id?: string
           attendance_recorded_at?: string | null
           attendance_recorded_by?: string | null
+          cancellation_reason?: string | null
+          cancelled_at?: string | null
+          cancelled_by?: string | null
           church_id?: string
           cohort_id?: string
           created_at?: string
           created_by?: string | null
           id?: string
-          leader_notes?: string | null
           session_number?: number
           topic?: string | null
           updated_at?: string
@@ -2197,6 +2203,13 @@ export type Database = {
           {
             foreignKeyName: "course_sessions_attendance_recorded_by_fkey"
             columns: ["attendance_recorded_by"]
+            isOneToOne: false
+            referencedRelation: "people"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "course_sessions_cancelled_by_fkey"
+            columns: ["cancelled_by"]
             isOneToOne: false
             referencedRelation: "people"
             referencedColumns: ["id"]
@@ -3163,36 +3176,42 @@ export type Database = {
           activity_id: string
           attendance_recorded_at: string | null
           attendance_recorded_by: string | null
+          cancellation_reason: string | null
+          cancelled_at: string | null
+          cancelled_by: string | null
           church_id: string
           created_at: string
           created_by: string | null
           group_id: string
           id: string
-          leader_notes: string | null
           updated_at: string
         }
         Insert: {
           activity_id: string
           attendance_recorded_at?: string | null
           attendance_recorded_by?: string | null
+          cancellation_reason?: string | null
+          cancelled_at?: string | null
+          cancelled_by?: string | null
           church_id: string
           created_at?: string
           created_by?: string | null
           group_id: string
           id?: string
-          leader_notes?: string | null
           updated_at?: string
         }
         Update: {
           activity_id?: string
           attendance_recorded_at?: string | null
           attendance_recorded_by?: string | null
+          cancellation_reason?: string | null
+          cancelled_at?: string | null
+          cancelled_by?: string | null
           church_id?: string
           created_at?: string
           created_by?: string | null
           group_id?: string
           id?: string
-          leader_notes?: string | null
           updated_at?: string
         }
         Relationships: [
@@ -3206,6 +3225,13 @@ export type Database = {
           {
             foreignKeyName: "group_meetings_attendance_recorded_by_fkey"
             columns: ["attendance_recorded_by"]
+            isOneToOne: false
+            referencedRelation: "people"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "group_meetings_cancelled_by_fkey"
+            columns: ["cancelled_by"]
             isOneToOne: false
             referencedRelation: "people"
             referencedColumns: ["id"]
@@ -3243,7 +3269,6 @@ export type Database = {
           joined_at: string
           left_at: string | null
           left_reason: string | null
-          notes: string | null
           person_id: string
           status: Database["public"]["Enums"]["group_member_status"]
           updated_at: string
@@ -3257,7 +3282,6 @@ export type Database = {
           joined_at?: string
           left_at?: string | null
           left_reason?: string | null
-          notes?: string | null
           person_id: string
           status?: Database["public"]["Enums"]["group_member_status"]
           updated_at?: string
@@ -3271,7 +3295,6 @@ export type Database = {
           joined_at?: string
           left_at?: string | null
           left_reason?: string | null
-          notes?: string | null
           person_id?: string
           status?: Database["public"]["Enums"]["group_member_status"]
           updated_at?: string
@@ -5951,6 +5974,7 @@ export type Database = {
           suggested: boolean
         }[]
       }
+      cohort_notes: { Args: { p_cohort_id: string }; Returns: string }
       complete_cohort_enrollment: {
         Args: { p_enrollment_id: string; p_note?: string }
         Returns: undefined
@@ -6110,12 +6134,12 @@ export type Database = {
           activity_id: string
           attendance_count: number
           attendance_recorded_at: string
+          cancellation_reason: string
+          cancelled_at: string
           ends_at: string
           group_meeting_id: string
-          leader_notes: string
           location_text: string
           starts_at: string
-          status: Database["public"]["Enums"]["activity_status"]
           timezone: string
           title: string
         }[]

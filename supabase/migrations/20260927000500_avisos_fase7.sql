@@ -424,6 +424,15 @@ begin
       using errcode = '42501';
   end if;
 
+  -- El tipo no puede ser libre: con el check de notification_events como único
+  -- límite, quien lleva un grupo podría colocar en la bandeja de sus
+  -- participantes un aviso de cualquier otro dominio («has terminado un curso»,
+  -- «turno por confirmar»...) y con el texto que quisiera.
+  if p_event_type not in ('group.meeting.rescheduled', 'group.meeting.cancelled') then
+    raise exception 'Tipo de aviso no permitido para un grupo: %.', p_event_type
+      using errcode = '22023';
+  end if;
+
   v_recipients := app.group_notification_recipients(p_group_id, 'members');
   if cardinality(v_recipients) = 0 then
     return 0;
@@ -436,8 +445,14 @@ begin
     p_group_id,
     null,
     v_recipients,
-    app.group_notification_payload(p_group_id) || coalesce(p_extra, '{}'::jsonb),
-    p_key_suffix,
+    -- El payload de confianza va el ÚLTIMO: si fuera al revés, p_extra podría
+    -- sobreescribir el nombre del grupo y falsear de quién viene el aviso.
+    coalesce(p_extra, '{}'::jsonb) || app.group_notification_payload(p_group_id),
+    -- Sin sufijo propio, la clave sería «<tipo>:<grupo>:0» y un grupo recibiría
+    -- un único aviso de cada tipo en toda su vida: el segundo se perdería en
+    -- silencio. El sufijo por defecto no puede depender de que el llamante se
+    -- acuerde de pasarlo.
+    coalesce(p_key_suffix, gen_random_uuid()::text),
     null
   );
 

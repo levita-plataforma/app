@@ -336,7 +336,7 @@ begin
       || jsonb_build_object('activity_id', v_session.activity_id,
                             'activity_title', v_activity.title,
                             'starts_at', v_starts, 'timezone', v_activity.timezone),
-    null, extract(epoch from v_starts)::bigint::text
+    null, extract(epoch from clock_timestamp())::text
   );
 
   perform app.write_audit_log(v_cohort.church_id, 'cohort.session_rescheduled', 'course_sessions',
@@ -416,6 +416,10 @@ begin
   ) then
     raise exception 'Esa persona ya está matriculada en esta cohorte.' using errcode = '23505';
   end if;
+
+  -- Bloquea la cohorte antes de contar: sin esto, dos altas simultáneas
+  -- cuentan el mismo hueco y ambas lo ocupan.
+  perform 1 from course_cohorts where id = p_cohort_id for update;
 
   if v_cohort.capacity is not null
      and app.cohort_active_enrollment_count(p_cohort_id) >= v_cohort.capacity then
@@ -513,6 +517,10 @@ begin
 
   if v_enrollment.status <> 'requested' then
     raise exception 'Esa solicitud ya está resuelta.' using errcode = '22023';
+  end if;
+
+  if p_accept then
+    perform 1 from course_cohorts where id = v_enrollment.cohort_id for update;
   end if;
 
   if p_accept and v_cohort.capacity is not null
@@ -884,7 +892,8 @@ begin
       course_id = v_course,
       is_required = coalesce((p_input ->> 'is_required')::boolean, is_required),
       step_order = coalesce(v_position, step_order)
-    where id = v_id and church_id = v_church;
+    where id = v_id and church_id = v_church
+      and learning_path_id = p_learning_path_id;
     if not found then
       raise exception 'El paso no existe.' using errcode = 'P0002';
     end if;
@@ -1091,6 +1100,11 @@ as $$
   left join person_path_progress pp
     on pp.path_step_id = ps.id and pp.person_id = p_person_id
   where ps.learning_path_id = p_learning_path_id
+    -- Sin esto, pasar el propio person_id bastaba para leer la estructura de un
+    -- itinerario de OTRA iglesia: la primera rama del or se satisface sola y la
+    -- función, al ser definer, se salta la política de path_steps.
+    and ps.church_id = any((select app.church_ids_for_user())::uuid[])
+    and app.module_enabled(ps.church_id, 'discipleship')
     and (ps.archived_at is null or pp.id is not null)
     and (
       p_person_id in (select app.current_person_ids())
@@ -1102,6 +1116,26 @@ $$;
 
 revoke all on function app.person_path_progress_view(uuid, uuid) from public, anon;
 grant execute on function app.person_path_progress_view(uuid, uuid) to authenticated;
+
+-- app.cohort_notes(): las notas internas de una cohorte, solo para quien
+-- gestiona la formación. Van por aquí y no en el select de la tabla porque RLS
+-- filtra filas, no columnas.
+create or replace function app.cohort_notes(p_cohort_id uuid)
+returns text
+language sql
+stable
+security definer
+set search_path = pg_catalog, public
+as $$
+  select cc.notes
+  from course_cohorts cc
+  where cc.id = p_cohort_id
+    and cc.church_id = any((select app.church_ids_for_user())::uuid[])
+    and app.cohort_cap(p_cohort_id, 'course.manage');
+$$;
+
+revoke all on function app.cohort_notes(uuid) from public, anon;
+grant execute on function app.cohort_notes(uuid) to authenticated;
 
 create or replace function app.discipleship_metrics(p_church_id uuid)
 returns jsonb
@@ -1246,6 +1280,10 @@ returns table (
 language sql stable security invoker set search_path = pg_catalog, public
 as $$ select * from app.person_path_progress_view(p_learning_path_id, p_person_id); $$;
 
+create or replace function public.cohort_notes(p_cohort_id uuid)
+returns text language sql stable security invoker set search_path = pg_catalog, public
+as $$ select app.cohort_notes(p_cohort_id); $$;
+
 create or replace function public.discipleship_metrics(p_church_id uuid)
 returns jsonb language sql stable security invoker set search_path = pg_catalog, public
 as $$ select app.discipleship_metrics(p_church_id); $$;
@@ -1275,6 +1313,7 @@ begin
     'public.reorder_path_steps(uuid, uuid[])',
     'public.set_person_path_step(uuid, uuid, path_progress_status, text)',
     'public.person_path_progress_view(uuid, uuid)',
+    'public.cohort_notes(uuid)',
     'public.discipleship_metrics(uuid)'
   ]
   loop

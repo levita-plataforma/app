@@ -38,18 +38,17 @@ from (values ('church_owner'), ('church_admin'), ('campus_admin')) as r (role_ke
 cross join capabilities c
 where c.module_key in ('groups', 'discipleship');
 
--- group_leader: hasta hoy no tenía ninguna capacidad. Recibe lo necesario para
--- llevar su grupo, y NO recibe group.contact.read: el contacto de una persona
--- solo se ve si esa persona lo ha hecho visible o si quien mira tiene permiso
--- expreso (decisión P-5). Tampoco crea ni archiva grupos.
+-- group_leader: hasta hoy no tenía ninguna capacidad. Recibe exactamente las
+-- cinco del reparto acordado (§5.2 del contrato) y ninguna más. NO recibe
+-- group.contact.read: el contacto de una persona solo se ve si esa persona lo
+-- ha hecho visible o si quien mira tiene permiso expreso (decisión P-5).
+-- Tampoco crea ni archiva grupos.
 insert into role_capabilities (role_key, capability_key) values
   ('group_leader', 'group.read'),
   ('group_leader', 'group.member.manage'),
   ('group_leader', 'group.request.manage'),
   ('group_leader', 'group.meeting.manage'),
-  ('group_leader', 'group.attendance.manage'),
-  ('group_leader', 'course.read'),
-  ('group_leader', 'path.read');
+  ('group_leader', 'group.attendance.manage');
 
 -- member: lo justo para el directorio interno y para ver en qué puede formarse.
 insert into role_capabilities (role_key, capability_key) values
@@ -249,11 +248,22 @@ grant execute on function app.can_read_group_roster(uuid) to authenticated;
 -- siempre; el teléfono y el correo, solo si la persona lo ha hecho visible o
 -- si quien mira tiene permiso expreso.
 --
+-- p_group_id acota dónde vale group.contact.read. Es importante que se resuelva
+-- con app.group_cap y NO con app.has_capability_any_scope: esa última ignora
+-- scope_type y scope_id por completo, así que conceder group.contact.read
+-- acotada a un grupo la convertiría de hecho en una capacidad de toda la
+-- iglesia, que es justo lo que P-5 prohíbe. Sin grupo (p_group_id null) solo
+-- valen las capacidades de iglesia sobre personas.
+--
 -- Aviso: esta función gobierna la superficie que estrena la Fase 7. La
 -- política people_select de la Fase 0 sigue dejando leer la fila completa de
 -- people a cualquier miembro de la iglesia; estrecharla afecta a F2, F5 y F6 y
 -- queda fuera de esta fase (riesgo R-01 del contrato).
-create or replace function app.can_read_person_contact(p_church_id uuid, p_person_id uuid)
+create or replace function app.can_read_person_contact(
+  p_church_id uuid,
+  p_person_id uuid,
+  p_group_id uuid default null
+)
 returns boolean
 language sql
 stable
@@ -264,7 +274,7 @@ as $$
     p_person_id in (select app.current_person_ids())
     or app.has_capability(p_church_id, 'people.read')
     or app.has_capability(p_church_id, 'people.manage')
-    or app.has_capability_any_scope(p_church_id, 'group.contact.read')
+    or (p_group_id is not null and app.group_cap_by_id(p_group_id, 'group.contact.read'))
     or exists (
       select 1
       from church_people cp
@@ -276,8 +286,8 @@ as $$
     );
 $$;
 
-revoke all on function app.can_read_person_contact(uuid, uuid) from public, anon;
-grant execute on function app.can_read_person_contact(uuid, uuid) to authenticated;
+revoke all on function app.can_read_person_contact(uuid, uuid, uuid) from public, anon;
+grant execute on function app.can_read_person_contact(uuid, uuid, uuid) to authenticated;
 
 -- app.course_cap() / app.cohort_cap(): capacidad efectiva sobre formación.
 -- El discipulado no estrena scope propio: se resuelve por church y por el

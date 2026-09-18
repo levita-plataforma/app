@@ -4,7 +4,7 @@
 -- Ver docs/CONTRATO-FASE-7.md §4.2, §6 y §9.
 
 begin;
-select plan(59);
+select plan(68);
 
 create or replace function test_set_auth_uid(p_uid uuid) returns void as $$
 begin
@@ -612,6 +612,99 @@ select is(
                   test_id('curso_base'))),
   'P0002',
   'La iglesia B no puede crear cohortes en un curso de la iglesia A'
+);
+
+-- Esta es la vía por la que se escapaba la estructura de un itinerario ajeno:
+-- la función es definer, así que se salta la política de path_steps, y pasarle
+-- el propio person_id satisfacía su comprobación. Sin el filtro por iglesia,
+-- cualquiera con un learning_path_id podía leer los pasos de otra iglesia.
+reset role;
+insert into people (id, user_id, first_name, last_name) values
+  ('d7000000-0000-0000-0000-0000000e0020', 'd7000000-0000-0000-0000-000000000002', 'Owner', 'B7bis')
+on conflict (id) do nothing;
+
+select test_set_auth_uid('d7000000-0000-0000-0000-000000000002');
+select is(
+  (select count(*)::int from app.person_path_progress_view(
+     test_id('itinerario'),
+     (select person_id from church_people where church_id = test_id('church_b') limit 1))),
+  0,
+  'La iglesia B no puede leer los pasos de un itinerario de la iglesia A ni pasando su propia persona'
+);
+
+-- ============================================================
+-- 12. Lo que ve un miembro corriente de un curso que no está publicado
+-- ============================================================
+
+select test_set_auth_uid('d7000000-0000-0000-0000-000000000001');
+select test_remember('curso_borrador', public.save_course(
+  test_id('church_a'),
+  jsonb_build_object('name', 'Curso en preparación', 'status', 'draft')
+));
+select test_remember('cohorte_borrador', public.create_cohort(
+  test_id('curso_borrador'),
+  jsonb_build_object('name', 'Piloto interno', 'notes', 'Se cancela si no llegamos a diez')
+));
+select test_remember('sesion_borrador', (public.schedule_cohort_session(
+  test_id('cohorte_borrador'),
+  jsonb_build_object('local_start', to_char(now() + interval '20 days', 'YYYY-MM-DD HH24:MI:SS'),
+                     'duration_minutes', 60, 'topic', 'Tema aún sin cerrar')
+) ->> 'course_session_id')::uuid);
+
+select test_set_auth_uid('d7000000-0000-0000-0000-000000000003');
+
+select ok(
+  not exists (select 1 from courses where id = test_id('curso_borrador')),
+  'Un miembro no ve un curso en borrador'
+);
+
+select ok(
+  not exists (select 1 from course_cohorts where id = test_id('cohorte_borrador')),
+  'Y tampoco sus cohortes: no basta con ocultar el curso'
+);
+
+select ok(
+  not exists (select 1 from course_sessions where id = test_id('sesion_borrador')),
+  'Ni sus sesiones'
+);
+
+-- Las notas internas de una cohorte no viajan en el select de la tabla.
+select is(
+  test_err('select notes from course_cohorts limit 1'),
+  '42501',
+  'La columna de notas internas de una cohorte no es legible por quien no gestiona'
+);
+
+select is(
+  public.cohort_notes(test_id('cohorte_borrador')),
+  null,
+  'Y la RPC que las sirve no se las da a quien no gestiona'
+);
+
+select test_set_auth_uid('d7000000-0000-0000-0000-000000000001');
+select is(
+  public.cohort_notes(test_id('cohorte_borrador')),
+  'Se cancela si no llegamos a diez',
+  'Quien gestiona la formación sí las ve'
+);
+
+-- Un paso solo se edita desde su propio itinerario.
+select test_remember('otro_itinerario', public.save_learning_path(
+  test_id('church_a'), jsonb_build_object('name', 'Otro recorrido', 'status', 'active')
+));
+
+select is(
+  test_err(format($$ select public.save_path_step('%s', jsonb_build_object('id', '%s', 'title', 'Secuestrado')) $$,
+                  test_id('otro_itinerario'), test_id('paso_2'))),
+  'P0002',
+  'No se puede editar un paso a través de otro itinerario'
+);
+
+reset role;
+select is(
+  (select title from path_steps where id = test_id('paso_2')),
+  'Fundamentos',
+  'El paso conserva su título'
 );
 
 -- ============================================================

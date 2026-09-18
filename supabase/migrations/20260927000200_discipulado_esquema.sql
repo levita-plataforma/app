@@ -86,7 +86,6 @@ create table course_sessions (
   activity_id uuid not null,
   session_number smallint not null,
   topic text,
-  leader_notes text,
   attendance_recorded_at timestamptz,
   attendance_recorded_by uuid references people (id) on delete set null,
   cancelled_at timestamptz,

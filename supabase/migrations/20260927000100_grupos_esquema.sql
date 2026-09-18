@@ -132,7 +132,6 @@ create table group_members (
   joined_at timestamptz not null default now(),
   left_at timestamptz,
   left_reason text,
-  notes text,
   created_by uuid references people (id) on delete set null,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now(),
@@ -146,9 +145,8 @@ create table group_members (
 );
 
 comment on table group_members is
-  'Participación de una persona en un grupo. Una sola fila por grupo y persona: volver a entrar reactiva la fila y conserva el historial (D12).';
-comment on column group_members.notes is
-  'Notas administrativas no sensibles. Nunca datos pastorales ni de menores (docs/15-nucleo-plataforma.md §3).';
+  'Participación de una persona en un grupo. Una sola fila por grupo y persona: volver a entrar reactiva la fila y conserva el historial (D12).
+   No lleva notas sobre la persona: la política de lectura deja ver la fila a todos los participantes del grupo, así que cualquier anotación del responsable sería visible para el grupo entero. Si hicieran falta, tendrían que ir en una tabla aparte con su propia regla de lectura.';
 
 alter table group_members add constraint group_members_id_unique unique (id, church_id);
 create index group_members_church_group_idx on group_members (church_id, group_id, status);
@@ -199,7 +197,6 @@ create table group_meetings (
   church_id uuid not null references churches (id) on delete cascade,
   group_id uuid not null,
   activity_id uuid not null,
-  leader_notes text,
   attendance_recorded_at timestamptz,
   attendance_recorded_by uuid references people (id) on delete set null,
   cancelled_at timestamptz,
@@ -217,8 +214,6 @@ comment on table group_meetings is
   'Reunión de un grupo: extensión de una activity de tipo group_meeting (ADR 0018). La actividad es la única fuente de cuándo, dónde, en qué zona horaria y con qué recurrencia; aquí no se duplica ninguna de esas columnas.';
 comment on column group_meetings.cancelled_at is
   'Una reunión de grupo se convoca y, como mucho, se cancela: no recorre la máquina de estados de activities (borrador, planificada, publicada...). Ver ADR 0019. Cancelar aquí evita que quien lleva un grupo necesite permisos sobre el calendario general de la iglesia.';
-comment on column group_meetings.leader_notes is
-  'Notas de la reunión visibles solo para responsables. Nunca datos pastorales sensibles.';
 
 alter table group_meetings add constraint group_meetings_id_unique unique (id, church_id);
 create index group_meetings_church_group_idx on group_meetings (church_id, group_id);

@@ -60,6 +60,30 @@ $$;
 
 revoke all on function app.assert_group_cap(uuid, text) from public, anon, authenticated;
 
+-- app.assert_group_writable(): un grupo archivado o cerrado conserva su
+-- historial y se puede consultar, pero ya no admite movimiento. Lo usan las
+-- RPC que incorporan gente, convocan o registran asistencia; no lo usan
+-- set_group_archived ni set_group_status, que son precisamente las que
+-- devuelven un grupo a la vida.
+create or replace function app.assert_group_writable(p_group groups)
+returns void
+language plpgsql
+immutable
+security definer
+set search_path = pg_catalog, public
+as $$
+begin
+  if p_group.archived_at is not null then
+    raise exception 'El grupo «%» está archivado.', p_group.name using errcode = '22023';
+  end if;
+  if p_group.status = 'closed' then
+    raise exception 'El grupo «%» está cerrado.', p_group.name using errcode = '22023';
+  end if;
+end;
+$$;
+
+revoke all on function app.assert_group_writable(groups) from public, anon, authenticated;
+
 -- Aforo: cuenta participantes activos. Los responsables NO ocupan plaza
 -- (decisión P-2), por eso no se mira group_leaders aquí.
 create or replace function app.group_active_member_count(p_group_id uuid)
@@ -93,16 +117,22 @@ revoke all on function app.group_has_active_leader(uuid) from public, anon;
 grant execute on function app.group_has_active_leader(uuid) to authenticated;
 
 -- app.assert_group_has_room(): el aforo se comprueba al incorporar a alguien.
+-- Bloquea la fila del grupo antes de contar: sin eso, dos altas simultáneas
+-- cuentan las dos el mismo hueco y ambas lo superan. El bloqueo dura hasta el
+-- final de la transacción, que es justo lo que hace falta.
 create or replace function app.assert_group_has_room(p_group groups)
 returns void
 language plpgsql
-stable
 security definer
 set search_path = pg_catalog, public
 as $$
+declare
+  v_capacity integer;
 begin
-  if p_group.capacity is not null
-     and app.group_active_member_count(p_group.id) >= p_group.capacity then
+  select capacity into v_capacity from groups where id = p_group.id for update;
+
+  if v_capacity is not null
+     and app.group_active_member_count(p_group.id) >= v_capacity then
     raise exception 'El grupo «%» ha alcanzado su aforo.', p_group.name using errcode = '22023';
   end if;
 end;
@@ -386,6 +416,7 @@ declare
   v_church_people_id uuid;
   v_leader_id uuid;
 begin
+  perform app.assert_group_writable(v_group);
   perform app.assert_active_church_person(v_group.church_id, p_person_id, 'El responsable');
 
   select id into v_church_people_id
@@ -470,6 +501,7 @@ declare
   v_member_id uuid;
   v_was_active boolean;
 begin
+  perform app.assert_group_writable(v_group);
   perform app.assert_active_church_person(v_group.church_id, p_person_id, 'El participante');
 
   select status = 'active' into v_was_active
@@ -481,12 +513,11 @@ begin
 
   perform app.assert_group_has_room(v_group);
 
-  insert into group_members (church_id, group_id, person_id, status, notes, created_by, joined_at)
+  insert into group_members (church_id, group_id, person_id, status, created_by, joined_at)
   values (v_group.church_id, p_group_id, p_person_id, 'active',
-          app.j_text(p_input, 'notes'), app.current_person_id(v_group.church_id), now())
+          app.current_person_id(v_group.church_id), now())
   on conflict (group_id, person_id) do update set
-    status = 'active', joined_at = now(), left_at = null, left_reason = null,
-    notes = coalesce(excluded.notes, group_members.notes)
+    status = 'active', joined_at = now(), left_at = null, left_reason = null
   returning id into v_member_id;
 
   -- Aviso de incorporación a la persona (decisión P-6). La clave lleva el
@@ -646,6 +677,7 @@ begin
   end if;
 
   v_group := app.assert_group_cap(v_request.group_id, 'group.request.manage');
+  perform app.assert_group_writable(v_group);
 
   if v_request.status <> 'pending' then
     raise exception 'Esa solicitud ya está resuelta.' using errcode = '22023';
@@ -763,6 +795,8 @@ declare
   v_created integer := 0;
   r record;
 begin
+  perform app.assert_group_writable(v_group);
+
   v_timezone := app.resolve_activity_timezone(v_group.church_id, v_group.campus_id, p_input ->> 'timezone');
 
   select o_starts_at, o_ends_at into v_starts, v_ends
@@ -863,8 +897,9 @@ begin
     series_modified = case when series_id is not null then true else series_modified end
   where id = v_meeting.activity_id;
 
-  -- Aviso a los participantes (decisión P-6). La clave lleva la hora nueva:
-  -- dos cambios seguidos avisan dos veces, el mismo cambio repetido no.
+  -- Aviso a los participantes (decisión P-6). La clave lleva el momento del
+  -- cambio, no la hora de destino: si llevara el destino, mover la reunión a una
+  -- hora que ya se usó antes no avisaría a nadie, nunca más.
   perform app.emit_notification_event(
     v_group.church_id, 'group.meeting.rescheduled', 'group_meetings', p_group_meeting_id, null,
     app.group_notification_recipients(v_meeting.group_id, 'members'),
@@ -873,7 +908,7 @@ begin
                             'activity_title', v_activity.title,
                             'starts_at', v_starts,
                             'timezone', v_activity.timezone),
-    null, extract(epoch from v_starts)::bigint::text
+    null, extract(epoch from clock_timestamp())::text
   );
 
   perform app.write_audit_log(
@@ -964,6 +999,7 @@ begin
   end if;
 
   v_group := app.assert_group_cap(v_meeting.group_id, 'group.attendance.manage');
+  perform app.assert_group_writable(v_group);
   v_recorder := app.current_person_id(v_group.church_id);
 
   if jsonb_typeof(p_entries) <> 'array' then
@@ -1063,9 +1099,9 @@ as $$
     r.role,
     r.status,
     r.joined_at,
-    case when app.can_read_person_contact(g.church_id, r.person_id) then p.email end,
-    case when app.can_read_person_contact(g.church_id, r.person_id) then p.phone end,
-    app.can_read_person_contact(g.church_id, r.person_id)
+    case when app.can_read_person_contact(g.church_id, r.person_id, g.id) then p.email end,
+    case when app.can_read_person_contact(g.church_id, r.person_id, g.id) then p.phone end,
+    app.can_read_person_contact(g.church_id, r.person_id, g.id)
   from roster r
   join g on true
   join people p on p.id = r.person_id
@@ -1076,7 +1112,7 @@ revoke all on function app.group_roster(uuid) from public, anon;
 grant execute on function app.group_roster(uuid) to authenticated;
 
 -- app.list_group_meetings(): reuniones con su fecha real, leídas desde la
--- actividad. Las notas del responsable solo viajan a quien puede gestionarlas.
+-- actividad.
 create or replace function app.list_group_meetings(
   p_group_id uuid,
   p_from timestamptz default null,
@@ -1094,8 +1130,7 @@ returns table (
   cancelled_at timestamptz,
   cancellation_reason text,
   attendance_recorded_at timestamptz,
-  attendance_count integer,
-  leader_notes text
+  attendance_count integer
 )
 language sql
 stable
@@ -1107,10 +1142,7 @@ as $$
     m.cancelled_at, m.cancellation_reason,
     m.attendance_recorded_at,
     (select count(*)::integer from group_attendance ga
-      where ga.group_meeting_id = m.id and ga.status = 'present'),
-    case when app.group_cap_by_id(m.group_id, 'group.meeting.manage')
-              or app.group_cap_by_id(m.group_id, 'group.manage')
-         then m.leader_notes end
+      where ga.group_meeting_id = m.id and ga.status = 'present')
   from group_meetings m
   join activities a on a.id = m.activity_id and a.church_id = m.church_id
   where m.group_id = p_group_id
@@ -1252,7 +1284,7 @@ returns table (
   group_meeting_id uuid, activity_id uuid, title text, starts_at timestamptz,
   ends_at timestamptz, timezone text, location_text text,
   cancelled_at timestamptz, cancellation_reason text,
-  attendance_recorded_at timestamptz, attendance_count integer, leader_notes text
+  attendance_recorded_at timestamptz, attendance_count integer
 )
 language sql stable security invoker set search_path = pg_catalog, public
 as $$ select * from app.list_group_meetings(p_group_id, p_from, p_to, p_limit); $$;

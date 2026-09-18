@@ -4,7 +4,7 @@
 -- Ver docs/CONTRATO-FASE-7.md §5 y §8.
 
 begin;
-select plan(31);
+select plan(39);
 
 create or replace function test_set_auth_uid(p_uid uuid) returns void as $$
 begin
@@ -240,15 +240,29 @@ on conflict do nothing;
 
 select test_set_auth_uid('c7000000-0000-0000-0000-000000000003');
 select ok(
-  app.can_read_person_contact(test_id('church'), 'c7000000-0000-0000-0000-0000000e0004'),
-  'Con permiso expreso de ver contacto, sí se ve'
+  app.can_read_person_contact(test_id('church'), 'c7000000-0000-0000-0000-0000000e0004', test_id('grupo_centro')),
+  'Con permiso expreso de ver contacto en ese grupo, sí se ve'
 );
 
 select is(
   (select phone from app.group_roster(test_id('grupo_centro'))
    where person_id = 'c7000000-0000-0000-0000-0000000e0004'),
   '600000104',
-  'Y la lista del grupo lo enseña'
+  'Y la lista de ESE grupo lo enseña'
+);
+
+-- El límite del permiso, que es lo que hace que la decisión P-5 signifique
+-- algo: concedido con scope de grupo, no puede convertirse en un permiso de
+-- toda la iglesia. (Si se resolviera con app.has_capability_any_scope, que
+-- ignora scope_type y scope_id, esta comprobación fallaría.)
+select ok(
+  not app.can_read_person_contact(test_id('church'), 'c7000000-0000-0000-0000-0000000e0004'),
+  'Ese permiso no vale fuera del grupo para el que se concedió'
+);
+
+select ok(
+  not app.can_read_person_contact(test_id('church'), 'c7000000-0000-0000-0000-0000000e0002', test_id('grupo_norte')),
+  'Ni sirve para ver el contacto de gente de otro grupo'
 );
 
 -- ============================================================
@@ -279,20 +293,114 @@ select ok(
   'La responsable del grupo sí puede escribir a sus participantes'
 );
 
+-- El tipo de aviso no puede ser libre: con el check de notification_events como
+-- único límite, quien lleva un grupo podría colocar en la bandeja de sus
+-- participantes un aviso de cualquier otro dominio, con el texto que quisiera.
+select is(
+  test_err(format($$ select public.notify_group_members('%s', 'course.enrollment.completed', '{}'::jsonb, null) $$,
+                  test_id('grupo_centro'))),
+  '22023',
+  'No se puede usar el canal del grupo para colar un aviso de otro dominio'
+);
+
+select is(
+  test_err(format($$ select public.notify_group_members('%s', 'assignment.proposed', '{}'::jsonb, null) $$,
+                  test_id('grupo_centro'))),
+  '22023',
+  'Tampoco uno de asignaciones'
+);
+
+-- Y dos mensajes seguidos del mismo tipo tienen que llegar los dos: si la clave
+-- de idempotencia no llevara nada propio, el segundo se perdería en silencio.
+select ok(
+  public.notify_group_members(test_id('grupo_centro'), 'group.meeting.cancelled', '{}'::jsonb, null) >= 1
+    and public.notify_group_members(test_id('grupo_centro'), 'group.meeting.cancelled', '{}'::jsonb, null) >= 1,
+  'Dos avisos seguidos del mismo tipo no se colapsan en uno'
+);
+
+-- Lo que venga del llamante no puede suplantar al grupo que firma el aviso.
+-- La outbox está revocada a authenticated (Fase 5), así que se lee sin ese rol.
+select test_set_auth_uid('c7000000-0000-0000-0000-000000000003');
+select public.notify_group_members(
+  test_id('grupo_centro'), 'group.meeting.cancelled',
+  jsonb_build_object('group_name', 'Grupo Suplantado'), 'suplantacion'
+);
+
+reset role;
+select is(
+  (select payload ->> 'group_name' from notification_events
+   where idempotency_key like '%:suplantacion'),
+  'Grupo Centro',
+  'El nombre del grupo del aviso lo pone la base, no quien llama'
+);
+
 -- ============================================================
 -- 6. Superficie de funciones: nada de más para anon ni para PUBLIC
 -- ============================================================
 
 reset role;
 
+-- La lista va enumerada a propósito. Un filtro por patrón de nombre parecía
+-- cubrirlo todo y dejaba fuera la mitad de las funciones, entre ellas las de
+-- Discipulado enteras: una prueba que no cubre lo que dice cubrir es peor que
+-- no tenerla.
 select is(
   (select count(*)::int
    from pg_proc p join pg_namespace n on n.oid = p.pronamespace
    where n.nspname = 'app'
-     and (p.proname like 'group\_%' or p.proname like 'course\_%' or p.proname like '%\_group\_%')
+     and p.proname in (
+       'group_cap', 'group_cap_by_id', 'is_group_leader', 'is_group_member',
+       'can_read_group', 'can_read_group_roster', 'can_read_person_contact',
+       'course_cap', 'cohort_cap', 'require_groups_module', 'require_discipleship_module',
+       'load_group', 'assert_group_cap', 'assert_group_writable', 'assert_group_has_room',
+       'group_active_member_count', 'group_has_active_leader',
+       'save_group_type', 'set_group_type_archived', 'create_group', 'update_group',
+       'set_group_status', 'set_group_archived', 'add_group_leader', 'end_group_leadership',
+       'add_group_member', 'remove_group_member', 'request_group_join',
+       'resolve_group_join_request', 'cancel_group_join_request',
+       'schedule_group_meeting', 'reschedule_group_meeting', 'cancel_group_meeting',
+       'record_group_attendance', 'group_roster', 'list_group_meetings', 'group_metrics',
+       'group_notification_payload', 'group_notification_recipients', 'notify_group_members',
+       'person_group_manage_cap', 'cohort_notification_payload', 'cohort_notification_recipients',
+       'notification_text_fase7',
+       'load_cohort', 'assert_cohort_cap', 'cohort_active_enrollment_count',
+       'save_course', 'set_course_archived', 'create_cohort', 'update_cohort',
+       'schedule_cohort_session', 'reschedule_cohort_session', 'cancel_cohort_session',
+       'enroll_person_in_cohort', 'request_cohort_enrollment', 'resolve_cohort_enrollment',
+       'drop_cohort_enrollment', 'complete_cohort_enrollment', 'record_session_attendance',
+       'cohort_completion_suggestions', 'cohort_notes',
+       'save_learning_path', 'save_path_step', 'set_path_step_archived', 'reorder_path_steps',
+       'set_person_path_step', 'person_path_progress_view', 'discipleship_metrics',
+       'group_meetings_activity_type_guard', 'course_sessions_activity_type_guard'
+     )
      and has_function_privilege('anon', p.oid, 'execute')),
   0,
-  'Ninguna función app.* de la Fase 7 es ejecutable por anon'
+  'Ninguna de las 70 funciones app.* de la Fase 7 es ejecutable por anon'
+);
+
+select cmp_ok(
+  (select count(*)::int
+   from pg_proc p join pg_namespace n on n.oid = p.pronamespace
+   where n.nspname = 'app'
+     and p.proname in (
+       'group_cap', 'can_read_person_contact', 'save_course', 'create_cohort',
+       'enroll_person_in_cohort', 'set_person_path_step', 'person_path_progress_view',
+       'reorder_path_steps', 'cohort_notes', 'notify_group_members'
+     )),
+  '=', 10,
+  'La lista de arriba nombra funciones que existen de verdad (muestra de control)'
+);
+
+-- Toda función definer que se salta RLS tiene que fijar su search_path, o se
+-- puede secuestrar con un esquema puesto por delante.
+select is(
+  (select count(*)::int
+   from pg_proc p join pg_namespace n on n.oid = p.pronamespace
+   where n.nspname = 'app' and p.prosecdef
+     and (p.proconfig is null
+          or not exists (select 1 from unnest(p.proconfig) c where c like 'search\_path=%'))),
+  0,
+  'Ninguna función security definer del esquema app se queda sin search_path fijado'
 );
 
 select is(

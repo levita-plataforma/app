@@ -4,7 +4,7 @@
 -- Ver docs/CONTRATO-FASE-7.md §4.1, §5, §6 y §9.
 
 begin;
-select plan(69);
+select plan(72);
 
 create or replace function test_set_auth_uid(p_uid uuid) returns void as $$
 begin
@@ -143,8 +143,8 @@ select ok(
 );
 
 select ok(
-  (select count(*) from role_capabilities where role_key = 'group_leader') >= 5,
-  'El rol group_leader, que nació sin ninguna capacidad, ya tiene las suyas'
+  (select count(*) from role_capabilities where role_key = 'group_leader') = 5,
+  'El rol group_leader tiene exactamente las cinco capacidades del reparto acordado'
 );
 
 select ok(
@@ -660,6 +660,30 @@ select is(
   (select count(*)::int from group_attendance where group_meeting_id = test_id('reunion_1')),
   2,
   'Archivar el grupo conserva el historial de asistencia'
+);
+
+-- Un grupo archivado se consulta, pero ya no se mueve: sin esta comprobación se
+-- podía seguir incorporando gente y convocando reuniones con normalidad.
+select test_set_auth_uid('a7000000-0000-0000-0000-000000000001');
+
+select is(
+  test_err(format($$ select public.add_group_member('%s', '%s', '{}'::jsonb) $$,
+                  test_id('grupo_norte'), 'a7000000-0000-0000-0000-0000000e0006')),
+  '22023',
+  'No se puede incorporar a nadie a un grupo archivado'
+);
+
+select is(
+  test_err(format($$ select public.schedule_group_meeting('%s', jsonb_build_object(
+      'local_start', '%s', 'duration_minutes', 60)) $$,
+      test_id('grupo_norte'), to_char(now() + interval '20 days', 'YYYY-MM-DD HH24:MI:SS'))),
+  '22023',
+  'Ni convocar una reunión en un grupo archivado'
+);
+
+select lives_ok(
+  format($$ select public.set_group_archived('%s', false) $$, test_id('grupo_norte')),
+  'Pero desarchivarlo sigue siendo posible: si no, no habría vuelta atrás'
 );
 
 -- ============================================================

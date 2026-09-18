@@ -22,7 +22,7 @@ producción. Ninguna migración ya aplicada se reescribe.
 | `20260927000400_rls_fase7.sql` | RLS habilitada y forzada en las 15 tablas, revocación de escritura, políticas de lectura |
 | `20260927000500_avisos_fase7.sql` | Diez tipos de aviso nuevos, sus textos, destinatarios y `app.notify_group_members` |
 | `20260927000600_rpc_grupos.sql` | 20 RPC de grupos con sus envoltorios públicos |
-| `20260927000700_rpc_discipulado.sql` | 21 RPC de discipulado con sus envoltorios públicos |
+| `20260927000700_rpc_discipulado.sql` | 22 RPC de discipulado con sus envoltorios públicos |
 
 ---
 
@@ -150,11 +150,11 @@ para que no aparezca en el calendario general; quien participa ve fecha y hora a
 
 | Suite | Aserciones |
 |---|---|
-| `fase7_grupos_test.sql` | 69 |
-| `fase7_discipulado_test.sql` | 59 |
-| `fase7_permisos_test.sql` | 31 |
+| `fase7_grupos_test.sql` | 72 |
+| `fase7_discipulado_test.sql` | 68 |
+| `fase7_permisos_test.sql` | 39 |
 
-**Total del repositorio: 1132 aserciones en 20 suites, 0 fallos.** `cobertura_rls_test.sql`
+**Total del repositorio: 1183 aserciones en 21 suites, 0 fallos.** `cobertura_rls_test.sql`
 pasó de 63 a 78 al recoger sola las quince tablas nuevas.
 
 Las tres suites son SQL puro, sin `\gset`: una suite que use ese metacomando de psql no se
@@ -170,7 +170,35 @@ funciona ni quien es propietario.
 
 ---
 
-## 7. Lo que esta fase no hace
+## 7. Revisión adversarial: qué se encontró y qué se corrigió
+
+Antes de pedir validación, un revisor independiente buscó fallos en las siete migraciones y
+las tres suites, con acceso a una base real para reproducirlos. Encontró diez, la mayoría
+demostrados con SQL. Todos están corregidos **en las propias migraciones** —no estaban
+aplicadas en producción, así que no había que apilar parches— y cada uno tiene ahora una
+prueba que lo cubre.
+
+| # | Gravedad | Qué pasaba | Cómo está ahora |
+|---|---|---|---|
+| 1 | Alta | `app.person_path_progress_view` no comprobaba la iglesia: pasando el propio `person_id` se leía la estructura de un itinerario de **otra iglesia** | Filtra por `church_ids_for_user` y exige el módulo activo |
+| 2 | Alta | `group.contact.read` se resolvía con `has_capability_any_scope`, que **ignora el ámbito**: concederla para un grupo la convertía en permiso sobre toda la iglesia, justo lo contrario de P-5 | `app.can_read_person_contact` recibe el grupo y usa `app.group_cap` |
+| 3 | Media | `notify_group_members` aceptaba **cualquier** tipo de aviso y `p_extra` sobreescribía el payload: se podían falsificar avisos de otros dominios | Lista blanca de tipos y el payload de confianza va el último |
+| 4 | Media | Las notas del responsable sobre un participante las leía **todo el grupo** | Se retiran esas columnas: no estaban en el contrato y dos ni se escribían |
+| 5 | Media | Un miembro no veía un curso en borrador, pero sí sus cohortes y sesiones, con las notas internas | Políticas alineadas con la del curso; las notas de cohorte van por RPC |
+| 6 | Media | La clave de un aviso de cambio de hora era la hora de destino: volver a una hora ya usada **no avisaba nunca más** | La clave lleva el momento del cambio |
+| 7 | Media | `notify_group_members` daba a un grupo **un solo aviso de cada tipo en toda su vida** | Sufijo propio por defecto |
+| 8 | Baja | Tres aserciones pasaban por el motivo equivocado; una cubría 32 de 67 funciones y otra tapaba dos permisos no acordados | Listas explícitas y comprobaciones exactas |
+| 9 | Baja | `save_path_step` editaba un paso de otro itinerario | Filtra también por itinerario |
+| 10 | Baja | Se podía seguir operando con normalidad sobre un grupo archivado o cerrado | `app.assert_group_writable` en las RPC de escritura |
+
+También se cerró la carrera de aforo que el revisor dejó como sospecha sin confirmar: contar
+y luego insertar sin bloqueo permite que dos altas simultáneas ocupen el mismo hueco. Ahora se
+bloquea la fila del grupo o de la cohorte antes de contar.
+
+Dos permisos que se habían colado sin estar en el reparto acordado (`course.read` y `path.read`
+para `group_leader`) se han retirado, en vez de añadirlos al contrato por comodidad.
+
+## 8. Lo que esta fase no hace
 
 Kids y recogida de menores, notas pastorales, donaciones y campañas, transportes de correo y
 push, pagos, certificados, LMS con contenidos, videoconferencia y el módulo de Alabanza quedan

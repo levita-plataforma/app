@@ -63,6 +63,17 @@ begin
 end;
 $privs$;
 
+-- course_cohorts.notes son notas internas de quien organiza la formación, y la
+-- política de lectura alcanza también a quien solo tiene course.read y a los
+-- matriculados. Como RLS filtra filas y no columnas, la columna se retira del
+-- grant y se sirve por app.cohort_notes, que sí comprueba capacidad.
+revoke select on table course_cohorts from authenticated;
+grant select (
+  id, church_id, course_id, campus_id, name, status, starts_on, ends_on,
+  capacity, allows_requests, created_by, created_at, updated_at,
+  archived_at, archived_by
+) on table course_cohorts to authenticated;
+
 -- Las funciones de trigger no se pueden invocar con un select —PostgreSQL lo
 -- impide—, pero los privilegios por defecto les conceden EXECUTE a PUBLIC igual
 -- que a cualquier otra. Se revocan para que la superficie expuesta sea
@@ -148,16 +159,30 @@ create policy courses_select on courses
     )
   );
 
+-- Alineada con courses_select: quien solo tiene course.read ve las cohortes
+-- vivas de cursos visibles, no las de un curso en borrador o archivado ni las
+-- canceladas. Quien gestiona la formación las ve todas, y quien está
+-- matriculado ve la suya pase lo que pase.
 create policy course_cohorts_select on course_cohorts
   for select to authenticated
   using (
     church_id = any((select app.church_ids_for_user())::uuid[])
     and (
-      app.cohort_cap(id, 'course.read')
+      app.cohort_cap(id, 'course.manage')
       or exists (
         select 1 from course_enrollments e
         where e.cohort_id = course_cohorts.id
           and e.person_id in (select app.current_person_ids())
+      )
+      or (
+        app.cohort_cap(id, 'course.read')
+        and archived_at is null
+        and status <> 'cancelled'
+        and exists (
+          select 1 from courses c
+          where c.id = course_cohorts.course_id
+            and c.status = 'active' and c.archived_at is null
+        )
       )
     )
   );
@@ -170,12 +195,18 @@ create policy course_sessions_select on course_sessions
   using (
     church_id = any((select app.church_ids_for_user())::uuid[])
     and (
-      app.cohort_cap(cohort_id, 'course.read')
+      app.cohort_cap(cohort_id, 'course.manage')
       or exists (
         select 1 from course_enrollments e
         where e.cohort_id = course_sessions.cohort_id
           and e.person_id in (select app.current_person_ids())
           and e.status in ('enrolled', 'completed')
+      )
+      or (
+        app.cohort_cap(cohort_id, 'course.read')
+        -- La sesión solo se ve si su cohorte se ve: sin esto, las sesiones de
+        -- una cohorte cancelada o de un curso en borrador quedaban a la vista.
+        and exists (select 1 from course_cohorts cc where cc.id = course_sessions.cohort_id)
       )
     )
   );
