@@ -3,19 +3,22 @@
 Fecha de revisión: 16 de septiembre de 2026. Código de referencia: `e5679ca`.
 Repositorio: https://github.com/levita-plataforma/app
 
-## 1. Regla principal: validación de Carlos
+## 1. Regla principal: validación por fase
 
-**Todo trabajo se realiza en una rama identificable. Ningún cambio puede entrar en `main` sin la validación expresa del propietario del proyecto.** Carlos es el propietario y validador final; Diogo es el otro colaborador. Esta norma afecta a ambos y a cualquier asistente automatizado.
+**Todo trabajo se realiza en una rama identificable. Ningún cambio puede entrar en `main` sin la validación expresa de quien responde de esa fase, sobre la versión concreta revisada.** Desde el 18 de septiembre de 2026, **cada responsable valida sus propias fases**: Carlos las suyas y Diogo las suyas. Carlos sigue siendo el propietario del proyecto: decide en lo compartido, en lo transversal y ante cualquier duda sobre a quién corresponde una fase. La norma afecta a ambos y a cualquier asistente automatizado.
 
 - No desarrollar ni hacer commits directamente en `main`.
 - Los commits de trabajo se realizan en la rama de la tarea. No equivalen a autorización para integrarlos en `main`.
 - La integración se propone mediante una pull request (PR) con destino `main`.
-- La revisión de otro colaborador y el CI en verde no sustituyen la validación del propietario.
+- El CI en verde no sustituye la validación: es un requisito más, no la aprobación.
 - La validación debe identificar la PR y la versión revisada (último commit). Si se añaden cambios después, hay que volver a validarlos antes de integrar.
+- Quien valida lo deja escrito en la PR (sección «Validación del propietario»), con su nombre y el commit. Las cuentas de GitHub y Vercel son compartidas, así que el registro automático **no** identifica al autor: hay que escribirlo.
+- Lo que toca otra fase, el núcleo compartido (tenant, permisos, RLS, navegación, tipos generados) o estos documentos de normas lo valida Carlos, aunque lo proponga otra persona.
 - No activar auto-merge ni hacer push directo o forzado a `main` para saltarse esta revisión.
 - Un arreglo urgente también requiere validación. No hay excepción automática para hotfixes.
+- Producción se despliega desde `main`: no se promocionan ramas a producción desde Vercel. Aplicar migraciones remotas sigue siendo una decisión aparte de la validación.
 
-Estas son normas de trabajo. Este documento no configura protecciones de GitHub ni acredita que estén activas. Conviene proteger `main` con PR obligatoria, comprobaciones requeridas y descarte de aprobaciones obsoletas; además debe mantenerse la validación específica del propietario.
+Estas son normas de trabajo. Este documento no configura protecciones de GitHub ni acredita que estén activas. Conviene proteger `main` con PR obligatoria, comprobaciones requeridas y descarte de aprobaciones obsoletas; además debe mantenerse la validación específica del responsable de la fase. Mientras las cuentas de GitHub y Vercel sean compartidas, ningún cambio tiene autor identificable: conviene que cada persona use la suya y que la compartida quede solo como propietaria.
 
 ## 2. Qué es y cómo funciona el producto
 
@@ -127,7 +130,7 @@ Los mensajes de commit y títulos de PR usan el tipo correspondiente: `hotfix(ac
 6. Implementar y validar el alcance. Actualizar la documentación responsable cuando cambie una regla.
 7. Crear commits en la rama de tarea y abrir PR hacia `main` cuando se vaya a compartir el resultado. Puede estar en borrador si aún no está listo.
 8. Incorporar los cambios recientes de `origin/main` a la rama de tarea antes de la revisión final. Resolver los conflictos en esa rama y repetir las comprobaciones afectadas. No forzar el historial de una rama compartida.
-9. Presentar al propietario el resultado concreto, cómo probarlo, las comprobaciones y sus limitaciones. Esperar su validación expresa de esa versión.
+9. Presentar a quien valida esa fase el resultado concreto, cómo probarlo, las comprobaciones y sus limitaciones. Esperar su validación expresa de esa versión.
 10. Integrar únicamente la versión validada, con el CI requerido en verde y sin conflictos. Si `main` cambia y hay que modificar la propuesta, volver a comprobarla y pedir nueva validación del resultado actualizado.
 11. Comunicar la integración al otro colaborador para que sincronice su trabajo. Eliminar la rama solo cuando esté integrada y nadie dependa de ella.
 
@@ -195,13 +198,14 @@ Comprobaciones pendientes:
 Permisos, datos, migraciones o configuración afectados:
 Limitaciones y recuperación, si aplica:
 
-## Validación del propietario
+## Validación
+Responsable de la fase que valida:
 Estado: pendiente / validado
 Commit revisado:
 Referencia a la aprobación expresa:
 ```
 
-El autor no marca «validado» en nombre del propietario sin una aprobación real y trazable.
+El autor no marca «validado» en nombre de otra persona sin una aprobación real y trazable. Como las cuentas son compartidas, hay que escribir quién valida: el registro de GitHub no lo distingue.
 
 ## 10. Fuentes y mantenimiento de esta guía
 
