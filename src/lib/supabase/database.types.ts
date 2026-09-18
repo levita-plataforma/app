@@ -1859,6 +1859,438 @@ export type Database = {
           },
         ]
       }
+      course_cohorts: {
+        Row: {
+          allows_requests: boolean
+          archived_at: string | null
+          archived_by: string | null
+          campus_id: string | null
+          capacity: number | null
+          church_id: string
+          course_id: string
+          created_at: string
+          created_by: string | null
+          ends_on: string | null
+          id: string
+          name: string
+          notes: string | null
+          starts_on: string | null
+          status: Database["public"]["Enums"]["course_cohort_status"]
+          updated_at: string
+        }
+        Insert: {
+          allows_requests?: boolean
+          archived_at?: string | null
+          archived_by?: string | null
+          campus_id?: string | null
+          capacity?: number | null
+          church_id: string
+          course_id: string
+          created_at?: string
+          created_by?: string | null
+          ends_on?: string | null
+          id?: string
+          name: string
+          notes?: string | null
+          starts_on?: string | null
+          status?: Database["public"]["Enums"]["course_cohort_status"]
+          updated_at?: string
+        }
+        Update: {
+          allows_requests?: boolean
+          archived_at?: string | null
+          archived_by?: string | null
+          campus_id?: string | null
+          capacity?: number | null
+          church_id?: string
+          course_id?: string
+          created_at?: string
+          created_by?: string | null
+          ends_on?: string | null
+          id?: string
+          name?: string
+          notes?: string | null
+          starts_on?: string | null
+          status?: Database["public"]["Enums"]["course_cohort_status"]
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "course_cohorts_archived_by_fkey"
+            columns: ["archived_by"]
+            isOneToOne: false
+            referencedRelation: "people"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "course_cohorts_campus_id_church_id_fkey"
+            columns: ["campus_id", "church_id"]
+            isOneToOne: false
+            referencedRelation: "campuses"
+            referencedColumns: ["id", "church_id"]
+          },
+          {
+            foreignKeyName: "course_cohorts_church_id_fkey"
+            columns: ["church_id"]
+            isOneToOne: false
+            referencedRelation: "churches"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "course_cohorts_course_id_church_id_fkey"
+            columns: ["course_id", "church_id"]
+            isOneToOne: false
+            referencedRelation: "courses"
+            referencedColumns: ["id", "church_id"]
+          },
+          {
+            foreignKeyName: "course_cohorts_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "people"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      course_enrollments: {
+        Row: {
+          church_id: string
+          cohort_id: string
+          completed_at: string | null
+          completed_by: string | null
+          completion_note: string | null
+          created_at: string
+          created_by: string | null
+          decided_at: string | null
+          decided_by: string | null
+          decision_note: string | null
+          drop_reason: string | null
+          dropped_at: string | null
+          enrolled_at: string | null
+          id: string
+          person_id: string
+          request_message: string | null
+          requested_at: string | null
+          status: Database["public"]["Enums"]["course_enrollment_status"]
+          updated_at: string
+        }
+        Insert: {
+          church_id: string
+          cohort_id: string
+          completed_at?: string | null
+          completed_by?: string | null
+          completion_note?: string | null
+          created_at?: string
+          created_by?: string | null
+          decided_at?: string | null
+          decided_by?: string | null
+          decision_note?: string | null
+          drop_reason?: string | null
+          dropped_at?: string | null
+          enrolled_at?: string | null
+          id?: string
+          person_id: string
+          request_message?: string | null
+          requested_at?: string | null
+          status?: Database["public"]["Enums"]["course_enrollment_status"]
+          updated_at?: string
+        }
+        Update: {
+          church_id?: string
+          cohort_id?: string
+          completed_at?: string | null
+          completed_by?: string | null
+          completion_note?: string | null
+          created_at?: string
+          created_by?: string | null
+          decided_at?: string | null
+          decided_by?: string | null
+          decision_note?: string | null
+          drop_reason?: string | null
+          dropped_at?: string | null
+          enrolled_at?: string | null
+          id?: string
+          person_id?: string
+          request_message?: string | null
+          requested_at?: string | null
+          status?: Database["public"]["Enums"]["course_enrollment_status"]
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "course_enrollments_church_id_fkey"
+            columns: ["church_id"]
+            isOneToOne: false
+            referencedRelation: "churches"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "course_enrollments_church_id_person_id_fkey"
+            columns: ["church_id", "person_id"]
+            isOneToOne: false
+            referencedRelation: "church_people"
+            referencedColumns: ["church_id", "person_id"]
+          },
+          {
+            foreignKeyName: "course_enrollments_cohort_id_church_id_fkey"
+            columns: ["cohort_id", "church_id"]
+            isOneToOne: false
+            referencedRelation: "course_cohorts"
+            referencedColumns: ["id", "church_id"]
+          },
+          {
+            foreignKeyName: "course_enrollments_completed_by_fkey"
+            columns: ["completed_by"]
+            isOneToOne: false
+            referencedRelation: "people"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "course_enrollments_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "people"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "course_enrollments_decided_by_fkey"
+            columns: ["decided_by"]
+            isOneToOne: false
+            referencedRelation: "people"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "course_enrollments_person_id_fkey"
+            columns: ["person_id"]
+            isOneToOne: false
+            referencedRelation: "people"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      course_session_attendance: {
+        Row: {
+          church_id: string
+          course_session_id: string
+          created_at: string
+          id: string
+          notes: string | null
+          person_id: string
+          recorded_at: string
+          recorded_by: string | null
+          status: Database["public"]["Enums"]["group_attendance_status"]
+          updated_at: string
+        }
+        Insert: {
+          church_id: string
+          course_session_id: string
+          created_at?: string
+          id?: string
+          notes?: string | null
+          person_id: string
+          recorded_at?: string
+          recorded_by?: string | null
+          status: Database["public"]["Enums"]["group_attendance_status"]
+          updated_at?: string
+        }
+        Update: {
+          church_id?: string
+          course_session_id?: string
+          created_at?: string
+          id?: string
+          notes?: string | null
+          person_id?: string
+          recorded_at?: string
+          recorded_by?: string | null
+          status?: Database["public"]["Enums"]["group_attendance_status"]
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "course_session_attendance_church_id_fkey"
+            columns: ["church_id"]
+            isOneToOne: false
+            referencedRelation: "churches"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "course_session_attendance_church_id_person_id_fkey"
+            columns: ["church_id", "person_id"]
+            isOneToOne: false
+            referencedRelation: "church_people"
+            referencedColumns: ["church_id", "person_id"]
+          },
+          {
+            foreignKeyName: "course_session_attendance_course_session_id_church_id_fkey"
+            columns: ["course_session_id", "church_id"]
+            isOneToOne: false
+            referencedRelation: "course_sessions"
+            referencedColumns: ["id", "church_id"]
+          },
+          {
+            foreignKeyName: "course_session_attendance_person_id_fkey"
+            columns: ["person_id"]
+            isOneToOne: false
+            referencedRelation: "people"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "course_session_attendance_recorded_by_fkey"
+            columns: ["recorded_by"]
+            isOneToOne: false
+            referencedRelation: "people"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      course_sessions: {
+        Row: {
+          activity_id: string
+          attendance_recorded_at: string | null
+          attendance_recorded_by: string | null
+          church_id: string
+          cohort_id: string
+          created_at: string
+          created_by: string | null
+          id: string
+          leader_notes: string | null
+          session_number: number
+          topic: string | null
+          updated_at: string
+        }
+        Insert: {
+          activity_id: string
+          attendance_recorded_at?: string | null
+          attendance_recorded_by?: string | null
+          church_id: string
+          cohort_id: string
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          leader_notes?: string | null
+          session_number: number
+          topic?: string | null
+          updated_at?: string
+        }
+        Update: {
+          activity_id?: string
+          attendance_recorded_at?: string | null
+          attendance_recorded_by?: string | null
+          church_id?: string
+          cohort_id?: string
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          leader_notes?: string | null
+          session_number?: number
+          topic?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "course_sessions_activity_id_church_id_fkey"
+            columns: ["activity_id", "church_id"]
+            isOneToOne: false
+            referencedRelation: "activities"
+            referencedColumns: ["id", "church_id"]
+          },
+          {
+            foreignKeyName: "course_sessions_attendance_recorded_by_fkey"
+            columns: ["attendance_recorded_by"]
+            isOneToOne: false
+            referencedRelation: "people"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "course_sessions_church_id_fkey"
+            columns: ["church_id"]
+            isOneToOne: false
+            referencedRelation: "churches"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "course_sessions_cohort_id_church_id_fkey"
+            columns: ["cohort_id", "church_id"]
+            isOneToOne: false
+            referencedRelation: "course_cohorts"
+            referencedColumns: ["id", "church_id"]
+          },
+          {
+            foreignKeyName: "course_sessions_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "people"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      courses: {
+        Row: {
+          archived_at: string | null
+          archived_by: string | null
+          church_id: string
+          completion_attendance_ratio: number
+          created_at: string
+          created_by: string | null
+          description: string | null
+          id: string
+          name: string
+          session_count: number | null
+          status: Database["public"]["Enums"]["course_status"]
+          updated_at: string
+        }
+        Insert: {
+          archived_at?: string | null
+          archived_by?: string | null
+          church_id: string
+          completion_attendance_ratio?: number
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          id?: string
+          name: string
+          session_count?: number | null
+          status?: Database["public"]["Enums"]["course_status"]
+          updated_at?: string
+        }
+        Update: {
+          archived_at?: string | null
+          archived_by?: string | null
+          church_id?: string
+          completion_attendance_ratio?: number
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          id?: string
+          name?: string
+          session_count?: number | null
+          status?: Database["public"]["Enums"]["course_status"]
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "courses_archived_by_fkey"
+            columns: ["archived_by"]
+            isOneToOne: false
+            referencedRelation: "people"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "courses_church_id_fkey"
+            columns: ["church_id"]
+            isOneToOne: false
+            referencedRelation: "churches"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "courses_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "people"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       credential_types: {
         Row: {
           active: boolean
@@ -2495,6 +2927,556 @@ export type Database = {
           },
         ]
       }
+      group_attendance: {
+        Row: {
+          church_id: string
+          created_at: string
+          group_meeting_id: string
+          id: string
+          is_guest: boolean
+          notes: string | null
+          person_id: string
+          recorded_at: string
+          recorded_by: string | null
+          status: Database["public"]["Enums"]["group_attendance_status"]
+          updated_at: string
+        }
+        Insert: {
+          church_id: string
+          created_at?: string
+          group_meeting_id: string
+          id?: string
+          is_guest?: boolean
+          notes?: string | null
+          person_id: string
+          recorded_at?: string
+          recorded_by?: string | null
+          status: Database["public"]["Enums"]["group_attendance_status"]
+          updated_at?: string
+        }
+        Update: {
+          church_id?: string
+          created_at?: string
+          group_meeting_id?: string
+          id?: string
+          is_guest?: boolean
+          notes?: string | null
+          person_id?: string
+          recorded_at?: string
+          recorded_by?: string | null
+          status?: Database["public"]["Enums"]["group_attendance_status"]
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "group_attendance_church_id_fkey"
+            columns: ["church_id"]
+            isOneToOne: false
+            referencedRelation: "churches"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "group_attendance_church_id_person_id_fkey"
+            columns: ["church_id", "person_id"]
+            isOneToOne: false
+            referencedRelation: "church_people"
+            referencedColumns: ["church_id", "person_id"]
+          },
+          {
+            foreignKeyName: "group_attendance_group_meeting_id_church_id_fkey"
+            columns: ["group_meeting_id", "church_id"]
+            isOneToOne: false
+            referencedRelation: "group_meetings"
+            referencedColumns: ["id", "church_id"]
+          },
+          {
+            foreignKeyName: "group_attendance_person_id_fkey"
+            columns: ["person_id"]
+            isOneToOne: false
+            referencedRelation: "people"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "group_attendance_recorded_by_fkey"
+            columns: ["recorded_by"]
+            isOneToOne: false
+            referencedRelation: "people"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      group_join_requests: {
+        Row: {
+          church_id: string
+          created_at: string
+          decided_at: string | null
+          decided_by: string | null
+          decision_note: string | null
+          group_id: string
+          id: string
+          message: string | null
+          person_id: string
+          status: Database["public"]["Enums"]["group_join_request_status"]
+          updated_at: string
+        }
+        Insert: {
+          church_id: string
+          created_at?: string
+          decided_at?: string | null
+          decided_by?: string | null
+          decision_note?: string | null
+          group_id: string
+          id?: string
+          message?: string | null
+          person_id: string
+          status?: Database["public"]["Enums"]["group_join_request_status"]
+          updated_at?: string
+        }
+        Update: {
+          church_id?: string
+          created_at?: string
+          decided_at?: string | null
+          decided_by?: string | null
+          decision_note?: string | null
+          group_id?: string
+          id?: string
+          message?: string | null
+          person_id?: string
+          status?: Database["public"]["Enums"]["group_join_request_status"]
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "group_join_requests_church_id_fkey"
+            columns: ["church_id"]
+            isOneToOne: false
+            referencedRelation: "churches"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "group_join_requests_church_id_person_id_fkey"
+            columns: ["church_id", "person_id"]
+            isOneToOne: false
+            referencedRelation: "church_people"
+            referencedColumns: ["church_id", "person_id"]
+          },
+          {
+            foreignKeyName: "group_join_requests_decided_by_fkey"
+            columns: ["decided_by"]
+            isOneToOne: false
+            referencedRelation: "people"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "group_join_requests_group_id_church_id_fkey"
+            columns: ["group_id", "church_id"]
+            isOneToOne: false
+            referencedRelation: "groups"
+            referencedColumns: ["id", "church_id"]
+          },
+          {
+            foreignKeyName: "group_join_requests_person_id_fkey"
+            columns: ["person_id"]
+            isOneToOne: false
+            referencedRelation: "people"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      group_leaders: {
+        Row: {
+          church_id: string
+          created_at: string
+          created_by: string | null
+          ends_at: string | null
+          group_id: string
+          id: string
+          person_id: string
+          role: Database["public"]["Enums"]["group_leader_role"]
+          starts_at: string
+          updated_at: string
+        }
+        Insert: {
+          church_id: string
+          created_at?: string
+          created_by?: string | null
+          ends_at?: string | null
+          group_id: string
+          id?: string
+          person_id: string
+          role?: Database["public"]["Enums"]["group_leader_role"]
+          starts_at?: string
+          updated_at?: string
+        }
+        Update: {
+          church_id?: string
+          created_at?: string
+          created_by?: string | null
+          ends_at?: string | null
+          group_id?: string
+          id?: string
+          person_id?: string
+          role?: Database["public"]["Enums"]["group_leader_role"]
+          starts_at?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "group_leaders_church_id_fkey"
+            columns: ["church_id"]
+            isOneToOne: false
+            referencedRelation: "churches"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "group_leaders_church_id_person_id_fkey"
+            columns: ["church_id", "person_id"]
+            isOneToOne: false
+            referencedRelation: "church_people"
+            referencedColumns: ["church_id", "person_id"]
+          },
+          {
+            foreignKeyName: "group_leaders_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "people"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "group_leaders_group_id_church_id_fkey"
+            columns: ["group_id", "church_id"]
+            isOneToOne: false
+            referencedRelation: "groups"
+            referencedColumns: ["id", "church_id"]
+          },
+          {
+            foreignKeyName: "group_leaders_person_id_fkey"
+            columns: ["person_id"]
+            isOneToOne: false
+            referencedRelation: "people"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      group_meetings: {
+        Row: {
+          activity_id: string
+          attendance_recorded_at: string | null
+          attendance_recorded_by: string | null
+          church_id: string
+          created_at: string
+          created_by: string | null
+          group_id: string
+          id: string
+          leader_notes: string | null
+          updated_at: string
+        }
+        Insert: {
+          activity_id: string
+          attendance_recorded_at?: string | null
+          attendance_recorded_by?: string | null
+          church_id: string
+          created_at?: string
+          created_by?: string | null
+          group_id: string
+          id?: string
+          leader_notes?: string | null
+          updated_at?: string
+        }
+        Update: {
+          activity_id?: string
+          attendance_recorded_at?: string | null
+          attendance_recorded_by?: string | null
+          church_id?: string
+          created_at?: string
+          created_by?: string | null
+          group_id?: string
+          id?: string
+          leader_notes?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "group_meetings_activity_id_church_id_fkey"
+            columns: ["activity_id", "church_id"]
+            isOneToOne: false
+            referencedRelation: "activities"
+            referencedColumns: ["id", "church_id"]
+          },
+          {
+            foreignKeyName: "group_meetings_attendance_recorded_by_fkey"
+            columns: ["attendance_recorded_by"]
+            isOneToOne: false
+            referencedRelation: "people"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "group_meetings_church_id_fkey"
+            columns: ["church_id"]
+            isOneToOne: false
+            referencedRelation: "churches"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "group_meetings_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "people"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "group_meetings_group_id_church_id_fkey"
+            columns: ["group_id", "church_id"]
+            isOneToOne: false
+            referencedRelation: "groups"
+            referencedColumns: ["id", "church_id"]
+          },
+        ]
+      }
+      group_members: {
+        Row: {
+          church_id: string
+          created_at: string
+          created_by: string | null
+          group_id: string
+          id: string
+          joined_at: string
+          left_at: string | null
+          left_reason: string | null
+          notes: string | null
+          person_id: string
+          status: Database["public"]["Enums"]["group_member_status"]
+          updated_at: string
+        }
+        Insert: {
+          church_id: string
+          created_at?: string
+          created_by?: string | null
+          group_id: string
+          id?: string
+          joined_at?: string
+          left_at?: string | null
+          left_reason?: string | null
+          notes?: string | null
+          person_id: string
+          status?: Database["public"]["Enums"]["group_member_status"]
+          updated_at?: string
+        }
+        Update: {
+          church_id?: string
+          created_at?: string
+          created_by?: string | null
+          group_id?: string
+          id?: string
+          joined_at?: string
+          left_at?: string | null
+          left_reason?: string | null
+          notes?: string | null
+          person_id?: string
+          status?: Database["public"]["Enums"]["group_member_status"]
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "group_members_church_id_fkey"
+            columns: ["church_id"]
+            isOneToOne: false
+            referencedRelation: "churches"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "group_members_church_id_person_id_fkey"
+            columns: ["church_id", "person_id"]
+            isOneToOne: false
+            referencedRelation: "church_people"
+            referencedColumns: ["church_id", "person_id"]
+          },
+          {
+            foreignKeyName: "group_members_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "people"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "group_members_group_id_church_id_fkey"
+            columns: ["group_id", "church_id"]
+            isOneToOne: false
+            referencedRelation: "groups"
+            referencedColumns: ["id", "church_id"]
+          },
+          {
+            foreignKeyName: "group_members_person_id_fkey"
+            columns: ["person_id"]
+            isOneToOne: false
+            referencedRelation: "people"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      group_types: {
+        Row: {
+          archived_at: string | null
+          archived_by: string | null
+          church_id: string
+          created_at: string
+          created_by: string | null
+          description: string | null
+          id: string
+          key: string
+          name: string
+          sort_order: number
+          updated_at: string
+        }
+        Insert: {
+          archived_at?: string | null
+          archived_by?: string | null
+          church_id: string
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          id?: string
+          key: string
+          name: string
+          sort_order?: number
+          updated_at?: string
+        }
+        Update: {
+          archived_at?: string | null
+          archived_by?: string | null
+          church_id?: string
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          id?: string
+          key?: string
+          name?: string
+          sort_order?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "group_types_archived_by_fkey"
+            columns: ["archived_by"]
+            isOneToOne: false
+            referencedRelation: "people"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "group_types_church_id_fkey"
+            columns: ["church_id"]
+            isOneToOne: false
+            referencedRelation: "churches"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "group_types_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "people"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      groups: {
+        Row: {
+          age_segment: string | null
+          archived_at: string | null
+          archived_by: string | null
+          campus_id: string | null
+          capacity: number | null
+          church_id: string
+          created_at: string
+          created_by: string | null
+          description: string | null
+          group_type_id: string | null
+          id: string
+          join_policy: Database["public"]["Enums"]["group_join_policy"]
+          meeting_location_text: string | null
+          meeting_schedule_text: string | null
+          name: string
+          status: Database["public"]["Enums"]["group_status"]
+          updated_at: string
+          visibility: Database["public"]["Enums"]["group_visibility"]
+        }
+        Insert: {
+          age_segment?: string | null
+          archived_at?: string | null
+          archived_by?: string | null
+          campus_id?: string | null
+          capacity?: number | null
+          church_id: string
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          group_type_id?: string | null
+          id?: string
+          join_policy?: Database["public"]["Enums"]["group_join_policy"]
+          meeting_location_text?: string | null
+          meeting_schedule_text?: string | null
+          name: string
+          status?: Database["public"]["Enums"]["group_status"]
+          updated_at?: string
+          visibility?: Database["public"]["Enums"]["group_visibility"]
+        }
+        Update: {
+          age_segment?: string | null
+          archived_at?: string | null
+          archived_by?: string | null
+          campus_id?: string | null
+          capacity?: number | null
+          church_id?: string
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          group_type_id?: string | null
+          id?: string
+          join_policy?: Database["public"]["Enums"]["group_join_policy"]
+          meeting_location_text?: string | null
+          meeting_schedule_text?: string | null
+          name?: string
+          status?: Database["public"]["Enums"]["group_status"]
+          updated_at?: string
+          visibility?: Database["public"]["Enums"]["group_visibility"]
+        }
+        Relationships: [
+          {
+            foreignKeyName: "groups_archived_by_fkey"
+            columns: ["archived_by"]
+            isOneToOne: false
+            referencedRelation: "people"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "groups_campus_id_church_id_fkey"
+            columns: ["campus_id", "church_id"]
+            isOneToOne: false
+            referencedRelation: "campuses"
+            referencedColumns: ["id", "church_id"]
+          },
+          {
+            foreignKeyName: "groups_church_id_fkey"
+            columns: ["church_id"]
+            isOneToOne: false
+            referencedRelation: "churches"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "groups_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "people"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "groups_group_type_id_church_id_fkey"
+            columns: ["group_type_id", "church_id"]
+            isOneToOne: false
+            referencedRelation: "group_types"
+            referencedColumns: ["id", "church_id"]
+          },
+        ]
+      }
       household_members: {
         Row: {
           church_id: string
@@ -2723,6 +3705,67 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "roles"
             referencedColumns: ["key"]
+          },
+        ]
+      }
+      learning_paths: {
+        Row: {
+          archived_at: string | null
+          archived_by: string | null
+          church_id: string
+          created_at: string
+          created_by: string | null
+          description: string | null
+          id: string
+          name: string
+          status: Database["public"]["Enums"]["learning_path_status"]
+          updated_at: string
+        }
+        Insert: {
+          archived_at?: string | null
+          archived_by?: string | null
+          church_id: string
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          id?: string
+          name: string
+          status?: Database["public"]["Enums"]["learning_path_status"]
+          updated_at?: string
+        }
+        Update: {
+          archived_at?: string | null
+          archived_by?: string | null
+          church_id?: string
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          id?: string
+          name?: string
+          status?: Database["public"]["Enums"]["learning_path_status"]
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "learning_paths_archived_by_fkey"
+            columns: ["archived_by"]
+            isOneToOne: false
+            referencedRelation: "people"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "learning_paths_church_id_fkey"
+            columns: ["church_id"]
+            isOneToOne: false
+            referencedRelation: "churches"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "learning_paths_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "people"
+            referencedColumns: ["id"]
           },
         ]
       }
@@ -3006,6 +4049,93 @@ export type Database = {
           },
         ]
       }
+      path_steps: {
+        Row: {
+          archived_at: string | null
+          archived_by: string | null
+          church_id: string
+          course_id: string | null
+          created_at: string
+          created_by: string | null
+          description: string | null
+          id: string
+          is_required: boolean
+          kind: Database["public"]["Enums"]["path_step_kind"]
+          learning_path_id: string
+          step_order: number
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          archived_at?: string | null
+          archived_by?: string | null
+          church_id: string
+          course_id?: string | null
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          id?: string
+          is_required?: boolean
+          kind?: Database["public"]["Enums"]["path_step_kind"]
+          learning_path_id: string
+          step_order: number
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          archived_at?: string | null
+          archived_by?: string | null
+          church_id?: string
+          course_id?: string | null
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          id?: string
+          is_required?: boolean
+          kind?: Database["public"]["Enums"]["path_step_kind"]
+          learning_path_id?: string
+          step_order?: number
+          title?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "path_steps_archived_by_fkey"
+            columns: ["archived_by"]
+            isOneToOne: false
+            referencedRelation: "people"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "path_steps_church_id_fkey"
+            columns: ["church_id"]
+            isOneToOne: false
+            referencedRelation: "churches"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "path_steps_course_id_church_id_fkey"
+            columns: ["course_id", "church_id"]
+            isOneToOne: false
+            referencedRelation: "courses"
+            referencedColumns: ["id", "church_id"]
+          },
+          {
+            foreignKeyName: "path_steps_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "people"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "path_steps_learning_path_id_church_id_fkey"
+            columns: ["learning_path_id", "church_id"]
+            isOneToOne: false
+            referencedRelation: "learning_paths"
+            referencedColumns: ["id", "church_id"]
+          },
+        ]
+      }
       people: {
         Row: {
           archived_at: string | null
@@ -3140,6 +4270,104 @@ export type Database = {
           },
           {
             foreignKeyName: "person_credentials_person_id_fkey"
+            columns: ["person_id"]
+            isOneToOne: false
+            referencedRelation: "people"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      person_path_progress: {
+        Row: {
+          church_id: string
+          completed_at: string | null
+          completed_by: string | null
+          created_at: string
+          created_by: string | null
+          id: string
+          learning_path_id: string
+          note: string | null
+          path_step_id: string
+          person_id: string
+          started_at: string | null
+          status: Database["public"]["Enums"]["path_progress_status"]
+          updated_at: string
+        }
+        Insert: {
+          church_id: string
+          completed_at?: string | null
+          completed_by?: string | null
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          learning_path_id: string
+          note?: string | null
+          path_step_id: string
+          person_id: string
+          started_at?: string | null
+          status?: Database["public"]["Enums"]["path_progress_status"]
+          updated_at?: string
+        }
+        Update: {
+          church_id?: string
+          completed_at?: string | null
+          completed_by?: string | null
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          learning_path_id?: string
+          note?: string | null
+          path_step_id?: string
+          person_id?: string
+          started_at?: string | null
+          status?: Database["public"]["Enums"]["path_progress_status"]
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "person_path_progress_church_id_fkey"
+            columns: ["church_id"]
+            isOneToOne: false
+            referencedRelation: "churches"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "person_path_progress_church_id_person_id_fkey"
+            columns: ["church_id", "person_id"]
+            isOneToOne: false
+            referencedRelation: "church_people"
+            referencedColumns: ["church_id", "person_id"]
+          },
+          {
+            foreignKeyName: "person_path_progress_completed_by_fkey"
+            columns: ["completed_by"]
+            isOneToOne: false
+            referencedRelation: "people"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "person_path_progress_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "people"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "person_path_progress_learning_path_id_church_id_fkey"
+            columns: ["learning_path_id", "church_id"]
+            isOneToOne: false
+            referencedRelation: "learning_paths"
+            referencedColumns: ["id", "church_id"]
+          },
+          {
+            foreignKeyName: "person_path_progress_path_step_id_church_id_fkey"
+            columns: ["path_step_id", "church_id"]
+            isOneToOne: false
+            referencedRelation: "path_steps"
+            referencedColumns: ["id", "church_id"]
+          },
+          {
+            foreignKeyName: "person_path_progress_person_id_fkey"
             columns: ["person_id"]
             isOneToOne: false
             referencedRelation: "people"
@@ -4617,6 +5845,18 @@ export type Database = {
         Args: { p_activity_service_area_id: string; p_input: Json }
         Returns: string
       }
+      add_group_leader: {
+        Args: {
+          p_group_id: string
+          p_person_id: string
+          p_role?: Database["public"]["Enums"]["group_leader_role"]
+        }
+        Returns: string
+      }
+      add_group_member: {
+        Args: { p_group_id: string; p_input?: Json; p_person_id: string }
+        Returns: string
+      }
       admin_cancel_registration: {
         Args: { p_reason?: string; p_registration_id: string }
         Returns: {
@@ -4649,6 +5889,18 @@ export type Database = {
       cancel_activity_assignment: {
         Args: { p_assignment_id: string; p_expected_version?: number }
         Returns: Json
+      }
+      cancel_cohort_session: {
+        Args: { p_reason?: string; p_session_id: string }
+        Returns: undefined
+      }
+      cancel_group_join_request: {
+        Args: { p_request_id: string }
+        Returns: undefined
+      }
+      cancel_group_meeting: {
+        Args: { p_group_meeting_id: string; p_reason?: string }
+        Returns: undefined
       }
       cancel_registration_by_token: {
         Args: { p_cancel_token: string; p_reason?: string }
@@ -4687,6 +5939,22 @@ export type Database = {
           title: string
         }[]
       }
+      cohort_completion_suggestions: {
+        Args: { p_cohort_id: string }
+        Returns: {
+          attendance_ratio: number
+          display_name: string
+          enrollment_id: string
+          person_id: string
+          sessions_attended: number
+          sessions_total: number
+          suggested: boolean
+        }[]
+      }
+      complete_cohort_enrollment: {
+        Args: { p_enrollment_id: string; p_note?: string }
+        Returns: undefined
+      }
       complete_notification_delivery: {
         Args: { p_delivery_id: string; p_error?: string; p_status: string }
         Returns: Json
@@ -4707,6 +5975,14 @@ export type Database = {
         }
         Returns: Json
       }
+      create_cohort: {
+        Args: { p_course_id: string; p_input: Json }
+        Returns: string
+      }
+      create_group: {
+        Args: { p_church_id: string; p_input: Json }
+        Returns: string
+      }
       create_person: {
         Args: {
           p_birth_date?: string
@@ -4724,6 +6000,11 @@ export type Database = {
       }
       delete_my_unavailability_period: { Args: { p_id: string }; Returns: Json }
       delete_my_weekly_unavailability: { Args: { p_id: string }; Returns: Json }
+      discipleship_metrics: { Args: { p_church_id: string }; Returns: Json }
+      drop_cohort_enrollment: {
+        Args: { p_enrollment_id: string; p_reason?: string }
+        Returns: undefined
+      }
       duplicate_activity: {
         Args: { p_activity_id: string; p_input?: Json }
         Returns: Json
@@ -4740,7 +6021,15 @@ export type Database = {
           status: Database["public"]["Enums"]["eligibility_status"]
         }[]
       }
+      end_group_leadership: {
+        Args: { p_group_id: string; p_person_id: string }
+        Returns: undefined
+      }
       enqueue_due_reminders: { Args: never; Returns: Json }
+      enroll_person_in_cohort: {
+        Args: { p_cohort_id: string; p_person_id: string }
+        Returns: string
+      }
       escalate_uncovered_positions: { Args: never; Returns: Json }
       evaluate_person_eligibility: {
         Args: {
@@ -4775,6 +6064,20 @@ export type Database = {
           out_phone: string
         }[]
       }
+      group_metrics: { Args: { p_church_id: string }; Returns: Json }
+      group_roster: {
+        Args: { p_group_id: string }
+        Returns: {
+          contact_visible: boolean
+          display_name: string
+          email: string
+          joined_at: string
+          person_id: string
+          phone: string
+          role: string
+          status: string
+        }[]
+      }
       has_capability: {
         Args: {
           p_capability: string
@@ -4794,6 +6097,27 @@ export type Database = {
         Returns: {
           out_invitation_id: string
           out_invitation_token: string
+        }[]
+      }
+      list_group_meetings: {
+        Args: {
+          p_from?: string
+          p_group_id: string
+          p_limit?: number
+          p_to?: string
+        }
+        Returns: {
+          activity_id: string
+          attendance_count: number
+          attendance_recorded_at: string
+          ends_at: string
+          group_meeting_id: string
+          leader_notes: string
+          location_text: string
+          starts_at: string
+          status: Database["public"]["Enums"]["activity_status"]
+          timezone: string
+          title: string
         }[]
       }
       list_my_notifications: {
@@ -4834,6 +6158,28 @@ export type Database = {
           p_key_suffix?: string
         }
         Returns: number
+      }
+      notify_group_members: {
+        Args: {
+          p_event_type: string
+          p_extra?: Json
+          p_group_id: string
+          p_key_suffix?: string
+        }
+        Returns: number
+      }
+      person_path_progress_view: {
+        Args: { p_learning_path_id: string; p_person_id: string }
+        Returns: {
+          archived: boolean
+          completed_at: string
+          is_required: boolean
+          kind: Database["public"]["Enums"]["path_step_kind"]
+          path_step_id: string
+          status: Database["public"]["Enums"]["path_progress_status"]
+          step_order: number
+          title: string
+        }[]
       }
       preview_activity_recurrence: {
         Args: { p_church_id: string; p_input: Json }
@@ -4938,6 +6284,14 @@ export type Database = {
         }
         Returns: Json
       }
+      record_group_attendance: {
+        Args: { p_entries: Json; p_group_meeting_id: string }
+        Returns: number
+      }
+      record_session_attendance: {
+        Args: { p_entries: Json; p_session_id: string }
+        Returns: number
+      }
       register_for_event: {
         Args: {
           p_answers?: Json
@@ -4976,13 +6330,45 @@ export type Database = {
         Args: { p_requirement_id: string }
         Returns: undefined
       }
+      remove_group_member: {
+        Args: { p_group_id: string; p_input?: Json; p_person_id: string }
+        Returns: undefined
+      }
       reorder_activity_plan_items: {
         Args: { p_activity_id: string; p_item_ids: string[] }
         Returns: undefined
       }
+      reorder_path_steps: {
+        Args: { p_learning_path_id: string; p_step_ids: string[] }
+        Returns: number
+      }
       request_assignment_substitution: {
         Args: { p_assignment_id: string }
         Returns: Json
+      }
+      request_cohort_enrollment: {
+        Args: { p_cohort_id: string; p_message?: string }
+        Returns: string
+      }
+      request_group_join: {
+        Args: { p_group_id: string; p_message?: string }
+        Returns: string
+      }
+      reschedule_cohort_session: {
+        Args: { p_input: Json; p_session_id: string }
+        Returns: undefined
+      }
+      reschedule_group_meeting: {
+        Args: { p_group_meeting_id: string; p_input: Json }
+        Returns: undefined
+      }
+      resolve_cohort_enrollment: {
+        Args: { p_accept: boolean; p_enrollment_id: string; p_note?: string }
+        Returns: undefined
+      }
+      resolve_group_join_request: {
+        Args: { p_accept: boolean; p_note?: string; p_request_id: string }
+        Returns: undefined
       }
       respond_activity_assignment: {
         Args: {
@@ -5005,12 +6391,55 @@ export type Database = {
         Args: { p_church_id: string; p_input: Json; p_template_id: string }
         Returns: string
       }
+      save_course: {
+        Args: { p_church_id: string; p_input: Json }
+        Returns: string
+      }
+      save_group_type: {
+        Args: { p_church_id: string; p_input: Json }
+        Returns: string
+      }
+      save_learning_path: {
+        Args: { p_church_id: string; p_input: Json }
+        Returns: string
+      }
+      save_path_step: {
+        Args: { p_input: Json; p_learning_path_id: string }
+        Returns: string
+      }
+      schedule_cohort_session: {
+        Args: { p_cohort_id: string; p_input: Json }
+        Returns: Json
+      }
+      schedule_group_meeting: {
+        Args: { p_group_id: string; p_input: Json }
+        Returns: Json
+      }
       send_activity_assignments: {
         Args: { p_activity_id: string; p_assignment_ids?: string[] }
         Returns: Json
       }
       set_activity_template_archived: {
         Args: { p_archived: boolean; p_template_id: string }
+        Returns: undefined
+      }
+      set_course_archived: {
+        Args: { p_archived: boolean; p_course_id: string }
+        Returns: undefined
+      }
+      set_group_archived: {
+        Args: { p_archived: boolean; p_group_id: string }
+        Returns: undefined
+      }
+      set_group_status: {
+        Args: {
+          p_group_id: string
+          p_status: Database["public"]["Enums"]["group_status"]
+        }
+        Returns: undefined
+      }
+      set_group_type_archived: {
+        Args: { p_archived: boolean; p_group_type_id: string }
         Returns: undefined
       }
       set_my_notification_preference: {
@@ -5027,6 +6456,19 @@ export type Database = {
       }
       set_my_unavailability_period: { Args: { p_input: Json }; Returns: Json }
       set_my_weekly_unavailability: { Args: { p_input: Json }; Returns: Json }
+      set_path_step_archived: {
+        Args: { p_archived: boolean; p_path_step_id: string }
+        Returns: undefined
+      }
+      set_person_path_step: {
+        Args: {
+          p_note?: string
+          p_path_step_id: string
+          p_person_id: string
+          p_status: Database["public"]["Enums"]["path_progress_status"]
+        }
+        Returns: string
+      }
       show_limit: { Args: never; Returns: number }
       show_trgm: { Args: { "": string }; Returns: string[] }
       slug_available: { Args: { p_slug: string }; Returns: boolean }
@@ -5070,6 +6512,14 @@ export type Database = {
       update_activity_series_rule: {
         Args: { p_activity_id: string; p_input: Json }
         Returns: Json
+      }
+      update_cohort: {
+        Args: { p_cohort_id: string; p_input: Json }
+        Returns: undefined
+      }
+      update_group: {
+        Args: { p_group_id: string; p_input: Json }
+        Returns: undefined
       }
       write_audit_log: {
         Args: {
@@ -5156,6 +6606,11 @@ export type Database = {
         | "suspended"
         | "cancelling"
         | "archived"
+      course_cohort_status:
+        "planned" | "open" | "running" | "finished" | "cancelled"
+      course_enrollment_status:
+        "requested" | "enrolled" | "completed" | "dropped" | "rejected"
+      course_status: "draft" | "active" | "archived"
       credential_status:
         | "pending"
         | "valid"
@@ -5196,10 +6651,21 @@ export type Database = {
         | "checkbox"
         | "boolean"
         | "address"
+      group_attendance_status: "present" | "absent" | "excused"
+      group_join_policy: "open_request" | "invite_only"
+      group_join_request_status:
+        "pending" | "accepted" | "rejected" | "cancelled"
+      group_leader_role: "leader" | "coleader"
+      group_member_status: "active" | "left" | "removed"
+      group_status: "active" | "paused" | "closed"
+      group_visibility: "listed" | "private"
       invitation_status: "pending" | "accepted" | "expired" | "revoked"
       job_status: "queued" | "processing" | "succeeded" | "failed"
+      learning_path_status: "draft" | "active" | "archived"
       notification_channel: "inapp" | "email" | "push"
       notification_delivery_status: "queued" | "sent" | "failed" | "suppressed"
+      path_progress_status: "pending" | "in_progress" | "completed" | "skipped"
+      path_step_kind: "course" | "manual"
       person_source:
         | "manual"
         | "import"
@@ -5445,6 +6911,21 @@ export const Constants = {
         "cancelling",
         "archived",
       ],
+      course_cohort_status: [
+        "planned",
+        "open",
+        "running",
+        "finished",
+        "cancelled",
+      ],
+      course_enrollment_status: [
+        "requested",
+        "enrolled",
+        "completed",
+        "dropped",
+        "rejected",
+      ],
+      course_status: ["draft", "active", "archived"],
       credential_status: ["pending", "valid", "expired", "rejected", "revoked"],
       custom_field_type: [
         "text",
@@ -5484,10 +6965,25 @@ export const Constants = {
         "boolean",
         "address",
       ],
+      group_attendance_status: ["present", "absent", "excused"],
+      group_join_policy: ["open_request", "invite_only"],
+      group_join_request_status: [
+        "pending",
+        "accepted",
+        "rejected",
+        "cancelled",
+      ],
+      group_leader_role: ["leader", "coleader"],
+      group_member_status: ["active", "left", "removed"],
+      group_status: ["active", "paused", "closed"],
+      group_visibility: ["listed", "private"],
       invitation_status: ["pending", "accepted", "expired", "revoked"],
       job_status: ["queued", "processing", "succeeded", "failed"],
+      learning_path_status: ["draft", "active", "archived"],
       notification_channel: ["inapp", "email", "push"],
       notification_delivery_status: ["queued", "sent", "failed", "suppressed"],
+      path_progress_status: ["pending", "in_progress", "completed", "skipped"],
+      path_step_kind: ["course", "manual"],
       person_source: [
         "manual",
         "import",
