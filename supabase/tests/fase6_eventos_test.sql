@@ -11,6 +11,34 @@ begin
 end;
 $$ language plpgsql;
 
+-- `reset role` NO borra las claims del JWT (set_config con is_local sobrevive
+-- a todo el bloque), así que auth.uid() sigue devolviendo al último usuario
+-- autenticado. Para probar de verdad la superficie sin sesión hay que
+-- limpiarlas explícitamente.
+create or replace function test_clear_auth() returns void as $$
+begin
+  perform set_config('request.jwt.claims', '', true);
+end;
+$$ language plpgsql;
+
+-- Los identificadores generados se guardan en una tabla temporal en vez de en
+-- variables de psql (`\gset`): así la suite es SQL puro y la ejecuta cualquier
+-- cliente, no solo psql.
+create temporary table test_ids (name text primary key, id uuid);
+grant all on test_ids to public;
+
+create or replace function test_remember(p_name text, p_id uuid) returns uuid as $$
+begin
+  insert into test_ids (name, id) values (p_name, p_id)
+  on conflict (name) do update set id = excluded.id;
+  return p_id;
+end;
+$$ language plpgsql;
+
+create or replace function test_id(p_name text) returns uuid as $$
+  select id from test_ids where name = p_name;
+$$ language sql stable;
+
 -- Crea una activity vía RPC (INSERT directo no está permitido para
 -- authenticated), la publica y devuelve su id. p_status default 'published'
 -- ('draft' la deja sin publicar).
@@ -71,10 +99,10 @@ reset role;
 -- ============================================================
 select test_set_auth_uid('70000000-0000-0000-0000-000000000001');
 
-select test_create_event_activity(
+select test_remember('activity_retiro', test_create_event_activity(
   (select id from churches where slug = 'church-a-p6'),
   'Retiro de jóvenes', 'public_future', 'published'
-) as activity_retiro \gset
+));
 
 -- ============================================================
 -- 1. events: crear sobre activity, publicar, cross-tenant
@@ -83,7 +111,7 @@ insert into events (id, church_id, activity_id, public_slug, visibility, registr
 values (
   '70000000-0000-0000-0000-0000000b0001',
   (select id from churches where slug = 'church-a-p6'),
-  :'activity_retiro',
+  test_id('activity_retiro'),
   'retiro-jovenes', 'public', true, 2, true, 5
 );
 
@@ -96,14 +124,14 @@ select throws_ok(
   format(
     $$ insert into events (church_id, activity_id, public_slug)
        values ('00000000-0000-0000-0000-00000000000b', '%s', 'otro-slug') $$,
-    :'activity_retiro'
+    test_id('activity_retiro')
   ),
   null, null,
   'Crear event de Church B sobre activity de Church A falla por FK compuesta'
 );
 
 -- Solo activities type=event pueden tener events (trigger guard).
-select (app.create_activity(
+select test_remember('activity_meeting', (app.create_activity(
   (select id from churches where slug = 'church-a-p6'),
   jsonb_build_object(
     'type', 'meeting', 'title', 'Reunión de liderazgo', 'schedule_kind', 'timed',
@@ -111,13 +139,13 @@ select (app.create_activity(
     'local_end', to_char((now() + interval '5 days 1 hour'), 'YYYY-MM-DD HH24:MI:SS'),
     'timezone', 'Europe/Madrid'
   )
-) ->> 'activity_id') as activity_meeting \gset
+) ->> 'activity_id')::uuid);
 
 select throws_ok(
   format(
     $$ insert into events (church_id, activity_id, public_slug)
        values ((select id from churches where slug = 'church-a-p6'), '%s', 'reunion') $$,
-    :'activity_meeting'
+    test_id('activity_meeting')
   ),
   null, null,
   'Crear event sobre activity que no es type=event falla por trigger guard'
@@ -222,17 +250,21 @@ select is(
 -- 5. Evento sin waitlist habilitada: lleno rechaza
 -- ============================================================
 select test_set_auth_uid('70000000-0000-0000-0000-000000000001');
-select test_create_event_activity(
-  (select id from churches where slug = 'church-a-p6'), 'Evento sin espera', 'members', 'published', interval '3 days'
-) as activity_sin_espera \gset
+-- Desde el hotfix F-04 la RPC de inscripción exige el mismo derecho de
+-- lectura que ver el evento, así que todo evento que aquí se use para
+-- inscripciones SIN sesión tiene que ser realmente público: activity
+-- 'public_future' + events.visibility 'public'.
+select test_remember('activity_sin_espera', test_create_event_activity(
+  (select id from churches where slug = 'church-a-p6'), 'Evento sin espera', 'public_future', 'published', interval '3 days'
+));
 reset role;
 
-insert into events (id, church_id, activity_id, public_slug, registration_enabled, capacity, waitlist_enabled)
+insert into events (id, church_id, activity_id, public_slug, visibility, registration_enabled, capacity, waitlist_enabled)
 values (
   '70000000-0000-0000-0000-0000000b0002',
   (select id from churches where slug = 'church-a-p6'),
-  :'activity_sin_espera',
-  'evento-sin-espera', true, 1, false
+  test_id('activity_sin_espera'),
+  'evento-sin-espera', 'public', true, 1, false
 );
 
 select app.register_for_event(
@@ -253,16 +285,16 @@ select throws_ok(
 -- 6. Evento no publicado / inscripción deshabilitada rechazan
 -- ============================================================
 select test_set_auth_uid('70000000-0000-0000-0000-000000000001');
-select test_create_event_activity(
+select test_remember('activity_borrador', test_create_event_activity(
   (select id from churches where slug = 'church-a-p6'), 'Evento borrador', 'members', 'draft', interval '20 days'
-) as activity_borrador \gset
+));
 reset role;
 
 insert into events (id, church_id, activity_id, public_slug, registration_enabled, capacity)
 values (
   '70000000-0000-0000-0000-0000000b0003',
   (select id from churches where slug = 'church-a-p6'),
-  :'activity_borrador',
+  test_id('activity_borrador'),
   'evento-borrador', true, 10
 );
 
@@ -300,16 +332,16 @@ select ok(
 );
 
 select test_set_auth_uid('70000000-0000-0000-0000-000000000001');
-select test_create_event_activity(
+select test_remember('activity_interno', test_create_event_activity(
   (select id from churches where slug = 'church-a-p6'), 'Evento interno', 'members', 'published', interval '7 days'
-) as activity_interno \gset
+));
 reset role;
 
 insert into events (id, church_id, activity_id, public_slug, visibility, registration_enabled, capacity)
 values (
   '70000000-0000-0000-0000-0000000b0004',
   (select id from churches where slug = 'church-a-p6'),
-  :'activity_interno',
+  test_id('activity_interno'),
   'evento-interno', 'internal', true, 10
 );
 
@@ -318,29 +350,35 @@ select ok(
   'Evento visibility=internal NO es legible por anon'
 );
 
-select ok(
-  (select status::text = 'confirmed' from app.register_for_event(
-    '70000000-0000-0000-0000-0000000b0004', 'individual', 'Autenticado Interno', 'internoauth@example.test',
-    null, null, '[]'::jsonb, '[]'::jsonb, '[]'::jsonb, 'idem-interno'
-  )),
-  'La RPC de inscripción no exige visibility=public: solo controla que la activity admita inscripciones (visibilidad se filtra en la lectura, no en el registro por RPC directa)'
+-- Hotfix F-04: la aserción anterior consagraba el fallo — daba por correcto
+-- que la RPC de inscripción NO mirase events.visibility, así que quien
+-- conociera el uuid de un evento interno podía inscribirse en él sin sesión.
+-- Ahora inscribirse exige el mismo derecho de lectura que ver el evento.
+select test_clear_auth();
+select throws_ok(
+  $$ select app.register_for_event(
+       '70000000-0000-0000-0000-0000000b0004', 'individual', 'Anónimo Interno', 'internoanon@example.test',
+       null, null, '[]'::jsonb, '[]'::jsonb, '[]'::jsonb, 'idem-interno'
+     ) $$,
+  'P0002', null,
+  'Sin sesión no se puede inscribir en un evento visibility=internal, ni conociendo su uuid'
 );
 
 -- ============================================================
 -- 8. Concurrencia: dos inscripciones simultáneas no superan aforo
 -- ============================================================
 select test_set_auth_uid('70000000-0000-0000-0000-000000000001');
-select test_create_event_activity(
-  (select id from churches where slug = 'church-a-p6'), 'Evento concurrencia', 'members', 'published', interval '4 days'
-) as activity_concurrencia \gset
+select test_remember('activity_concurrencia', test_create_event_activity(
+  (select id from churches where slug = 'church-a-p6'), 'Evento concurrencia', 'public_future', 'published', interval '4 days'
+));
 reset role;
 
-insert into events (id, church_id, activity_id, public_slug, registration_enabled, capacity, waitlist_enabled)
+insert into events (id, church_id, activity_id, public_slug, visibility, registration_enabled, capacity, waitlist_enabled)
 values (
   '70000000-0000-0000-0000-0000000b0005',
   (select id from churches where slug = 'church-a-p6'),
-  :'activity_concurrencia',
-  'evento-concurrencia', true, 1, true
+  test_id('activity_concurrencia'),
+  'evento-concurrencia', 'public', true, 1, true
 );
 
 select app.register_for_event(
@@ -367,17 +405,17 @@ select is(
 -- 9. Household registration: varios attendees en una sola registration
 -- ============================================================
 select test_set_auth_uid('70000000-0000-0000-0000-000000000001');
-select test_create_event_activity(
-  (select id from churches where slug = 'church-a-p6'), 'Evento familiar', 'members', 'published', interval '6 days'
-) as activity_familiar \gset
+select test_remember('activity_familiar', test_create_event_activity(
+  (select id from churches where slug = 'church-a-p6'), 'Evento familiar', 'public_future', 'published', interval '6 days'
+));
 reset role;
 
-insert into events (id, church_id, activity_id, public_slug, registration_enabled, capacity, registration_type)
+insert into events (id, church_id, activity_id, public_slug, visibility, registration_enabled, capacity, registration_type)
 values (
   '70000000-0000-0000-0000-0000000b0006',
   (select id from churches where slug = 'church-a-p6'),
-  :'activity_familiar',
-  'evento-familiar', true, 10, 'household'
+  test_id('activity_familiar'),
+  'evento-familiar', 'public', true, 10, 'household'
 );
 
 select app.register_for_event(

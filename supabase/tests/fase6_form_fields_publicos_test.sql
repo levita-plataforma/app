@@ -13,6 +13,24 @@ begin
 end;
 $$ language plpgsql;
 
+-- Los identificadores generados se guardan en una tabla temporal en vez de en
+-- variables de psql (`\gset`): así la suite es SQL puro y la ejecuta cualquier
+-- cliente, no solo psql.
+create temporary table test_ids (name text primary key, id uuid);
+grant all on test_ids to public;
+
+create or replace function test_remember(p_name text, p_id uuid) returns uuid as $$
+begin
+  insert into test_ids (name, id) values (p_name, p_id)
+  on conflict (name) do update set id = excluded.id;
+  return p_id;
+end;
+$$ language plpgsql;
+
+create or replace function test_id(p_name text) returns uuid as $$
+  select id from test_ids where name = p_name;
+$$ language sql stable;
+
 create or replace function test_create_event_activity(
   p_church_id uuid,
   p_title text,
@@ -53,9 +71,9 @@ select * from app.provision_church(
 select test_set_auth_uid('70000000-0000-0000-0000-000000000901');
 
 -- Evento público con formulario asociado.
-select test_create_event_activity(
+select test_remember('public_activity_id', test_create_event_activity(
   (select id from churches where slug = 'church-ffp'), 'Evento público FFP', 'public_future'
-) as public_activity_id \gset
+));
 
 insert into forms (id, church_id, name, purpose)
 values (
@@ -74,19 +92,19 @@ insert into events (id, church_id, activity_id, public_slug, visibility, form_id
 values (
   '70000000-0000-0000-0000-0000000e0001',
   (select id from churches where slug = 'church-ffp'),
-  :'public_activity_id', 'evento-publico-ffp', 'public', '70000000-0000-0000-0000-0000000d0001'
+  test_id('public_activity_id'), 'evento-publico-ffp', 'public', '70000000-0000-0000-0000-0000000d0001'
 );
 
 -- Evento NO público (internal), sin formulario visible para anon.
-select test_create_event_activity(
+select test_remember('internal_activity_id', test_create_event_activity(
   (select id from churches where slug = 'church-ffp'), 'Evento interno FFP', 'members'
-) as internal_activity_id \gset
+));
 
 insert into events (id, church_id, activity_id, public_slug, visibility, form_id)
 values (
   '70000000-0000-0000-0000-0000000e0002',
   (select id from churches where slug = 'church-ffp'),
-  :'internal_activity_id', 'evento-interno-ffp', 'internal', '70000000-0000-0000-0000-0000000d0001'
+  test_id('internal_activity_id'), 'evento-interno-ffp', 'internal', '70000000-0000-0000-0000-0000000d0001'
 );
 
 reset role;
