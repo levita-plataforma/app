@@ -39,6 +39,14 @@ export type AppNotification = {
   activityId: string | null;
   createdAt: string;
   readAt: string | null;
+  /**
+   * Identificadores del destino del aviso (`group_id`, `cohort_id`,
+   * `learning_path_id`). `list_my_notifications` no devuelve el payload del
+   * evento —`notifications` ni siquiera tiene esa columna—, así que lo resuelve
+   * `resolveNotificationContext` leyendo la entidad a la que apunta el aviso,
+   * siempre con el cliente del usuario y por tanto filtrado por RLS.
+   */
+  context: Record<string, string> | null;
 };
 
 /** Preferencia por canal. Sin fila en la tabla, el canal se considera activo. */
@@ -89,8 +97,29 @@ const TARGET_IS_ACTIVITY = new Set([
   "assignment.coverage_at_risk",
 ]);
 
+/**
+ * Avisos de Grupos (Fase 7). Todos llevan a la ficha del grupo: la solicitud,
+ * la incorporación y el cambio o la cancelación de una reunión se leen allí.
+ * El identificador del grupo llega en `context.group_id`.
+ */
+const TARGET_IS_GROUP = new Set([
+  "group.join_request.received",
+  "group.join_request.accepted",
+  "group.join_request.rejected",
+  "group.member.added",
+  "group.meeting.rescheduled",
+  "group.meeting.cancelled",
+]);
+
+/** Avisos de Discipulado que se leen en la ficha de la cohorte. */
+const TARGET_IS_COHORT = new Set([
+  "course.session.rescheduled",
+  "course.session.cancelled",
+  "course.enrollment.completed",
+]);
+
 export function notificationTarget(notification: AppNotification): NotificationTarget | null {
-  const { eventType, entityType, entityId, activityId } = notification;
+  const { eventType, entityType, entityId, activityId, context } = notification;
 
   if (TARGET_IS_OWN_SHIFT.has(eventType) && entityType === "activity_assignments") {
     return { href: `/app/mis-turnos/${entityId}`, label: "Ver el turno" };
@@ -98,6 +127,18 @@ export function notificationTarget(notification: AppNotification): NotificationT
 
   if (TARGET_IS_ACTIVITY.has(eventType) && activityId) {
     return { href: `/app/actividades/${activityId}`, label: "Ver la actividad" };
+  }
+
+  if (TARGET_IS_GROUP.has(eventType) && context?.group_id) {
+    return { href: `/app/grupos/${context.group_id}`, label: "Ver el grupo" };
+  }
+
+  if (TARGET_IS_COHORT.has(eventType) && context?.cohort_id) {
+    return { href: `/app/discipulado/cohortes/${context.cohort_id}`, label: "Ver la cohorte" };
+  }
+
+  if (eventType === "path.step.completed" && context?.learning_path_id) {
+    return { href: `/app/discipulado/itinerarios/${context.learning_path_id}`, label: "Ver el itinerario" };
   }
 
   // Reserva para tipos de aviso futuros: se resuelve por la entidad y, si no
@@ -138,7 +179,76 @@ function mapNotification(row: NotificationRow): AppNotification {
     activityId: row.activity_id,
     createdAt: row.created_at,
     readAt: row.read_at,
+    context: null,
   };
+}
+
+/**
+ * Entidades de la Fase 7 desde las que se puede deducir a dónde lleva el
+ * aviso, y la columna que lo dice. El aviso apunta a la solicitud, a la
+ * reunión o al paso; lo que se abre es el grupo, la cohorte o el itinerario.
+ */
+const CONTEXT_SOURCES: Record<string, { table: string; column: string; key: string }> = {
+  group_join_requests: { table: "group_join_requests", column: "group_id", key: "group_id" },
+  group_members: { table: "group_members", column: "group_id", key: "group_id" },
+  group_meetings: { table: "group_meetings", column: "group_id", key: "group_id" },
+  groups: { table: "groups", column: "id", key: "group_id" },
+  course_sessions: { table: "course_sessions", column: "cohort_id", key: "cohort_id" },
+  course_enrollments: { table: "course_enrollments", column: "cohort_id", key: "cohort_id" },
+  path_steps: { table: "path_steps", column: "learning_path_id", key: "learning_path_id" },
+};
+
+/**
+ * Rellena el `context` de los avisos que lo necesitan. Una consulta por tabla
+ * implicada, nunca una por aviso. Si la fila ya no es legible (por ejemplo, la
+ * persona dejó el grupo), el aviso se queda sin enlace en vez de llevar a un
+ * sitio al que no puede entrar.
+ */
+async function resolveNotificationContext(
+  churchId: string,
+  notifications: AppNotification[],
+): Promise<AppNotification[]> {
+  const byTable = new Map<string, Set<string>>();
+  for (const notification of notifications) {
+    if (!CONTEXT_SOURCES[notification.entityType]) continue;
+    const ids = byTable.get(notification.entityType) ?? new Set<string>();
+    ids.add(notification.entityId);
+    byTable.set(notification.entityType, ids);
+  }
+  if (byTable.size === 0) return notifications;
+
+  const supabase = await createSupabaseServerClient();
+  const resolved = new Map<string, Record<string, string>>();
+
+  await Promise.all(
+    [...byTable.entries()].map(async ([entityType, ids]) => {
+      const source = CONTEXT_SOURCES[entityType];
+      const { data, error } = await supabase
+        .from(source.table)
+        .select(source.column === "id" ? "id" : `id, ${source.column}`)
+        .eq("church_id", churchId)
+        .in("id", [...ids]);
+
+      if (error) {
+        logger.warn("No se pudo resolver el destino de unos avisos", { entityType, error: error.message });
+        return;
+      }
+      // El `select` se compone con el nombre de columna de cada entidad, así
+      // que PostgREST no puede tipar la fila: se lee como registro genérico.
+      for (const row of (data ?? []) as unknown as Record<string, unknown>[]) {
+        const id = row.id;
+        const value = row[source.column];
+        if (typeof id === "string" && typeof value === "string") {
+          resolved.set(`${entityType}:${id}`, { [source.key]: value });
+        }
+      }
+    }),
+  );
+
+  return notifications.map((notification) => {
+    const context = resolved.get(`${notification.entityType}:${notification.entityId}`);
+    return context ? { ...notification, context } : notification;
+  });
 }
 
 export async function listMyNotifications(
@@ -153,7 +263,8 @@ export async function listMyNotifications(
     p_limit: limit,
   });
   if (error) throw toDomainError(error, "No se pudieron cargar tus avisos.");
-  return ((data ?? []) as unknown as NotificationRow[]).map(mapNotification);
+  const notifications = ((data ?? []) as unknown as NotificationRow[]).map(mapNotification);
+  return resolveNotificationContext(churchId, notifications);
 }
 
 export async function countMyUnreadNotifications(churchId: string): Promise<number> {
