@@ -7,7 +7,7 @@ import type { Database } from "@/lib/supabase/database.types";
 /**
  * Check-in/check-out de menores (Fase 8 §18-22, §44-45). Las mutaciones
  * viajan siempre por las RPC transaccionales `public.kids_checkin` /
- * `public.kids_checkout` (migración 20260925000700), que ya auditan
+ * `public.kids_checkout` (migración 20260928000700), que ya auditan
  * internamente ('kids.checkin', 'kids.checkout', 'kids.pickup_denied',
  * 'kids.pickup_override'): este servicio NUNCA duplica esa auditoría.
  */

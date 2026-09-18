@@ -34,7 +34,7 @@ export type StaffEligibility = {
 type StaffEligibilityRow = { eligible: boolean; reasons: string[] | null };
 
 /**
- * NOTA: `app.kids_staff_eligibility` (migración 20260925000600) no tiene un
+ * NOTA: `app.kids_staff_eligibility` (migración 20260928000600) no tiene un
  * wrapper `public.*` en el SQL, a diferencia de `evaluate_person_eligibility`
  * (Fase 3) que sí lo tiene. Sin ese wrapper, PostgREST no expone esta
  * función como RPC pública y la llamada de abajo fallará en runtime contra

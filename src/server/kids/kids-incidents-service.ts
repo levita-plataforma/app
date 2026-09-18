@@ -10,7 +10,7 @@ import type { Database } from "@/lib/supabase/database.types";
  * expone en dashboards generales, People común, logs técnicos ni
  * notificaciones genéricas — solo un contador (getIncidentsCount, que
  * requiere el capability más débil kids.read, no kids.incident.read). Ver
- * `supabase/migrations/20260925000300_kids_checkins_incidentes.sql`.
+ * `supabase/migrations/20260928000300_kids_checkins_incidentes.sql`.
  */
 
 type KidsIncidentType = Database["public"]["Enums"]["kids_incident_type"];

@@ -1,5 +1,5 @@
 -- Fase 8 (Diogo) · Wrappers públicos faltantes para las funciones de
--- elegibilidad/ratio Kids. La migración 20260925000600 creó
+-- elegibilidad/ratio Kids. La migración 20260928000600 creó
 -- `app.kids_staff_eligibility` y `app.kids_room_ratio_status` con
 -- `grant execute to authenticated`, pero sin su wrapper `public.*`: sin él,
 -- PostgREST no las expone como RPC y `supabase.rpc(...)` falla en runtime.

@@ -8,7 +8,7 @@ import { DomainError } from "@/server/errors/domain-error";
  * Sesiones Kids (Fase 8 §10). Una sesión une una `activity` ya existente
  * (culto, evento...) con una sala Kids concreta; varias sesiones (una por
  * sala) pueden compartir la misma activity. Ver
- * `supabase/migrations/20260925000200_kids_salas_sesiones.sql`.
+ * `supabase/migrations/20260928000200_kids_salas_sesiones.sql`.
  */
 
 export type KidsSessionStatus = "scheduled" | "open" | "closed" | "cancelled";
@@ -224,7 +224,7 @@ type KidsRatioStatusRow = {
 };
 
 /**
- * NOTA: `app.kids_room_ratio_status` (migración 20260925000600) no tiene un
+ * NOTA: `app.kids_room_ratio_status` (migración 20260928000600) no tiene un
  * wrapper `public.*` en el SQL, a diferencia de `evaluate_person_eligibility`
  * (Fase 3) que sí lo tiene. Sin ese wrapper, PostgREST no expone esta
  * función como RPC pública y la llamada de abajo fallará en runtime contra

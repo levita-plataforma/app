@@ -8,7 +8,7 @@ import { DomainError } from "@/server/errors/domain-error";
  * Salas/clases Kids (Fase 8 §9). Una sala define capacidad, franja de edad
  * y su propia política de ratio (ratio_children_per_adult, min_adults): no
  * hay un ratio global hardcodeado, cada sala tiene el suyo. Ver
- * `supabase/migrations/20260925000200_kids_salas_sesiones.sql`.
+ * `supabase/migrations/20260928000200_kids_salas_sesiones.sql`.
  */
 
 export type KidsRoom = {

@@ -29,7 +29,7 @@ export type PickupLookupResult = {
  * Localiza el check-in activo correspondiente a un código de recogida
  * dentro de la sesión. `kid_checkins.pickup_token_hash` solo guarda el hash
  * (sha256(codigo_normalizado || ':' || session_id), igual fórmula que
- * app.kids_checkout en la migración 20260925000700): no existe una RPC de
+ * app.kids_checkout en la migración 20260928000700): no existe una RPC de
  * "lookup" en el servicio de dominio, así que se replica aquí esa misma
  * fórmula de hash para localizar la fila sin exponer el token en claro en
  * ninguna tabla. Es solo lectura — el checkout real sigue pasando por
