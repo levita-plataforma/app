@@ -1,0 +1,20 @@
+-- Fase 6 · Concede USAGE sobre el schema `app` a `anon`.
+--
+-- La migración fundacional (20260916000100) solo concedió USAGE a
+-- `authenticated` y `service_role`: hasta la Fase 6 ninguna función pública
+-- necesitaba ser invocable por un visitante sin sesión. Las nuevas RPC
+-- públicas de inscripción a eventos (`public.register_for_event`,
+-- `public.cancel_registration_by_token`, `public.public_event_by_slug`,
+-- `public.public_form_fields`, `public.event_registration_status`,
+-- `public.promote_waitlist` vía trigger) son `security invoker` y llaman a
+-- funciones `app.*` `security definer`: el rol que ejecuta necesita USAGE
+-- sobre el schema `app` para poder siquiera referenciar esas funciones,
+-- aunque ya tengan EXECUTE concedido individualmente.
+--
+-- USAGE sobre un schema no concede acceso a nada por sí solo (no es SELECT
+-- ni EXECUTE): solo permite "ver"/referenciar los objetos del schema, cuyo
+-- acceso real sigue controlado por los GRANT EXECUTE individuales de cada
+-- función y, para las tablas, por RLS. anon sigue sin poder ejecutar
+-- ninguna función de `app` que no tenga su propio `grant execute ... to
+-- anon` explícito.
+grant usage on schema app to anon;

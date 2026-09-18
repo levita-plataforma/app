@@ -97,7 +97,11 @@ async function loadMemberships(
 
   const { data, error } = await supabase
     .from("church_people")
-    .select("church_id, person_id, relationship, churches(name, slug)")
+    // Desambigua explícitamente la FK: desde la Fase 5,
+    // notification_preferences crea una ruta many-to-many indirecta entre
+    // church_people y churches (vía person_id + church_id), y PostgREST no
+    // puede elegir automáticamente cuál usar para el embed.
+    .select("church_id, person_id, relationship, churches!church_people_church_id_fkey(name, slug)")
     .in("person_id", ownPersonIds)
     .is("archived_at", null);
 

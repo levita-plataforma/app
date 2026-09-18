@@ -381,6 +381,26 @@
   color: var(--shell-text-muted);
 }
 
+/* Badge sutil de inscripción a evento (Fase 6): aditivo, solo aparece para
+   actividades type='event' con inscripción habilitada. */
+.cal-event-reg-badge {
+  display: inline-flex;
+  align-items: center;
+  font-size: 10px;
+  font-weight: 600;
+  padding: 1px 6px;
+  border-radius: 999px;
+  background: var(--mod-events-bg);
+  color: var(--mod-events-fg);
+  white-space: nowrap;
+  margin-left: 4px;
+}
+
+.cal-event-reg-badge.is-full {
+  background: var(--shell-danger-bg, #fde2e2);
+  color: var(--shell-danger, #c0392b);
+}
+
 .cal-more {
   font-size: 11.5px;
   font-weight: 600;

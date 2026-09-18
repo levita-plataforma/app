@@ -62,7 +62,31 @@ function ariaLabelFor(activity: ActivitySummary): string {
     ACTIVITY_TYPE_INFO[activity.type].label,
     ACTIVITY_STATUS_INFO[activity.status].label,
     formatActivityRange(activity.startsAt, activity.endsAt, activity.timezone),
-  ].join(" · ");
+    eventRegistrationLabel(activity),
+  ]
+    .filter(Boolean)
+    .join(" · ");
+}
+
+/**
+ * Etiqueta corta de inscripción para eventos con `eventRegistration`
+ * habilitado (Fase 6, campo opcional y aditivo de ActivitySummary). Para
+ * cualquier otra actividad devuelve null y no se renderiza nada distinto.
+ */
+function eventRegistrationLabel(activity: ActivitySummary): string | null {
+  const reg = activity.eventRegistration;
+  if (!reg || !reg.enabled) return null;
+  if (reg.capacity !== null) return `${reg.confirmedCount}/${reg.capacity} plazas`;
+  return "Inscripción abierta";
+}
+
+function EventRegistrationBadge({ activity }: { activity: ActivitySummary }) {
+  const label = eventRegistrationLabel(activity);
+  if (!label) return null;
+  const isFull = activity.eventRegistration?.capacity !== null && activity.eventRegistration
+    ? activity.eventRegistration.confirmedCount >= (activity.eventRegistration.capacity ?? Infinity)
+    : false;
+  return <span className={`cal-event-reg-badge${isFull ? " is-full" : ""}`}>{label}</span>;
 }
 
 // ---------------------------------------------------------------------------
@@ -123,6 +147,7 @@ export function MonthView({ gridKeys, month, todayKey, byDay, dayHref }: MonthVi
                         >
                           <span className="cal-pill-time">{timeForDay(activity, key)}</span>
                           <span className="cal-pill-title">{activity.title}</span>
+                          <EventRegistrationBadge activity={activity} />
                         </Link>
                       </li>
                     ))}
@@ -195,6 +220,7 @@ export function WeekView({ weekKeys, todayKey, byDay }: WeekViewProps) {
                         {ACTIVITY_TYPE_INFO[activity.type].label}
                         {activity.campusName ? ` · ${activity.campusName}` : ""}
                       </span>
+                      <EventRegistrationBadge activity={activity} />
                     </Link>
                   </li>
                 ))}
@@ -241,6 +267,7 @@ export function AgendaDays({ keys, byDay, todayKey }: AgendaDaysProps) {
                       {activity.campusName ? ` · ${activity.campusName}` : ""}
                       {activity.locationText ? ` · ${activity.locationText}` : ""}
                     </span>
+                    <EventRegistrationBadge activity={activity} />
                   </div>
                   <StatusChip activity={activity} />
                 </li>
