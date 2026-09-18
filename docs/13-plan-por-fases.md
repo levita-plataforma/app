@@ -201,7 +201,7 @@ El coordinador prepara y publica una actividad —puntual o recurrente, desde ce
 
 **Parte de Carlos (CA-04/CA-05): integrada y aplicada en producción** el 17 de septiembre de 2026 (validación del commit `f9cb5b4`, PR #4, merge `a9fd3c8`), con las decisiones acordadas por Carlos (D20): estados, cobertura, conflictos, respuestas, cambios de F4, sustituciones, respuesta por representante, permisos y lectura mínima, tareas flexibles, publicación multiárea y enlaces solo autenticados. Detalle en [FASE-5-ASIGNACIONES.md](FASE-5-ASIGNACIONES.md).
 
-**Disponibilidad, frecuencia y avisos (DI-01 y DI-02): pendientes de integrar.** Los asumió Carlos (D21) ante la ausencia de trabajo de Diogo; están en la rama `feature/fase-5-avisos-disponibilidad` (PR #5), sin aplicar en remoto y con el envío externo desactivado. La fase se cierra al integrar esa parte y completar el recorrido conjunto CO-03.
+**Disponibilidad, frecuencia y avisos (DI-01 y DI-02): integrados y aplicados en producción** el 18 de septiembre de 2026 (PR #5, merge `8894c88`), con el envío externo desactivado y la tarea programada una vez al día. Los asumió Carlos (D21) y Diogo aprobó sus reglas de producto. **Falta el recorrido conjunto CO-03 para dar la fase por cerrada.**
 
 ### Alcance
 
