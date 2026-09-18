@@ -1,0 +1,161 @@
+/* Sitio público comercial de LEVITA. Paleta y tipografía heredadas de
+   globals.css (navy/gold/cream, DM Sans + Libre Caslon Display), separadas
+   del sistema --shell-* de la app autenticada por decisión explícita
+   (ver src/app/(app)/app-shell.css). */
+
+.mkt-shell { max-width: 1240px; margin: 0 auto; padding: 0 24px; }
+.mkt-shell--wide { max-width: 1440px; }
+
+/* Header */
+.mkt-header { position: sticky; top: 0; z-index: 20; background: rgba(250, 250, 247, 0.92); backdrop-filter: blur(8px); border-bottom: 1px solid var(--border); }
+.mkt-header-inner { display: flex; align-items: center; justify-content: space-between; gap: 24px; padding: 18px 24px; max-width: 1240px; margin: 0 auto; }
+.mkt-nav { display: flex; align-items: center; gap: 28px; }
+.mkt-nav a { color: var(--navy-soft); font-size: 14px; font-weight: 500; text-decoration: none; }
+.mkt-nav a:hover, .mkt-nav a:focus-visible { color: var(--navy); }
+.mkt-header-ctas { display: flex; align-items: center; gap: 12px; }
+.mkt-menu-toggle { display: none; background: none; border: 1px solid var(--border); border-radius: 10px; padding: 8px; color: var(--navy); }
+.mkt-mobile-nav { display: none; flex-direction: column; gap: 4px; padding: 8px 24px 18px; border-top: 1px solid var(--border); }
+.mkt-mobile-nav a { padding: 10px 4px; color: var(--navy); font-size: 15px; text-decoration: none; font-weight: 500; }
+.mkt-mobile-nav[data-open="true"] { display: flex; }
+
+/* Botones */
+.mkt-btn { display: inline-flex; align-items: center; justify-content: center; gap: 8px; border-radius: 999px; font-size: 14px; font-weight: 600; padding: 12px 22px; min-height: 44px; text-decoration: none; border: 1px solid transparent; cursor: pointer; transition: transform 120ms ease-out, box-shadow 120ms ease-out, background-color 120ms ease-out; }
+.mkt-btn:focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; }
+.mkt-btn--primary { background: var(--navy); color: #fff; box-shadow: 0 10px 24px -12px #13283e55; }
+.mkt-btn--primary:hover { transform: translateY(-1px); box-shadow: 0 14px 28px -12px #13283e66; }
+.mkt-btn--secondary { background: transparent; color: var(--navy); border-color: var(--border); }
+.mkt-btn--secondary:hover { border-color: var(--navy-soft); }
+.mkt-btn--gold { background: var(--gold); color: #fff; }
+.mkt-btn--gold:hover { transform: translateY(-1px); }
+.mkt-btn--block { width: 100%; }
+
+/* Secciones genéricas */
+.mkt-section { padding: 88px 0; }
+.mkt-section--tight { padding: 56px 0; }
+.mkt-section--alt { background: var(--surface); border-top: 1px solid var(--border); border-bottom: 1px solid var(--border); }
+.mkt-eyebrow { display: inline-flex; align-items: center; gap: 8px; font-size: 11px; font-weight: 600; letter-spacing: .14em; text-transform: uppercase; color: var(--gold); }
+.mkt-eyebrow::before { content: ""; width: 7px; height: 7px; border-radius: 50%; background: var(--gold); }
+.mkt-heading { font-family: var(--font-serif), Georgia, serif; font-weight: 400; color: var(--navy); letter-spacing: -.02em; line-height: 1.15; margin-top: 14px; }
+.mkt-heading--xl { font-size: clamp(40px, 5vw, 64px); }
+.mkt-heading--lg { font-size: clamp(30px, 3.4vw, 42px); }
+.mkt-lede { color: var(--navy-soft); font-size: 18px; line-height: 1.6; max-width: 620px; margin-top: 18px; text-wrap: pretty; }
+.mkt-body { color: var(--muted); font-size: 15px; line-height: 1.8; max-width: 620px; margin-top: 14px; text-wrap: pretty; }
+.mkt-section-head { max-width: 720px; }
+.mkt-section-head--center { margin: 0 auto; text-align: center; }
+
+/* Hero */
+.mkt-hero { display: grid; grid-template-columns: minmax(0, .95fr) minmax(0, 1.05fr); gap: 48px; align-items: center; padding: 64px 0 80px; }
+.mkt-hero-copy { max-width: 560px; }
+.mkt-hero-actions { display: flex; gap: 12px; margin-top: 32px; flex-wrap: wrap; }
+.mkt-hero-visual { position: relative; }
+
+/* Mockup del producto (browser window + sidebar + cards) */
+.mkt-mockup { position: relative; isolation: isolate; }
+.mkt-mockup-halo { position: absolute; z-index: -1; top: -6%; bottom: -6%; left: -4%; right: -4%; border-radius: 40% 50% 45% 42%; background: linear-gradient(150deg, #eaf0f3 0%, #f1f2ed 47%, #f7f1e8 100%); opacity: .8; transform: rotate(-6deg); }
+.mkt-mockup-window { border: 1px solid #e1e5e8; border-radius: 16px; padding: 8px; background: #f9fafb; box-shadow: 0 30px 60px -30px #24384e40, 0 6px 16px #24384e08; }
+.mkt-mockup-chrome { height: 26px; display: flex; align-items: center; gap: 22px; padding: 0 10px 8px; }
+.mkt-mockup-dots { display: flex; gap: 6px; }
+.mkt-mockup-dots i { width: 7px; height: 7px; background: #cbd1d8; border-radius: 50%; }
+.mkt-mockup-chromeline { width: 42%; height: 6px; background: #e9edf0; border-radius: 5px; }
+.mkt-mockup-body { display: grid; grid-template-columns: 148px minmax(0, 1fr); border-radius: 10px; overflow: hidden; background: var(--surface); }
+.mkt-mockup-sidebar { background: #f5f7f9; border-right: 1px solid #eef0f2; padding: 20px 12px; }
+.mkt-mockup-sidebar-logo { display: flex; align-items: center; gap: 6px; color: var(--navy); margin-bottom: 20px; }
+.mkt-mockup-sidebar-logo svg { width: 16px; height: 21px; color: var(--gold); }
+.mkt-mockup-sidebar-logo span { font-size: 11px; letter-spacing: .2em; font-weight: 700; }
+.mkt-mockup-sidebar ul { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 2px; }
+.mkt-mockup-sidebar li { display: flex; align-items: center; gap: 8px; font-size: 10px; color: #596a7b; padding: 9px 8px; border-radius: 6px; white-space: nowrap; }
+.mkt-mockup-sidebar li svg { width: 13px; height: 13px; flex-shrink: 0; }
+.mkt-mockup-sidebar li.is-active { background: #e4ecf3; color: var(--navy); font-weight: 600; }
+.mkt-mockup-content { padding: 26px 22px; }
+.mkt-mockup-content h4 { font-family: var(--font-serif), Georgia, serif; font-weight: 400; color: var(--navy); font-size: 22px; margin-bottom: 6px; letter-spacing: -.01em; }
+.mkt-mockup-content > p { color: var(--navy-soft); font-size: 11px; margin-bottom: 20px; }
+.mkt-mockup-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; }
+.mkt-mockup-card { border: 1px solid #eef0f1; border-radius: 10px; text-align: center; padding: 16px 6px; background: #fdfdfc; }
+.mkt-mockup-card-icon { display: inline-grid; place-items: center; width: 30px; height: 30px; border-radius: 9px; margin-bottom: 8px; background: var(--icon-bg); color: var(--icon-color); }
+.mkt-mockup-card-icon svg { width: 16px; height: 16px; }
+.mkt-mockup-card p { font-size: 9.5px; font-weight: 600; color: var(--navy); }
+
+/* Grid de módulos */
+.mkt-module-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 16px; margin-top: 44px; }
+.mkt-module-card { border: 1px solid var(--border); border-radius: 16px; padding: 22px; background: var(--surface); display: flex; flex-direction: column; gap: 10px; }
+.mkt-module-icon { display: inline-grid; place-items: center; width: 40px; height: 40px; border-radius: 12px; background: var(--icon-bg, var(--gold-soft)); color: var(--icon-color, var(--gold)); }
+.mkt-module-icon svg { width: 20px; height: 20px; }
+.mkt-module-card h3 { font-size: 15px; font-weight: 600; color: var(--navy); }
+.mkt-module-card p { font-size: 13px; color: var(--muted); line-height: 1.55; }
+
+/* Bloque de confianza / features en 3 columnas */
+.mkt-feature-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 24px; margin-top: 44px; }
+.mkt-feature { display: flex; flex-direction: column; gap: 10px; }
+.mkt-feature-icon { display: inline-grid; place-items: center; width: 44px; height: 44px; border-radius: 12px; background: var(--gold-soft); color: var(--gold); }
+.mkt-feature h3 { font-size: 16px; font-weight: 600; color: var(--navy); }
+.mkt-feature p { font-size: 14px; color: var(--muted); line-height: 1.6; }
+
+/* CTA banda final */
+.mkt-cta { background: var(--navy); border-radius: 24px; padding: 56px 48px; display: flex; align-items: center; justify-content: space-between; gap: 32px; flex-wrap: wrap; }
+.mkt-cta h2 { font-family: var(--font-serif), Georgia, serif; font-weight: 400; color: #fff; font-size: clamp(24px, 3vw, 32px); letter-spacing: -.01em; max-width: 480px; }
+.mkt-cta p { color: #c9d3dc; font-size: 14px; margin-top: 8px; }
+.mkt-cta-actions { display: flex; gap: 12px; flex-wrap: wrap; }
+.mkt-cta .mkt-btn--secondary { background: transparent; color: #fff; border-color: #ffffff33; }
+.mkt-cta .mkt-btn--secondary:hover { border-color: #ffffff66; }
+
+/* Footer */
+.mkt-footer { border-top: 1px solid var(--border); padding: 48px 0 32px; }
+.mkt-footer-top { display: flex; justify-content: space-between; gap: 32px; flex-wrap: wrap; }
+.mkt-footer-brand { max-width: 280px; }
+.mkt-footer-brand p { color: var(--muted); font-size: 13px; margin-top: 12px; line-height: 1.6; }
+.mkt-footer-cols { display: flex; gap: 48px; flex-wrap: wrap; }
+.mkt-footer-col h4 { font-size: 12px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: var(--navy-soft); margin-bottom: 12px; }
+.mkt-footer-col ul { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }
+.mkt-footer-col a { color: var(--muted); font-size: 13px; text-decoration: none; }
+.mkt-footer-col a:hover { color: var(--navy); }
+.mkt-footer-bottom { margin-top: 40px; padding-top: 24px; border-top: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center; gap: 16px; flex-wrap: wrap; }
+.mkt-footer-bottom p { color: var(--muted); font-size: 11px; letter-spacing: .08em; text-transform: uppercase; }
+
+/* Formularios (demo/contacto) */
+.mkt-form-card { max-width: 560px; margin: 0 auto; background: var(--surface); border: 1px solid var(--border); border-radius: 20px; padding: 36px; }
+.mkt-form-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; margin-top: 24px; }
+.mkt-form-field { display: flex; flex-direction: column; gap: 6px; }
+.mkt-form-field--full { grid-column: 1 / -1; }
+.mkt-form-field label { font-size: 12.5px; font-weight: 600; color: var(--navy); }
+.mkt-form-field input, .mkt-form-field select, .mkt-form-field textarea { padding: 12px 14px; border-radius: 10px; border: 1px solid var(--border); font-size: 15px; font-family: inherit; color: var(--text); min-height: 44px; background: #fff; }
+.mkt-form-field textarea { min-height: 96px; resize: vertical; }
+.mkt-form-field input:focus, .mkt-form-field select:focus, .mkt-form-field textarea:focus { outline: 2px solid var(--gold); outline-offset: 1px; border-color: var(--gold); }
+.mkt-form-error { color: #a3402f; font-size: 13px; margin-top: 16px; }
+.mkt-form-success { text-align: center; padding: 24px 0; }
+.mkt-form-success h3 { font-family: var(--font-serif), Georgia, serif; font-weight: 400; color: var(--navy); font-size: 24px; }
+.mkt-form-success p { color: var(--muted); font-size: 14px; margin-top: 10px; }
+.mkt-form-submit { margin-top: 24px; }
+
+/* Página de seguridad: lista con icono */
+.mkt-check-list { display: flex; flex-direction: column; gap: 18px; margin-top: 32px; }
+.mkt-check-item { display: flex; gap: 14px; align-items: flex-start; }
+.mkt-check-item svg { width: 20px; height: 20px; color: var(--gold); flex-shrink: 0; margin-top: 2px; }
+.mkt-check-item h3 { font-size: 15px; font-weight: 600; color: var(--navy); }
+.mkt-check-item p { font-size: 13.5px; color: var(--muted); line-height: 1.6; margin-top: 4px; }
+
+/* Tarjetas de "para iglesias" por tamaño */
+.mkt-size-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 20px; margin-top: 44px; }
+.mkt-size-card { border: 1px solid var(--border); border-radius: 16px; padding: 28px; background: var(--surface); }
+.mkt-size-card h3 { font-size: 17px; font-weight: 600; color: var(--navy); }
+.mkt-size-card p { font-size: 13.5px; color: var(--muted); line-height: 1.6; margin-top: 8px; }
+
+@media (max-width: 980px) {
+  .mkt-hero { grid-template-columns: 1fr; gap: 40px; padding: 40px 0 56px; }
+  .mkt-module-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .mkt-feature-grid { grid-template-columns: 1fr; }
+  .mkt-size-grid { grid-template-columns: 1fr; }
+  .mkt-cta { padding: 40px 28px; }
+}
+
+@media (max-width: 760px) {
+  .mkt-nav { display: none; }
+  .mkt-header-ctas .mkt-btn--secondary { display: none; }
+  .mkt-menu-toggle { display: inline-flex; align-items: center; justify-content: center; }
+  .mkt-section { padding: 56px 0; }
+  .mkt-form-grid { grid-template-columns: 1fr; }
+  .mkt-mockup-body { grid-template-columns: 1fr; }
+  .mkt-mockup-sidebar { display: none; }
+  .mkt-mockup-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .mkt-footer-top { flex-direction: column; }
+  .mkt-footer-cols { gap: 28px; }
+}

@@ -11,14 +11,14 @@ Fecha: **16 de septiembre de 2026**; actualización: **17 de septiembre de 2026*
 ```
 F4:            INTEGRADA Y APLICADA EN PRODUCCIÓN (17 de septiembre de 2026)
 F5 · CARLOS:   INTEGRADA EN MAIN Y APLICADA EN PRODUCCIÓN (17 de septiembre de 2026)
-F5 · COMPARTIDO Y DIOGO: DECIDIDO POR CARLOS COMO PROPIETARIO (17 de septiembre de 2026);
-               implementado en feature/fase-5-avisos-disponibilidad (PR #5), sin integrar
-               ni aplicar en remoto
+F5 · COMPARTIDO Y DIOGO: DECIDIDO POR CARLOS COMO PROPIETARIO (17 de septiembre de 2026),
+               APROBADO POR DIOGO E INTEGRADO Y APLICADO EN PRODUCCIÓN (18 de septiembre de 2026)
+FASE 5 COMPLETA: pendiente del recorrido conjunto CO-03
 ```
 
 - **F4.** Los datos de §2 proceden de las migraciones `20260920000100`–`20260920000900` y de `src/server/activities/`, integradas en `main` con la PR #2 (merge `b3f5add`), validadas por Carlos en el commit `93eb369` y **aplicadas en producción el 17 de septiembre de 2026**. Detalle y evidencias: [FASE-4-ACTIVIDADES.md §9](FASE-4-ACTIVIDADES.md) y [ADR 0017](adr/0017-actividades-planificacion-fase-4.md).
 - **F5 · Carlos (CA-04/CA-05).** Las decisiones de §3 están acordadas por Carlos. Las migraciones `20260922000100`–`20260922000500` se **aplicaron en producción el 17 de septiembre de 2026** y la PR #4 se integró en `main` (merge `a9fd3c8`) tras la validación expresa del commit `f9cb5b4`. Detalle técnico y evidencias: [FASE-5-ASIGNACIONES.md](FASE-5-ASIGNACIONES.md).
-- **F5 · Diogo (DI-01 a DI-04) y lo compartido.** Diogo no subió trabajo y las decisiones seguían abiertas, así que el 17 de septiembre de 2026 Carlos, como propietario, las decidió y encargó la implementación: está en la rama `feature/fase-5-avisos-disponibilidad` (PR #5, migraciones `20260923…`), **sin integrar y sin aplicar en remoto**, con el envío externo de email y push desactivado. Si Diogo tiene trabajo local, hay que reconciliarlo antes de integrar.
+- **F5 · Diogo (DI-01 a DI-04) y lo compartido.** Diogo no había subido trabajo y las decisiones seguían abiertas, así que el 17 de septiembre de 2026 Carlos, como propietario, las decidió y encargó la implementación (migraciones `20260923…`). Diogo aprobó las reglas de producto el 18 de septiembre de 2026 y esa misma mañana la PR #5 se integró en `main` (merge `8894c88`) y sus migraciones se aplicaron en producción. El envío externo de email y push sigue **desactivado**; la tarea programada se ejecuta una vez al día.
 - Este documento no autoriza por sí mismo integraciones en `main` ni cambios en producción: cada una necesita la validación expresa del propietario sobre el commit concreto.
 
 **Responsables.**
@@ -306,21 +306,23 @@ Reglas:
 
 ---
 
-## 9. Decisiones abiertas
+## 9. Decisiones antes abiertas, ya resueltas
 
-Pendientes de Diogo o de ambos. Única lista vigente.
+Las nueve las decidió **Carlos como propietario el 17 de septiembre de 2026**, al asumir también esta parte, y **Diogo aprobó el 18 de septiembre de 2026** las seis reglas de producto (ver «Acuerdo» al final). Integradas en `main` y aplicadas en producción el 18 de septiembre de 2026; el detalle está en [FASE-5-AVISOS-DISPONIBILIDAD.md](FASE-5-AVISOS-DISPONIBILIDAD.md).
 
-1. **Emisión de eventos:** mecanismo (propuesta: outbox en la misma transacción, esquema de Diogo) y punto de escritura que usará Carlos (§6.3).
-2. **Deduplicación:** clave propuesta `assignment_id` + `version` (§6.2) y ventana adicional del motor.
-3. **Silencio y recordatorios:** zona de referencia (destinatario, actividad o iglesia), offsets y excepciones urgentes al silencio.
-4. **Llegada por puesto:** F4 no tiene antelación de llegada por puesto; decidir si se incorpora, de forma compatible, antes de basar recordatorios en ella.
-5. **Frecuencia:** firma de `app.person_serving_preferences`, si se cuenta por actividad o por puesto y si es por área. Carlos la tratará como aviso (decisión 3).
-6. **Disponibilidad:** confirmar la firma de §5.1, qué columnas devuelve y la capability que autoriza la consulta. Si deniega o falla en los contextos de llamada de F5-Carlos, el resultado es el aviso `availability_unknown`.
-7. **Destinatarios de avisos y escalado:** quién recibe aceptaciones y rechazos, escalado por criticidad y sin líder, audiencia de `activity.published` y `activity.unpublished`, y si un cambio de serie emite un evento agregado o por ocurrencia.
-8. **Transporte:** proveedor de email/push y entorno de pruebas.
-9. **Prefijo `20260921…`** para las migraciones de Diogo.
+| # | Decisión |
+|---|---|
+| 1 | **Emisión de eventos:** outbox `notification_events` escrita por triggers en la misma transacción que la mutación. No se reescribe ninguna función de F5-Carlos |
+| 2 | **Deduplicación:** `idempotency_key` = `<event_type>:<entity_id>:<entity_version>`, con sufijo cuando hace falta distinguir (recordatorios y escalado). Conflicto = no se duplica |
+| 3 | **Silencio y recordatorios:** silencio 22:00–08:00 en la zona de la **actividad**; recordatorios a 7 y 2 días sin respuesta y la víspera si ya se aceptó; única excepción al silencio, la cancelación de una actividad del mismo día |
+| 4 | **Llegada por puesto:** no se incorpora; los recordatorios usan el inicio de la actividad |
+| 5 | **Frecuencia:** `person_serving_preferences` con máximo de **actividades al mes**, global y afinable por área; dos puestos de la misma actividad cuentan como una; produce el aviso `frequency_exceeded`, nunca un bloqueo |
+| 6 | **Disponibilidad:** `app.person_unavailability(church, person_ids[], from, to)` devuelve `(person_id, source, starts_at, ends_at)`, **sin el motivo**; la autoriza la propia persona o `assignment.manage` en la iglesia, en cualquier scope |
+| 7 | **Destinatarios y escalado:** respuestas a quien creó la asignación y a los líderes del área; sin líder, a la administración. Escalado a la administración si un puesto crítico sigue bajo mínimos a menos de 3 días. `activity.published`/`unpublished` siguen sin emitirse |
+| 8 | **Transporte:** ninguno configurado. Las entregas de email y push se quedan en cola (`NOTIFICATIONS_TRANSPORT=disabled`) |
+| 9 | **Prefijo:** `20260923…` en lugar de `20260921…`, para no quedar por detrás de migraciones ya aplicadas |
 
 ## Acuerdo
 
-- [x] Acordado por Carlos — solo las decisiones de su dominio (§3), el 17 de septiembre de 2026; no incluye lo compartido ni lo de Diogo (§5, §6, §9).
+- [x] Acordado por Carlos — las decisiones de su dominio (§3) y, como propietario, también las compartidas y las de Diogo (§5, §6 y §9), el 17 de septiembre de 2026.
 - [x] Acordado por Diogo — el 18 de septiembre de 2026, Diogo aprobó las seis reglas de producto de [FASE-5-AVISOS-DISPONIBILIDAD.md §2](FASE-5-AVISOS-DISPONIBILIDAD.md) tal como las decidió Carlos el 17 de septiembre de 2026 (silencio en la zona de la actividad, frecuencia como aviso no bloqueante, transporte externo desactivado por defecto, destinatarios de respuestas, escalado de críticos a 3 días y recordatorios en 7/2 días y víspera), despejando así las decisiones abiertas §9.3, §9.5, §9.6 y §9.7 en la medida en que las cubre esta rama. Verificado técnicamente por Diogo antes de integrar: typecheck, lint y build limpios; 893 tests pgTAP en verde (incluida la Fase 3 de Diogo sin regresión).
