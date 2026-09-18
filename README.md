@@ -33,3 +33,11 @@ Importar el repositorio con el preset Next.js y la raíz del proyecto. Vercel de
 Metadata, canonical y sitemap están preparados para `https://levitaapp.com`. Añadir una imagen Open Graph definitiva a la metadata cuando esté disponible. Las fuentes se optimizan y alojan mediante `next/font`, sin solicitudes a Google desde el navegador.
 
 ESLint 9 se mantiene por compatibilidad con los plugins de `eslint-config-next`. npm avisa de su fin de soporte; actualizar cuando los plugins oficiales admitan ESLint 10. Este aviso afecta a herramientas de desarrollo, no al build ni a la página pública.
+
+## Funcionamiento y colaboración
+
+Consultar [FUNCIONAMIENTO.md](FUNCIONAMIENTO.md) para el estado observado de la
+aplicación, el entorno local y las normas de ramas y revisión. La descripción
+de landing de este README no cubre toda la aplicación autenticada actual.
+Todo cambio se prepara en una rama y requiere validación expresa del propietario
+antes de integrarse en `main`.

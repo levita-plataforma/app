@@ -134,3 +134,11 @@ Al cambiar una regla:
 5. registrar decisión si existía alternativa relevante.
 
 No marcar una fase como completada solo por tener documentación o diseño.
+
+## Colaboración y reparto del trabajo
+
+- [Funcionamiento y normas de trabajo](../FUNCIONAMIENTO.md): ramas por tarea y validación expresa del propietario antes de integrar en `main`.
+- [Plan de trabajo compartido](PLAN-TRABAJO-COMPARTIDO.md): propuesta para dos personas con dependencias, tareas y cierres conjuntos.
+- [Encargo para Claude — Fase 4](PROMPT-CLAUDE-FASE-4.md): alcance de actividades y planificación adaptado al encargo de Diogo, con revisión obligatoria de Carlos.
+- [Reparto por nombres — Carlos y Diogo](REPARTO-CARLOS-DIOGO.md): responsables, tareas, dependencias y cierres conjuntos.
+- [Encargo para Claude — Fase 5](PROMPT-CLAUDE-FASE-5.md): modos Carlos/Diogo, contratos con F4, pruebas y cierre conjunto.
