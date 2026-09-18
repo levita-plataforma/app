@@ -9,7 +9,7 @@
 -- Como scope_id no tiene clave foránea genérica (decisión de la Fase 0,
 -- comentada en el propio esquema), la validación de que ese uuid es un grupo
 -- vivo del mismo tenant se hace en la RPC de concesión de liderazgo
--- (20260926000500_rpc_grupos.sql).
+-- (20260927000600_rpc_grupos.sql).
 
 insert into capabilities (key, description, module_key) values
   ('group.read', 'Ver el directorio interno de grupos y la ficha de los grupos de su ámbito', 'groups'),

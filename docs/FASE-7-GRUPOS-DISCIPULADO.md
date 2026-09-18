@@ -16,13 +16,13 @@ producción. Ninguna migración ya aplicada se reescribe.
 
 | Fichero | Qué trae |
 |---|---|
-| `20260926000100_grupos_esquema.sql` | `group_types`, `groups`, `group_leaders`, `group_members`, `group_join_requests`, `group_meetings`, `group_attendance`, con sus enums, índices y el trigger guard de tipo de actividad |
-| `20260926000200_discipulado_esquema.sql` | `courses`, `course_cohorts`, `course_sessions`, `course_enrollments`, `course_session_attendance`, `learning_paths`, `path_steps`, `person_path_progress` |
-| `20260926000300_capabilities_fase7.sql` | Las 16 capacidades nuevas, su reparto por rol, el gating de módulo y `app.group_cap`, `app.is_group_leader`, `app.can_read_group`, `app.can_read_person_contact`, `app.cohort_cap` |
-| `20260926000400_rls_fase7.sql` | RLS habilitada y forzada en las 15 tablas, revocación de escritura, políticas de lectura |
-| `20260926000500_avisos_fase7.sql` | Diez tipos de aviso nuevos, sus textos, destinatarios y `app.notify_group_members` |
-| `20260926000600_rpc_grupos.sql` | 20 RPC de grupos con sus envoltorios públicos |
-| `20260926000700_rpc_discipulado.sql` | 21 RPC de discipulado con sus envoltorios públicos |
+| `20260927000100_grupos_esquema.sql` | `group_types`, `groups`, `group_leaders`, `group_members`, `group_join_requests`, `group_meetings`, `group_attendance`, con sus enums, índices y el trigger guard de tipo de actividad |
+| `20260927000200_discipulado_esquema.sql` | `courses`, `course_cohorts`, `course_sessions`, `course_enrollments`, `course_session_attendance`, `learning_paths`, `path_steps`, `person_path_progress` |
+| `20260927000300_capabilities_fase7.sql` | Las 16 capacidades nuevas, su reparto por rol, el gating de módulo y `app.group_cap`, `app.is_group_leader`, `app.can_read_group`, `app.can_read_person_contact`, `app.cohort_cap` |
+| `20260927000400_rls_fase7.sql` | RLS habilitada y forzada en las 15 tablas, revocación de escritura, políticas de lectura |
+| `20260927000500_avisos_fase7.sql` | Diez tipos de aviso nuevos, sus textos, destinatarios y `app.notify_group_members` |
+| `20260927000600_rpc_grupos.sql` | 20 RPC de grupos con sus envoltorios públicos |
+| `20260927000700_rpc_discipulado.sql` | 21 RPC de discipulado con sus envoltorios públicos |
 
 ---
 

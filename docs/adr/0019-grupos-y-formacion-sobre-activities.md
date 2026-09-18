@@ -82,5 +82,5 @@ el ADR 0018, **pero no recorren la máquina de estados de actividades**.
   `docs/adr/0018-events-extiende-activities.md`
 - `supabase/migrations/20260920000500_activity_funciones_y_reglas.sql` (trigger
   `app.activities_before_update`, condición `v_actor is not null`)
-- `supabase/migrations/20260926000600_rpc_grupos.sql` y `..._0700_rpc_discipulado.sql`
+- `supabase/migrations/20260927000600_rpc_grupos.sql` y `..._0700_rpc_discipulado.sql`
 - `docs/CONTRATO-FASE-7.md` §6
