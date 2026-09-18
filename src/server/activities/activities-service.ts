@@ -40,6 +40,13 @@ export type ActivitySummary = {
   seriesId: string | null;
   occurrenceDate: string | null;
   seriesModified: boolean;
+  /**
+   * Solo presente cuando la actividad type='event' tiene una fila `events`
+   * asociada con inscripción habilitada (Fase 6). Opcional y aditivo: nunca
+   * se rellena para otros tipos de actividad, para no alterar el contrato
+   * existente de ActivitySummary usado en Fase 4/5.
+   */
+  eventRegistration?: { enabled: boolean; confirmedCount: number; waitlistCount: number; capacity: number | null } | null;
 };
 
 export type ActivitySeriesInfo = {
@@ -259,6 +266,79 @@ export function mapActivitySummary(row: SummaryRow): ActivitySummary {
   };
 }
 
+/**
+ * Carga en bloque (un único IN, nunca N+1) el estado de inscripción de
+ * evento para las actividades type='event' de un lote, y lo añade a cada
+ * ActivitySummary ya mapeada. Cambio aditivo de Fase 6: solo toca activities
+ * cuyo type sea 'event'; el resto de tipos nunca consulta `events`.
+ */
+async function attachEventRegistration(churchId: string, items: ActivitySummary[]): Promise<ActivitySummary[]> {
+  const eventActivityIds = items.filter((a) => a.type === "event").map((a) => a.id);
+  if (eventActivityIds.length === 0) return items;
+
+  const supabase = await createSupabaseServerClient();
+  const { data: eventRows } = await supabase
+    .from("events")
+    .select("id, activity_id, registration_enabled, capacity")
+    .eq("church_id", churchId)
+    .in("activity_id", eventActivityIds)
+    .is("archived_at", null);
+
+  const rows = eventRows ?? [];
+  if (rows.length === 0) return items;
+
+  const byActivity = new Map<string, { eventId: string; registrationEnabled: boolean; capacity: number | null }>();
+  for (const row of rows) {
+    byActivity.set(row.activity_id as string, {
+      eventId: row.id as string,
+      registrationEnabled: row.registration_enabled as boolean,
+      capacity: row.capacity as number | null,
+    });
+  }
+
+  const allEventIds = Array.from(byActivity.values()).map((v) => v.eventId);
+  const counts = allEventIds.length > 0 ? await loadRegistrationCountsForCalendar(churchId, allEventIds) : new Map();
+
+  return items.map((item) => {
+    const info = byActivity.get(item.id);
+    if (!info) return item;
+    const count = counts.get(info.eventId) ?? { confirmed: 0, waitlisted: 0 };
+    return {
+      ...item,
+      eventRegistration: {
+        enabled: info.registrationEnabled,
+        confirmedCount: count.confirmed,
+        waitlistCount: count.waitlisted,
+        capacity: info.capacity,
+      },
+    };
+  });
+}
+
+async function loadRegistrationCountsForCalendar(
+  churchId: string,
+  eventIds: string[],
+): Promise<Map<string, { confirmed: number; waitlisted: number }>> {
+  const result = new Map<string, { confirmed: number; waitlisted: number }>();
+  if (eventIds.length === 0) return result;
+
+  const supabase = await createSupabaseServerClient();
+  const { data } = await supabase
+    .from("registrations")
+    .select("event_id, status, attendees_count")
+    .eq("church_id", churchId)
+    .in("event_id", eventIds)
+    .in("status", ["confirmed", "waitlisted"]);
+
+  for (const row of data ?? []) {
+    const entry = result.get(row.event_id) ?? { confirmed: 0, waitlisted: 0 };
+    if (row.status === "confirmed") entry.confirmed += row.attendees_count;
+    else if (row.status === "waitlisted") entry.waitlisted += 1;
+    result.set(row.event_id, entry);
+  }
+  return result;
+}
+
 function toRpcInput(input: Record<string, unknown>): Record<string, unknown> {
   const keys: Record<string, string> = {
     requestId: "request_id",
@@ -327,7 +407,11 @@ export async function listActivities(
     .range((page - 1) * pageSize, page * pageSize - 1);
 
   if (error) throw toDomainError(error, "No se pudieron cargar las actividades.");
-  return { items: ((data ?? []) as unknown as SummaryRow[]).map(mapActivitySummary), total: count ?? 0, page, pageSize };
+  const items = await attachEventRegistration(
+    churchId,
+    ((data ?? []) as unknown as SummaryRow[]).map(mapActivitySummary),
+  );
+  return { items, total: count ?? 0, page, pageSize };
 }
 
 /** Tareas sin hora fija cuya ventana (si la tienen) toca el rango. */
@@ -353,7 +437,7 @@ export async function listFlexibleTasks(
 
   const { data, error } = await query.order("ends_at", { ascending: true, nullsFirst: false }).limit(limit);
   if (error) throw toDomainError(error, "No se pudieron cargar las tareas sin hora fija.");
-  return ((data ?? []) as unknown as SummaryRow[]).map(mapActivitySummary);
+  return attachEventRegistration(churchId, ((data ?? []) as unknown as SummaryRow[]).map(mapActivitySummary));
 }
 
 export async function getActivity(churchId: string, activityId: string): Promise<ActivityDetail | null> {

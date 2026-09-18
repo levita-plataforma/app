@@ -1,0 +1,35 @@
+/**
+ * Paleta y variables compartidas para la superficie pública de LEVITA
+ * (rutas fuera del grupo (app), sin sesión: /i/[churchSlug]/eventos/...).
+ * Replica las variables --shell-* de src/app/(app)/app-shell.css: ese
+ * archivo vive dentro del grupo (app) y no es importable limpiamente desde
+ * aquí, así que se define una copia local con los mismos valores para
+ * mantener una sola identidad visual LEVITA en toda la app.
+ */
+
+:root {
+  --shell-bg: #faf9f6;
+  --shell-surface: #ffffff;
+  --shell-text: #1f2a24;
+  --shell-text-muted: #6b7280;
+  --shell-text-subtle: #9aa2ac;
+  --shell-border: #ececE6;
+  --shell-brand: #c89b4a;
+  --shell-brand-soft: #f5efe3;
+  --shell-active-bg: #f5efe3;
+  --shell-active-text: #1f2a24;
+  --shell-radius-lg: 20px;
+  --shell-radius-md: 14px;
+  --shell-radius-sm: 10px;
+  --shell-shadow-card: 0 1px 2px rgba(31, 42, 36, 0.04), 0 1px 12px rgba(31, 42, 36, 0.03);
+  --shell-success: #3f9d63;
+  --shell-warning: #d9a441;
+  --shell-danger: #c4626a;
+}
+
+.public-card {
+  background: var(--shell-surface);
+  border: 1px solid var(--shell-border);
+  border-radius: var(--shell-radius-lg);
+  box-shadow: var(--shell-shadow-card);
+}
