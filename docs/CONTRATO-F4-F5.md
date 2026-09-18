@@ -306,19 +306,21 @@ Reglas:
 
 ---
 
-## 9. Decisiones abiertas
+## 9. Decisiones antes abiertas, ya resueltas
 
-Pendientes de Diogo o de ambos. Única lista vigente.
+Las nueve las decidió **Carlos como propietario el 17 de septiembre de 2026**, al asumir también esta parte, y **Diogo aprobó el 18 de septiembre de 2026** las seis reglas de producto (ver «Acuerdo» al final). Implementadas en `feature/fase-5-avisos-disponibilidad`; el detalle está en [FASE-5-AVISOS-DISPONIBILIDAD.md](FASE-5-AVISOS-DISPONIBILIDAD.md).
 
-1. **Emisión de eventos:** mecanismo (propuesta: outbox en la misma transacción, esquema de Diogo) y punto de escritura que usará Carlos (§6.3).
-2. **Deduplicación:** clave propuesta `assignment_id` + `version` (§6.2) y ventana adicional del motor.
-3. **Silencio y recordatorios:** zona de referencia (destinatario, actividad o iglesia), offsets y excepciones urgentes al silencio.
-4. **Llegada por puesto:** F4 no tiene antelación de llegada por puesto; decidir si se incorpora, de forma compatible, antes de basar recordatorios en ella.
-5. **Frecuencia:** firma de `app.person_serving_preferences`, si se cuenta por actividad o por puesto y si es por área. Carlos la tratará como aviso (decisión 3).
-6. **Disponibilidad:** confirmar la firma de §5.1, qué columnas devuelve y la capability que autoriza la consulta. Si deniega o falla en los contextos de llamada de F5-Carlos, el resultado es el aviso `availability_unknown`.
-7. **Destinatarios de avisos y escalado:** quién recibe aceptaciones y rechazos, escalado por criticidad y sin líder, audiencia de `activity.published` y `activity.unpublished`, y si un cambio de serie emite un evento agregado o por ocurrencia.
-8. **Transporte:** proveedor de email/push y entorno de pruebas.
-9. **Prefijo `20260921…`** para las migraciones de Diogo.
+| # | Decisión |
+|---|---|
+| 1 | **Emisión de eventos:** outbox `notification_events` escrita por triggers en la misma transacción que la mutación. No se reescribe ninguna función de F5-Carlos |
+| 2 | **Deduplicación:** `idempotency_key` = `<event_type>:<entity_id>:<entity_version>`, con sufijo cuando hace falta distinguir (recordatorios y escalado). Conflicto = no se duplica |
+| 3 | **Silencio y recordatorios:** silencio 22:00–08:00 en la zona de la **actividad**; recordatorios a 7 y 2 días sin respuesta y la víspera si ya se aceptó; única excepción al silencio, la cancelación de una actividad del mismo día |
+| 4 | **Llegada por puesto:** no se incorpora; los recordatorios usan el inicio de la actividad |
+| 5 | **Frecuencia:** `person_serving_preferences` con máximo de **actividades al mes**, global y afinable por área; dos puestos de la misma actividad cuentan como una; produce el aviso `frequency_exceeded`, nunca un bloqueo |
+| 6 | **Disponibilidad:** `app.person_unavailability(church, person_ids[], from, to)` devuelve `(person_id, source, starts_at, ends_at)`, **sin el motivo**; la autoriza la propia persona o `assignment.manage` en la iglesia, en cualquier scope |
+| 7 | **Destinatarios y escalado:** respuestas a quien creó la asignación y a los líderes del área; sin líder, a la administración. Escalado a la administración si un puesto crítico sigue bajo mínimos a menos de 3 días. `activity.published`/`unpublished` siguen sin emitirse |
+| 8 | **Transporte:** ninguno configurado. Las entregas de email y push se quedan en cola (`NOTIFICATIONS_TRANSPORT=disabled`) |
+| 9 | **Prefijo:** `20260923…` en lugar de `20260921…`, para no quedar por detrás de migraciones ya aplicadas |
 
 ## Acuerdo
 
