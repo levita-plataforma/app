@@ -5,12 +5,15 @@ Fecha: **17 de septiembre de 2026**. Rama: `feature/fase-5-avisos-disponibilidad
 ## Estado
 
 ```
-EN DESARROLLO — nada aplicado en remoto. El envío externo (email y push) queda preparado y DESACTIVADO.
+INTEGRADA EN MAIN Y APLICADA EN PRODUCCIÓN (18 de septiembre de 2026, PR #5, merge 8894c88).
+El envío externo (email y push) sigue DESACTIVADO: los avisos solo aparecen dentro de la aplicación.
 ```
 
 Este documento es el contrato de esta parte. La fuente de verdad sigue siendo el SQL (`20260923000100`–`20260923000500`).
 
-Origen: el reparto asignaba DI-01 y DI-02 a Diogo y quedaron nueve decisiones abiertas en [CONTRATO-F4-F5.md §9](CONTRATO-F4-F5.md). Carlos, como propietario, decidió el 17 de septiembre de 2026 completarlas él y fijó las reglas de producto de §2. Diogo no ha subido ninguna rama; si tiene trabajo local, esta parte hay que reconciliarla con él antes de integrar.
+Origen: el reparto asignaba DI-01 y DI-02 a Diogo y quedaron nueve decisiones abiertas en [CONTRATO-F4-F5.md §9](CONTRATO-F4-F5.md). Carlos, como propietario, decidió el 17 de septiembre de 2026 completarlas él y fijó las reglas de producto de §2. Diogo aprobó esas reglas el 18 de septiembre de 2026 y esa misma mañana se integró y se aplicó en producción.
+
+Antes de integrarse, esta parte pasó por dos revisiones independientes (base de datos e interfaz) con 28 hallazgos, todos corregidos: entre ellos, que un aviso podía llegar a quien figuraba como líder de un área sin poder gestionar el puesto, recordatorios prematuros o duplicados, y que nada disparaba la tarea programada.
 
 ---
 
