@@ -323,4 +323,4 @@ Pendientes de Diogo o de ambos. Única lista vigente.
 ## Acuerdo
 
 - [x] Acordado por Carlos — solo las decisiones de su dominio (§3), el 17 de septiembre de 2026; no incluye lo compartido ni lo de Diogo (§5, §6, §9).
-- [ ] Acordado por Diogo
+- [x] Acordado por Diogo — el 18 de septiembre de 2026, Diogo aprobó las seis reglas de producto de [FASE-5-AVISOS-DISPONIBILIDAD.md §2](FASE-5-AVISOS-DISPONIBILIDAD.md) tal como las decidió Carlos el 17 de septiembre de 2026 (silencio en la zona de la actividad, frecuencia como aviso no bloqueante, transporte externo desactivado por defecto, destinatarios de respuestas, escalado de críticos a 3 días y recordatorios en 7/2 días y víspera), despejando así las decisiones abiertas §9.3, §9.5, §9.6 y §9.7 en la medida en que las cubre esta rama. Verificado técnicamente por Diogo antes de integrar: typecheck, lint y build limpios; 893 tests pgTAP en verde (incluida la Fase 3 de Diogo sin regresión).

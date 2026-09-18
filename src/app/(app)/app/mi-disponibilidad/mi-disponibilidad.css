@@ -1,0 +1,408 @@
+/* «Mi disponibilidad» (Fase 5, DI-01).
+   Prefijo dp-. Solo tokens --shell-* / --mod-*. Móvil primero. */
+
+/* Cabecera ---------------------------------------------------------------- */
+
+.dp-page-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.dp-page-header h1 {
+  font-size: 22px;
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+
+.dp-title-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+}
+
+.dp-subtitle {
+  color: var(--shell-text-muted);
+  font-size: 13px;
+  margin-top: 4px;
+}
+
+.dp-module-icon {
+  display: inline-grid;
+  place-items: center;
+  width: 36px;
+  height: 36px;
+  border-radius: var(--shell-radius-sm);
+  background: var(--mod-serving-bg);
+  color: var(--mod-serving-fg);
+  flex-shrink: 0;
+}
+
+/* Bloques ----------------------------------------------------------------- */
+
+.dp-card {
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.dp-section-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 10px 16px;
+  flex-wrap: wrap;
+}
+
+.dp-section-head h2 {
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--shell-text);
+}
+
+.dp-muted {
+  font-size: 12.5px;
+  color: var(--shell-text-muted);
+  margin-top: 4px;
+  max-width: 62ch;
+}
+
+.dp-list-title {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--shell-text-subtle);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+/* Notas: privacidad del motivo y zona horaria ----------------------------- */
+
+.dp-privacy,
+.dp-note {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 10px 12px;
+  border: 1px solid var(--shell-border);
+  border-left-width: 3px;
+  border-radius: var(--shell-radius-md);
+  background: var(--shell-bg);
+  font-size: 12.5px;
+  color: var(--shell-text);
+  line-height: 1.45;
+}
+
+.dp-privacy {
+  border-left-color: var(--mod-serving-fg);
+}
+
+.dp-note {
+  border-left-color: var(--shell-brand);
+}
+
+.dp-privacy svg,
+.dp-note svg {
+  flex-shrink: 0;
+  margin-top: 2px;
+  color: var(--shell-text-muted);
+}
+
+/* Mensajes ---------------------------------------------------------------- */
+
+.dp-messages:empty {
+  display: none;
+}
+
+.dp-error {
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--shell-danger);
+}
+
+.dp-notice {
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--shell-success);
+}
+
+/* Formularios ------------------------------------------------------------- */
+
+.dp-form {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 14px;
+  border: 1px solid var(--shell-border);
+  border-radius: var(--shell-radius-md);
+  background: var(--shell-bg);
+}
+
+.dp-form-title {
+  font-size: 13.5px;
+  font-weight: 600;
+  color: var(--shell-text);
+}
+
+.dp-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 12px;
+}
+
+.dp-field {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  min-width: 0;
+}
+
+.dp-field label {
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--shell-text);
+}
+
+.dp-input {
+  width: 100%;
+  min-height: 44px;
+  padding: 9px 12px;
+  border-radius: var(--shell-radius-sm);
+  border: 1px solid var(--shell-border);
+  background: var(--shell-surface);
+  color: var(--shell-text);
+  font-family: inherit;
+  font-size: 13.5px;
+}
+
+.dp-textarea {
+  min-height: 66px;
+  resize: vertical;
+}
+
+.dp-number {
+  max-width: 180px;
+}
+
+.dp-input:focus-visible,
+.dp-btn:focus-visible,
+.dp-details summary:focus-visible {
+  outline: 2px solid var(--shell-brand);
+  outline-offset: 2px;
+}
+
+.dp-hint {
+  font-size: 12px;
+  color: var(--shell-text-muted);
+  line-height: 1.4;
+}
+
+/* Botones ----------------------------------------------------------------- */
+
+.dp-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+.dp-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  min-height: 44px;
+  padding: 8px 14px;
+  border-radius: var(--shell-radius-md);
+  border: 1px solid var(--shell-border);
+  background: var(--shell-surface);
+  color: var(--shell-text);
+  font-family: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.dp-btn:hover:not(:disabled) {
+  background: var(--shell-active-bg);
+}
+
+.dp-btn.is-primary {
+  border-color: var(--shell-brand);
+  background: var(--shell-brand);
+  color: #fff;
+}
+
+.dp-btn.is-danger {
+  border-color: var(--shell-danger);
+  background: var(--shell-danger);
+  color: #fff;
+}
+
+.dp-btn.is-primary:hover:not(:disabled),
+.dp-btn.is-danger:hover:not(:disabled) {
+  filter: brightness(0.95);
+}
+
+.dp-btn.is-ghost {
+  border-color: transparent;
+  background: none;
+  color: var(--shell-text-subtle);
+}
+
+.dp-btn.is-danger-text {
+  color: var(--shell-danger);
+}
+
+.dp-btn:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.dp-btn[aria-busy="true"] {
+  cursor: progress;
+}
+
+.dp-confirm {
+  flex-basis: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 12px;
+  border-radius: var(--shell-radius-md);
+  border: 1px solid var(--shell-border);
+  background: var(--shell-bg);
+  font-size: 12.5px;
+  color: var(--shell-text);
+}
+
+/* Listas ------------------------------------------------------------------ */
+
+.dp-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.dp-item {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px 12px;
+  padding: 12px 14px;
+  border: 1px solid var(--shell-border);
+  border-radius: var(--shell-radius-md);
+  background: var(--shell-surface);
+}
+
+.dp-item.is-past {
+  background: var(--shell-bg);
+}
+
+.dp-item-main {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.dp-item-title {
+  font-size: 13.5px;
+  font-weight: 600;
+  color: var(--shell-text);
+  overflow-wrap: anywhere;
+}
+
+.dp-item-reason {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 12.5px;
+  color: var(--shell-text-muted);
+  overflow-wrap: anywhere;
+}
+
+.dp-item-reason svg {
+  flex-shrink: 0;
+}
+
+.dp-empty {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  font-size: 12.5px;
+  color: var(--shell-text-muted);
+  line-height: 1.45;
+  max-width: 62ch;
+}
+
+.dp-empty svg {
+  flex-shrink: 0;
+  margin-top: 2px;
+}
+
+.dp-details summary {
+  display: flex;
+  align-items: center;
+  min-height: 44px;
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--shell-text-subtle);
+  cursor: pointer;
+}
+
+.dp-details[open] summary {
+  margin-bottom: 8px;
+}
+
+/* Frecuencia -------------------------------------------------------------- */
+
+.dp-prefs {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.dp-pref {
+  padding: 12px 14px;
+  border: 1px solid var(--shell-border);
+  border-radius: var(--shell-radius-md);
+  background: var(--shell-surface);
+}
+
+.dp-pref-form {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  gap: 10px 12px;
+}
+
+.dp-pref-field {
+  flex: 1 1 220px;
+}
+
+.dp-pref-form .dp-btn {
+  margin-top: 22px;
+}
+
+/* Responsive -------------------------------------------------------------- */
+
+@media (min-width: 700px) {
+  .dp-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .dp-grid-3 {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}

@@ -76,6 +76,17 @@ Toda la shell de aplicación (paleta, tipografía, estructura, iconografía por 
 
 Lo que quedaba pendiente con Diogo (emisión y deduplicación de eventos, disponibilidad, frecuencia, silencio y recordatorios, destinatarios, escalado, transporte y prefijo de migraciones) lo decidió Carlos como propietario y está implementado en la PR #5, sin integrar ni aplicar en remoto. Ver [CONTRATO-F4-F5.md §9](CONTRATO-F4-F5.md) y [FASE-5-ASIGNACIONES.md](FASE-5-ASIGNACIONES.md).
 
+### D21 · Fase 5, disponibilidad y avisos (DI-01 y DI-02): los asume Carlos — decidido el 17 de septiembre de 2026
+Diogo no había subido trabajo y las nueve decisiones compartidas seguían abiertas, así que Carlos, como propietario, las decidió y encargó la implementación en la rama `feature/fase-5-avisos-disponibilidad` (migraciones `20260923000100`–`20260923000500`), encima de la de asignaciones.
+
+- **Disponibilidad:** periodos concretos **y** pauta semanal; el motivo es opcional y solo lo ve la propia persona. La función que ya consumía F5-Carlos devuelve el aviso, nunca el motivo.
+- **Frecuencia:** máximo de actividades al mes, global y afinable por área; dos puestos de la misma actividad cuentan como una; solo avisa (`frequency_exceeded`), nunca bloquea.
+- **Avisos:** outbox escrita por triggers en la misma transacción, bandeja persistente por persona, preferencias por canal y cola de entrega. Deduplicación por `<evento>:<entidad>:<versión>`.
+- **Destinatarios:** quien creó la asignación y los líderes del área; sin líder, la administración. Escalado a la administración si un puesto crítico sigue bajo mínimos a menos de 3 días.
+- **Recordatorios:** 7 y 2 días antes sin respuesta, y la víspera si ya se aceptó. Silencio 22:00–08:00 en la zona de la actividad, salvo la cancelación de una actividad del mismo día.
+- **Transporte:** sin proveedor. El envío externo queda **desactivado** y las entregas de email y push se quedan en cola; la bandeja de la aplicación sí funciona.
+- **Pendiente:** reconciliar con Diogo si tiene trabajo local. Nada aplicado en remoto. Ver [FASE-5-AVISOS-DISPONIBILIDAD.md](FASE-5-AVISOS-DISPONIBILIDAD.md).
+
 ## Cuestiones abiertas antes de Fase 1
 
 ### A1 · Pricing

@@ -1,6 +1,7 @@
-import { Search, ChevronDown, Bell } from "lucide-react";
+import { Search, ChevronDown } from "lucide-react";
 import type { TenantContext } from "@/server/tenant/tenant-context";
 import MobileSidebarToggle from "./MobileSidebarToggle";
+import ShellNotificationsBell from "./ShellNotificationsBell";
 
 type ShellHeaderProps = {
   tenant: TenantContext;
@@ -34,10 +35,8 @@ export default function ShellHeader({ tenant, displayName, roleLabel }: ShellHea
           <ChevronDown aria-hidden="true" width={14} height={14} />
         </button>
 
-        <button type="button" className="shell-bell" aria-label="Avisos">
-          <Bell aria-hidden="true" />
-          <span className="shell-bell-dot" aria-hidden="true" />
-        </button>
+        {/* Avisos (Fase 5, DI-02): el contador se resuelve en el servidor. */}
+        <ShellNotificationsBell churchId={tenant.churchId} />
 
         <div className="shell-profile">
           <span className="shell-avatar" aria-hidden="true">

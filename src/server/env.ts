@@ -21,4 +21,8 @@ export const env = {
   supabaseServiceRoleKey: process.env.SUPABASE_SERVICE_ROLE_KEY,
   appUrl: process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000",
   nodeEnv: process.env.NODE_ENV ?? "development",
+  /** Secreto de la tarea programada de avisos. Sin él, la ruta no hace nada. */
+  cronSecret: process.env.CRON_SECRET,
+  /** Transporte externo de avisos: "disabled" (por defecto) deja las entregas en cola. */
+  notificationsTransport: process.env.NOTIFICATIONS_TRANSPORT ?? "disabled",
 } as const;

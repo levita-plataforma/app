@@ -53,6 +53,7 @@ export const ELIGIBILITY_CODE_LABELS: Record<string, string> = {
   overlapping_assignment: "Tiene otra asignación que se solapa en el tiempo",
   unavailable: "Ha indicado que no está disponible",
   availability_unknown: "No se pudo comprobar su disponibilidad",
+  frequency_exceeded: "Ya sirve tantas veces al mes como pidió",
   different_campus: "Su sede principal es otra",
 };
 
