@@ -142,7 +142,9 @@ export default function EstadoComunicacion({
     });
   }
 
-  const conditions = communication.segmentRulesSnapshot?.all ?? [];
+  const snapshot = communication.segmentRulesSnapshot;
+  const segmentMode = snapshot && "any" in snapshot && snapshot.any ? "any" : "all";
+  const conditions = snapshot ? (segmentMode === "any" ? snapshot.any ?? [] : snapshot.all ?? []) : [];
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
@@ -184,13 +186,20 @@ export default function EstadoComunicacion({
         {conditions.length === 0 ? (
           <p style={{ fontSize: 12.5, color: "var(--shell-text-muted)" }}>Sin condiciones registradas.</p>
         ) : (
-          <ul style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-            {conditions.map((c, i) => (
-              <li key={i} style={{ fontSize: 12.5 }}>
-                {describeCondition(c.field, c.op, c.value, nameLookup)}
-              </li>
-            ))}
-          </ul>
+          <>
+            {conditions.length > 1 ? (
+              <p style={{ fontSize: 11.5, color: "var(--shell-text-muted)" }}>
+                {segmentMode === "any" ? "Cumple alguna condición (O)" : "Cumple todas las condiciones (Y)"}
+              </p>
+            ) : null}
+            <ul style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+              {conditions.map((c, i) => (
+                <li key={i} style={{ fontSize: 12.5 }}>
+                  {describeCondition(c.field, c.op, c.value, nameLookup)}
+                </li>
+              ))}
+            </ul>
+          </>
         )}
       </section>
 
@@ -203,6 +212,12 @@ export default function EstadoComunicacion({
             </span>
           ))}
         </div>
+        {communication.channels.some((c) => c === "email" || c === "push") ? (
+          <p style={{ fontSize: 11.5, color: "var(--shell-text-muted)" }}>
+            Correo y notificación push quedan en cola: todavía no hay proveedor externo conectado, no se entregan
+            fuera de LEVITA.
+          </p>
+        ) : null}
       </section>
 
       {communication.scheduledAt ? (

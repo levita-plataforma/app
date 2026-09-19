@@ -4,7 +4,7 @@
 
 Aceptado. Propuesto e implementado el 19 de septiembre de 2026, como iteración sobre el mismo PR de la Fase 9 (ver [ADR 0020](0020-comunicaciones-vs-avisos.md)).
 
-Fuente de verdad: migraciones `supabase/migrations/20260931000800_comunicaciones_categorias.sql` a `20260931001100_comunicaciones_unsubscribe.sql`. Este ADR solo describe lo que ese SQL hace, y no repite lo ya documentado en el ADR 0020.
+Fuente de verdad: migraciones `supabase/migrations/20261001000800_comunicaciones_categorias.sql` a `20261001001100_comunicaciones_unsubscribe.sql`. Este ADR solo describe lo que ese SQL hace, y no repite lo ya documentado en el ADR 0020.
 
 Relacionado: [ADR 0020](0020-comunicaciones-vs-avisos.md), decisión A14 (`docs/07-decisiones.md`), `docs/03-notificaciones.md` §13, `docs/modulos/05-comunicaciones.md`.
 
@@ -16,7 +16,7 @@ Se trató como iteración sobre la misma rama y el mismo PR, no como una fase nu
 
 ## Decisión · Categorías: ampliar el enum existente, no crear un concepto paralelo
 
-`communication_purpose` pasa de 2 a 9 valores (`institutional`, `operational`, `services`, `groups`, `events`, `discipleship`, `kids`, `pastoral`, `system`) vía `ALTER TYPE ... ADD VALUE`, sin recrear la tabla. Postgres no permite usar un valor añadido en la misma transacción que lo crea, así que cualquier función que lo referencie vive en la migración siguiente (`20260931000900` en adelante). `marketing` sigue sin existir: permanece fuera de alcance (A14).
+`communication_purpose` pasa de 2 a 9 valores (`institutional`, `operational`, `services`, `groups`, `events`, `discipleship`, `kids`, `pastoral`, `system`) vía `ALTER TYPE ... ADD VALUE`, sin recrear la tabla. Postgres no permite usar un valor añadido en la misma transacción que lo crea, así que cualquier función que lo referencie vive en la migración siguiente (`20261001000900` en adelante). `marketing` sigue sin existir: permanece fuera de alcance (A14).
 
 `institutional`, `operational` y `system` son **obligatorias**: nunca admiten opt-out, ni por canal ni por categoría. Las 6 restantes son **opcionales**.
 
@@ -57,6 +57,12 @@ Se prepara únicamente lo que no depende de un proveedor: la columna `communicat
 ## Decisión · Núcleo transversal: documentado como contrato, no como wrapper nuevo
 
 `app.create_communication`/`materialize_communication`/`send_communication` ya son RPCs internas reutilizables (ADR 0020). Se deja documentado aquí, explícitamente, que cualquier módulo futuro (Eventos → recordatorio, Serving → cambio de turno, Grupos → convocatoria de reunión, Discipulado → sesión, Kids → aviso a responsable autorizado) debe llamarlas en vez de crear su propio mecanismo de envío masivo. No se construye ningún wrapper específico por módulo en esta iteración: ninguno de esos módulos tiene todavía un caso de uso concreto que lo pida, y un wrapper sin llamador real sería código muerto.
+
+## Nota · Corrección de fecha en el prefijo de migraciones
+
+Las migraciones de esta fase se crearon originalmente con el prefijo `20260931*` para evitar una colisión de numeración al reconciliar con el trabajo de Grupos/Discipulado/Kids que llegó a `main` mientras esta rama estaba en curso. El 31 de septiembre no es una fecha válida — fue un desliz al elegir un número libre por encima de `20260930` (última fecha real usada por el hotfix previo) sin comprobar que septiembre solo tiene 30 días.
+
+No era un identificador secuencial deliberado: el proyecto usa `YYYYMMDDhhmmss`-like real como convención (confirmado contra el resto de `supabase/migrations/`). Corregido antes de pedir el merge a `main`: renombradas a `20261001000100`-`20261001001100` (1 de octubre de 2026, siguiente fecha real libre después del `20260930` de `main`), conservando exactamente el mismo orden relativo y contenido — solo cambia el prefijo del nombre de archivo, ningún cambio de esquema. Verificado antes de renombrar que estas migraciones nunca se aplicaron a ningún entorno compartido: no existen en `main` ni en ninguna otra rama remota, no hay proyecto Supabase enlazado (`supabase link`) desde esta sesión, y el único lugar donde se habían ejecutado es `supabase db reset --local` (efímero) y los runners de CI (también efímeros, se recrean en cada ejecución). Ninguna migración ya aplicada en un entorno real fue modificada ni renombrada.
 
 ## Consecuencias
 

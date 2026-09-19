@@ -8,7 +8,7 @@
 -- ALTER TYPE ... ADD VALUE no puede usarse en la misma transacción en la que
 -- se añade (restricción de Postgres): cualquier función que referencie estos
 -- valores nuevos debe ir en una migración posterior. Por eso esta migración
--- solo amplía el enum; 20260931000900 y 20260931001000 son las que ya pueden
+-- solo amplía el enum; 20261001000900 y 20261001001000 son las que ya pueden
 -- usarlo.
 
 alter type communication_purpose add value 'services';

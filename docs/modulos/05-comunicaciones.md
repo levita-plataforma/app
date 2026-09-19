@@ -1,6 +1,6 @@
 # Módulo Communications
 
-Estado: implementado (Fase 9, incluida la iteración de categorías/OR/unsubscribe). Ver `supabase/migrations/20260931*.sql`, `docs/03-notificaciones.md` §13, `docs/adr/0020-comunicaciones-vs-avisos.md` y `docs/adr/0021-comunicaciones-categorias-or-unsubscribe.md`.
+Estado: implementado (Fase 9, incluida la iteración de categorías/OR/unsubscribe). Ver `supabase/migrations/20261001*.sql`, `docs/03-notificaciones.md` §13, `docs/adr/0020-comunicaciones-vs-avisos.md` y `docs/adr/0021-comunicaciones-categorias-or-unsubscribe.md`.
 
 ## Objetivo
 
@@ -24,6 +24,15 @@ Nombres descartados frente al diseño original de este documento (`messages`, `m
 ## Regla de fuente de verdad
 
 El mensaje interno persistido existe antes del intento externo. Push/email son canales de entrega, no el único registro. Sin proveedor real: quedan en `queued`, nunca se marca `sent` de forma fingida.
+
+## Estado real por canal (no ambiguo)
+
+- **`inapp`**: operativo end-to-end. El destinatario recibe una fila real en la bandeja `notifications`, visible solo para su `person_id`/`church_id`. Verificado con evidencia SQL directa, no solo con el estado de `communication_recipients` (ver "Validación inapp end-to-end" en el informe de cierre).
+- **`email`**: infraestructura, cola y contrato de proveedor preparados (`communication_recipients.status`, `unsubscribe_token`, `failure_kind`); la entrega externa real está bloqueada por A14 — no hay proveedor conectado. Un destinatario de email queda en `queued`, nunca en `sent`.
+- **`push`**: mismo estado que email — infraestructura y cola preparadas, entrega externa bloqueada por A14. No existe tabla de dispositivos/tokens push todavía (ver "Entidades reales" más arriba).
+- **SMS/WhatsApp**: no implementados, ni como cola ni como contrato. Ausencia real, no simulada.
+
+No describir `email`/`push` como canales "reales" o "funcionales" sin esta aclaración: sugeriría entrega externa que hoy no ocurre.
 
 ## Segmentación
 

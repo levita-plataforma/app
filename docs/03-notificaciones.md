@@ -92,7 +92,7 @@ La entrega es asíncrona, con retries y dead-letter/estado fallido. Toda tarea i
 
 ## 13. Implementación real de Comunicaciones (Fase 9)
 
-Estado: implementado, incluida la iteración de categorías/OR/preferencias/unsubscribe. Ver `supabase/migrations/20260931*.sql`, `docs/adr/0020-comunicaciones-vs-avisos.md` y `docs/adr/0021-comunicaciones-categorias-or-unsubscribe.md`.
+Estado: implementado, incluida la iteración de categorías/OR/preferencias/unsubscribe. Ver `supabase/migrations/20261001*.sql`, `docs/adr/0020-comunicaciones-vs-avisos.md` y `docs/adr/0021-comunicaciones-categorias-or-unsubscribe.md`.
 
 ### 13.1 Relación con el motor de avisos (Fase 5)
 

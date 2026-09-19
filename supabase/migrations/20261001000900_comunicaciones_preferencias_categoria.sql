@@ -41,7 +41,7 @@ revoke insert, update, delete, truncate, select on communication_category_prefer
 revoke insert, update, delete, truncate on communication_category_preferences from authenticated;
 
 -- Token opaco de baja, generado solo para destinatarios de categorías
--- opcionales al materializar (ver 20260931001100). Mismo patrón que
+-- opcionales al materializar (ver 20261001001100). Mismo patrón que
 -- registrations.cancel_token (Fase 6): opaco, alta entropía, sin exponer
 -- person_id ni ids secuenciales, comparado por igualdad.
 alter table communication_recipients add column unsubscribe_token text unique;

@@ -28,7 +28,7 @@ import { subtleButtonStyle } from "../ui";
  * Un solo nivel, sin anidamiento: el usuario elige Y (todas las condiciones)
  * u O (alguna condición) para el conjunto completo, nunca mezclado ni
  * anidado. Ver app.validate_segment_rules
- * (supabase/migrations/20260931001000_comunicaciones_or_y_capabilities.sql),
+ * (supabase/migrations/20261001001000_comunicaciones_or_y_capabilities.sql),
  * que solo acepta {"all": [...]} o {"any": [...]}.
  *
  * El campo "group" aparece siempre como opción en el selector de campo,

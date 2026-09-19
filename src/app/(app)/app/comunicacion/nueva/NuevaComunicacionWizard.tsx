@@ -333,6 +333,12 @@ export default function NuevaComunicacionWizard({ churchId, templates, segments,
             </label>
           ))}
         </div>
+        {channels.some((c) => c === "email" || c === "push") ? (
+          <p style={{ fontSize: 12, color: "var(--shell-text-muted)" }}>
+            Correo y notificación push quedan preparados en cola, pero todavía no hay proveedor externo conectado: no
+            se entregan fuera de LEVITA. Solo &quot;Aviso en la app&quot; llega de verdad al destinatario hoy.
+          </p>
+        ) : null}
       </section>
 
       {/* Preview de destinatarios */}

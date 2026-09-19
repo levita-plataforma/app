@@ -4,7 +4,7 @@
 
 Aceptado. Propuesto e implementado el 30 de septiembre de 2026.
 
-Fuente de verdad: migraciones `supabase/migrations/20260931000100_comunicaciones.sql` a `20260931000700_metricas_comunicaciones.sql`. Este ADR solo describe lo que ese SQL hace.
+Fuente de verdad: migraciones `supabase/migrations/20261001000100_comunicaciones.sql` a `20261001000700_metricas_comunicaciones.sql`. Este ADR solo describe lo que ese SQL hace.
 
 Relacionado: [ADR 0013](0013-estrategia-rls.md), [ADR 0014](0014-claves-fk-tenant-safe.md), decisión D16/D21 y A14 (`docs/07-decisiones.md`), `docs/03-notificaciones.md` §13.
 

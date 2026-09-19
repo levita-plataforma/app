@@ -1,6 +1,6 @@
 -- Fase 9 (Diogo) · RLS de comunicaciones, segmentos, plantillas y
 -- destinatarios. Toda escritura pasa por RPC security definer (ver
--- 20260931000600): las políticas de aquí solo cubren lectura directa desde
+-- 20261001000600): las políticas de aquí solo cubren lectura directa desde
 -- el cliente autenticado, y ninguna cubre anon (no hay superficie pública en
 -- esta fase, a diferencia de Fase 6).
 
