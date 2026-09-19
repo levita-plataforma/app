@@ -15,19 +15,21 @@ import { subtleButtonStyle } from "../ui";
  *     "@/app/(app)/app/comunicacion/segmentos/SegmentoRuleBuilder";
  *
  * Contrato de props (controlado, sin fetch interno):
- * - `value`: el estado actual de las reglas, forma { all: SegmentRuleCondition[] }.
- * - `onChange(next)`: se llama con el array de condiciones actualizado cada
- *   vez que el usuario edita una fila, añade o quita una condición. El
- *   padre es quien mantiene el estado (useState) y quien construye el JSON
- *   final { "all": [...] } para enviarlo a un Server Action.
+ * - `value`: el estado actual de las reglas, forma { all: [...] } (Y/AND) o
+ *   { any: [...] } (O/OR) — nunca ambas claves a la vez.
+ * - `onChange(next)`: se llama con las reglas actualizadas cada vez que el
+ *   usuario edita una fila, añade/quita una condición o cambia el modo
+ *   Y/O. El padre es quien mantiene el estado (useState) y quien envía el
+ *   JSON final a un Server Action.
  * - `campuses`, `tags`, `serviceAreas`: listas ya cargadas por el padre
  *   (Server Component) con `supabase.from(...)`, filtradas por
  *   church_id. Este componente NUNCA hace fetch por su cuenta.
  *
- * Solo se soporta el nivel `all` (AND) en esta fase: no hay UI de OR ni de
- * anidamiento, y no debe añadirse sin revisar primero
- * app.validate_segment_rules (supabase/migrations/20260931000600_rpc_comunicaciones.sql),
- * que solo acepta esa forma.
+ * Un solo nivel, sin anidamiento: el usuario elige Y (todas las condiciones)
+ * u O (alguna condición) para el conjunto completo, nunca mezclado ni
+ * anidado. Ver app.validate_segment_rules
+ * (supabase/migrations/20260931001000_comunicaciones_or_y_capabilities.sql),
+ * que solo acepta {"all": [...]} o {"any": [...]}.
  *
  * El campo "group" aparece siempre como opción en el selector de campo,
  * pero deshabilitado ("Disponible próximamente (Fase 7)"): nunca se debe
@@ -44,9 +46,17 @@ export type SegmentRuleCondition = {
   value: string | string[];
 };
 
-export type SegmentRules = {
-  all: SegmentRuleCondition[];
-};
+export type SegmentRulesMode = "all" | "any";
+
+export type SegmentRules =
+  | { all: SegmentRuleCondition[]; any?: never }
+  | { any: SegmentRuleCondition[]; all?: never };
+
+/** Extrae el modo y las condiciones sin asumir cuál de las dos claves trae `rules`. */
+export function getRuleConditions(rules: SegmentRules): { mode: SegmentRulesMode; conditions: SegmentRuleCondition[] } {
+  if ("any" in rules && rules.any) return { mode: "any", conditions: rules.any };
+  return { mode: "all", conditions: rules.all ?? [] };
+}
 
 export type SegmentOption = { id: string; name: string };
 
@@ -112,11 +122,15 @@ export default function SegmentoRuleBuilder({
   tags: SegmentOption[];
   serviceAreas: SegmentOption[];
 }) {
-  const conditions = value.all;
+  const { mode, conditions } = getRuleConditions(value);
+
+  function buildRules(nextMode: SegmentRulesMode, nextConditions: SegmentRuleCondition[]): SegmentRules {
+    return nextMode === "any" ? { any: nextConditions } : { all: nextConditions };
+  }
 
   function updateCondition(index: number, patch: Partial<SegmentRuleCondition>) {
     const next = conditions.map((c, i) => (i === index ? { ...c, ...patch } : c));
-    onChange({ all: next });
+    onChange(buildRules(mode, next));
   }
 
   function handleFieldChange(index: number, field: SegmentField) {
@@ -129,15 +143,43 @@ export default function SegmentoRuleBuilder({
   }
 
   function addCondition() {
-    onChange({ all: [...conditions, newCondition()] });
+    onChange(buildRules(mode, [...conditions, newCondition()]));
   }
 
   function removeCondition(index: number) {
-    onChange({ all: conditions.filter((_, i) => i !== index) });
+    onChange(buildRules(mode, conditions.filter((_, i) => i !== index)));
+  }
+
+  function handleModeChange(nextMode: SegmentRulesMode) {
+    onChange(buildRules(nextMode, conditions));
   }
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+      {conditions.length > 1 ? (
+        <fieldset style={{ border: 0, padding: 0, display: "flex", gap: 16 }}>
+          <legend className="sr-only">Cómo combinar las condiciones</legend>
+          <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 12.5 }}>
+            <input
+              type="radio"
+              name="segment-rules-mode"
+              checked={mode === "all"}
+              onChange={() => handleModeChange("all")}
+            />
+            Cumple todas las condiciones (Y)
+          </label>
+          <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 12.5 }}>
+            <input
+              type="radio"
+              name="segment-rules-mode"
+              checked={mode === "any"}
+              onChange={() => handleModeChange("any")}
+            />
+            Cumple alguna condición (O)
+          </label>
+        </fieldset>
+      ) : null}
+
       {conditions.length === 0 ? (
         <p style={{ fontSize: 12.5, color: "var(--shell-text-muted)" }}>
           Añade al menos una condición para definir el segmento.
@@ -199,12 +241,6 @@ export default function SegmentoRuleBuilder({
       <button type="button" onClick={addCondition} style={{ ...subtleButtonStyle, alignSelf: "flex-start" }}>
         + Añadir condición
       </button>
-
-      {conditions.length > 1 ? (
-        <p style={{ fontSize: 11.5, color: "var(--shell-text-subtle)" }}>
-          Todas las condiciones se combinan con Y (deben cumplirse todas).
-        </p>
-      ) : null}
     </div>
   );
 }

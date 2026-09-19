@@ -1750,6 +1750,52 @@ export type Database = {
           },
         ]
       }
+      communication_category_preferences: {
+        Row: {
+          category: Database["public"]["Enums"]["communication_purpose"]
+          church_id: string
+          opted_out: boolean
+          person_id: string
+          updated_at: string
+        }
+        Insert: {
+          category: Database["public"]["Enums"]["communication_purpose"]
+          church_id: string
+          opted_out?: boolean
+          person_id: string
+          updated_at?: string
+        }
+        Update: {
+          category?: Database["public"]["Enums"]["communication_purpose"]
+          church_id?: string
+          opted_out?: boolean
+          person_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "communication_category_preferences_church_id_fkey"
+            columns: ["church_id"]
+            isOneToOne: false
+            referencedRelation: "churches"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "communication_category_preferences_church_id_person_id_fkey"
+            columns: ["church_id", "person_id"]
+            isOneToOne: false
+            referencedRelation: "church_people"
+            referencedColumns: ["church_id", "person_id"]
+          },
+          {
+            foreignKeyName: "communication_category_preferences_person_id_fkey"
+            columns: ["person_id"]
+            isOneToOne: false
+            referencedRelation: "people"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       communication_recipients: {
         Row: {
           attempt_count: number
@@ -1760,10 +1806,14 @@ export type Database = {
           excluded_reason: string | null
           failed_at: string | null
           failure_code: string | null
+          failure_kind:
+            | Database["public"]["Enums"]["communication_failure_kind"]
+            | null
           id: string
           person_id: string
           sent_at: string | null
           status: Database["public"]["Enums"]["communication_recipient_status"]
+          unsubscribe_token: string | null
           updated_at: string
         }
         Insert: {
@@ -1775,10 +1825,14 @@ export type Database = {
           excluded_reason?: string | null
           failed_at?: string | null
           failure_code?: string | null
+          failure_kind?:
+            | Database["public"]["Enums"]["communication_failure_kind"]
+            | null
           id?: string
           person_id: string
           sent_at?: string | null
           status?: Database["public"]["Enums"]["communication_recipient_status"]
+          unsubscribe_token?: string | null
           updated_at?: string
         }
         Update: {
@@ -1790,10 +1844,14 @@ export type Database = {
           excluded_reason?: string | null
           failed_at?: string | null
           failure_code?: string | null
+          failure_kind?:
+            | Database["public"]["Enums"]["communication_failure_kind"]
+            | null
           id?: string
           person_id?: string
           sent_at?: string | null
           status?: Database["public"]["Enums"]["communication_recipient_status"]
+          unsubscribe_token?: string | null
           updated_at?: string
         }
         Relationships: [
@@ -7345,6 +7403,13 @@ export type Database = {
           title: string
         }[]
       }
+      list_my_communication_category_preferences: {
+        Args: { p_church_id: string }
+        Returns: {
+          category: Database["public"]["Enums"]["communication_purpose"]
+          opted_out: boolean
+        }[]
+      }
       list_my_notifications: {
         Args: { p_church_id: string; p_limit?: number; p_only_unread?: boolean }
         Returns: {
@@ -7674,6 +7739,14 @@ export type Database = {
         Args: { p_archived: boolean; p_template_id: string }
         Returns: undefined
       }
+      set_communication_category_preference: {
+        Args: {
+          p_category: Database["public"]["Enums"]["communication_purpose"]
+          p_church_id: string
+          p_opted_out: boolean
+        }
+        Returns: undefined
+      }
       set_course_archived: {
         Args: { p_archived: boolean; p_course_id: string }
         Returns: undefined
@@ -7751,6 +7824,7 @@ export type Database = {
           attendee_id: string
         }[]
       }
+      unsubscribe_by_token: { Args: { p_token: string }; Returns: Json }
       update_activity: {
         Args: { p_activity_id: string; p_input: Json }
         Returns: Json
@@ -7777,6 +7851,17 @@ export type Database = {
       }
       update_cohort: {
         Args: { p_cohort_id: string; p_input: Json }
+        Returns: undefined
+      }
+      update_communication: {
+        Args: {
+          p_body_template?: string
+          p_channels?: Database["public"]["Enums"]["notification_channel"][]
+          p_communication_id: string
+          p_purpose?: Database["public"]["Enums"]["communication_purpose"]
+          p_subject?: string
+          p_title?: string
+        }
         Returns: undefined
       }
       update_group: {
@@ -7868,7 +7953,17 @@ export type Database = {
         | "suspended"
         | "cancelling"
         | "archived"
-      communication_purpose: "institutional" | "operational"
+      communication_failure_kind: "temporary" | "permanent"
+      communication_purpose:
+        | "institutional"
+        | "operational"
+        | "services"
+        | "groups"
+        | "events"
+        | "discipleship"
+        | "kids"
+        | "pastoral"
+        | "system"
       communication_recipient_status:
         | "pending"
         | "queued"
@@ -8221,7 +8316,18 @@ export const Constants = {
         "cancelling",
         "archived",
       ],
-      communication_purpose: ["institutional", "operational"],
+      communication_failure_kind: ["temporary", "permanent"],
+      communication_purpose: [
+        "institutional",
+        "operational",
+        "services",
+        "groups",
+        "events",
+        "discipleship",
+        "kids",
+        "pastoral",
+        "system",
+      ],
       communication_recipient_status: [
         "pending",
         "queued",

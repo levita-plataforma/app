@@ -7,7 +7,7 @@ import {
   previsualizarSegmentoAction,
   type SegmentosState,
 } from "./actions";
-import SegmentoRuleBuilder, { type SegmentRules, type SegmentOption } from "./SegmentoRuleBuilder";
+import SegmentoRuleBuilder, { getRuleConditions, type SegmentRules, type SegmentOption } from "./SegmentoRuleBuilder";
 import { authInputStyle, authLabelStyle } from "@/components/shell/AuthCard";
 import { primaryButtonStyle, secondaryButtonStyle } from "../ui";
 import type { CommunicationSegment, SegmentPreview } from "@/server/communications/communications-service";
@@ -25,6 +25,10 @@ const EXCLUSION_REASON_LABELS: Record<string, string> = {
 
 function formatDate(value: string): string {
   return new Date(value).toLocaleDateString("es-ES");
+}
+
+function countSegmentConditions(rules: CommunicationSegment["rules"]): number {
+  return "any" in rules && rules.any ? rules.any.length : rules.all?.length ?? 0;
 }
 
 export default function SegmentosManager({
@@ -104,7 +108,8 @@ export default function SegmentosManager({
                   <p style={{ fontSize: 13.5, fontWeight: 600 }}>{segment.name}</p>
                   <p style={{ fontSize: 12, color: "var(--shell-text-muted)", marginTop: 2 }}>
                     {segment.description ? `${segment.description} · ` : ""}
-                    {segment.rules.all.length} condición{segment.rules.all.length === 1 ? "" : "es"} ·{" "}
+                    {countSegmentConditions(segment.rules)} condición
+                    {countSegmentConditions(segment.rules) === 1 ? "" : "es"} ·{" "}
                     {formatDate(segment.createdAt)}
                   </p>
                 </div>
@@ -172,7 +177,7 @@ export default function SegmentosManager({
             <button
               type="button"
               onClick={handlePreview}
-              disabled={previewPending || rules.all.length === 0}
+              disabled={previewPending || getRuleConditions(rules).conditions.length === 0}
               style={secondaryButtonStyle(previewPending)}
             >
               {previewPending ? "Calculando…" : "Ver destinatarios estimados"}

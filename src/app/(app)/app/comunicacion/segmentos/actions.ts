@@ -7,6 +7,7 @@ import {
   createCommunicationSegment,
   archiveCommunicationSegment,
   previewCommunicationSegment,
+  getSegmentConditions,
   type CommunicationChannel,
   type SegmentPreview,
   type SegmentRulesJson,
@@ -20,7 +21,8 @@ function parseRulesFromForm(formData: FormData): SegmentRulesJson | null {
   if (!raw) return null;
   try {
     const parsed = JSON.parse(raw);
-    if (!parsed || typeof parsed !== "object" || !Array.isArray(parsed.all)) return null;
+    if (!parsed || typeof parsed !== "object") return null;
+    if (!Array.isArray(parsed.all) && !Array.isArray(parsed.any)) return null;
     return parsed as SegmentRulesJson;
   } catch {
     return null;
@@ -38,7 +40,7 @@ export async function crearSegmentoAction(
   const rules = parseRulesFromForm(formData);
 
   if (!name) return { error: "El nombre es obligatorio." };
-  if (!rules || rules.all.length === 0) {
+  if (!rules || getSegmentConditions(rules).conditions.length === 0) {
     return { error: "Añade al menos una condición para el segmento." };
   }
 

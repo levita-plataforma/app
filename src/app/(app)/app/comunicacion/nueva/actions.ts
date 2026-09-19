@@ -11,6 +11,7 @@ import {
   sendCommunication,
   scheduleCommunication,
   previewCommunicationSegment,
+  getSegmentConditions,
   type CommunicationChannel,
   type CommunicationPurpose,
   type SegmentPreview,
@@ -46,7 +47,8 @@ function parseRules(formData: FormData): SegmentRulesJson | null {
   if (!raw) return null;
   try {
     const parsed = JSON.parse(raw);
-    if (!parsed || typeof parsed !== "object" || !Array.isArray(parsed.all)) return null;
+    if (!parsed || typeof parsed !== "object") return null;
+    if (!Array.isArray(parsed.all) && !Array.isArray(parsed.any)) return null;
     return parsed as SegmentRulesJson;
   } catch {
     return null;
@@ -88,7 +90,7 @@ export async function crearYEnviarAction(
 
   if (!title) return { error: "El título es obligatorio." };
   if (!bodyTemplate) return { error: "El cuerpo del mensaje es obligatorio." };
-  if (!rules || rules.all.length === 0) return { error: "Define al menos una condición de audiencia." };
+  if (!rules || getSegmentConditions(rules).conditions.length === 0) return { error: "Define al menos una condición de audiencia." };
   if (channels.length === 0) return { error: "Selecciona al menos un canal disponible." };
 
   let communicationId: string;
@@ -141,7 +143,7 @@ export async function crearYProgramarAction(
 
   if (!title) return { error: "El título es obligatorio." };
   if (!bodyTemplate) return { error: "El cuerpo del mensaje es obligatorio." };
-  if (!rules || rules.all.length === 0) return { error: "Define al menos una condición de audiencia." };
+  if (!rules || getSegmentConditions(rules).conditions.length === 0) return { error: "Define al menos una condición de audiencia." };
   if (channels.length === 0) return { error: "Selecciona al menos un canal disponible." };
   if (!scheduledAtLocal) return { error: "Indica fecha y hora de envío." };
 

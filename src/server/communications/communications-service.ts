@@ -15,8 +15,44 @@ import { toDomainError } from "@/server/activities/rpc";
  * funciones de forma aditiva, sin borrar lo que ya exista.
  */
 
-export const COMMUNICATION_PURPOSES = ["institutional", "operational"] as const;
+export const COMMUNICATION_PURPOSES = [
+  "institutional",
+  "operational",
+  "services",
+  "groups",
+  "events",
+  "discipleship",
+  "kids",
+  "pastoral",
+  "system",
+] as const;
 export type CommunicationPurpose = (typeof COMMUNICATION_PURPOSES)[number];
+
+/** Categorías obligatorias: nunca admiten opt-out (communication_category_preferences las rechaza). */
+export const MANDATORY_COMMUNICATION_PURPOSES = ["institutional", "operational", "system"] as const;
+
+/** Categorías opcionales: sujetas a communication_category_preferences (opt-out por persona). */
+export const OPTIONAL_COMMUNICATION_PURPOSES = [
+  "services",
+  "groups",
+  "events",
+  "discipleship",
+  "kids",
+  "pastoral",
+] as const;
+export type OptionalCommunicationPurpose = (typeof OPTIONAL_COMMUNICATION_PURPOSES)[number];
+
+export const COMMUNICATION_PURPOSE_LABELS: Record<CommunicationPurpose, string> = {
+  institutional: "Institucional",
+  operational: "Operativa",
+  services: "Servicios",
+  groups: "Grupos",
+  events: "Eventos",
+  discipleship: "Discipulado",
+  kids: "Niños",
+  pastoral: "Pastoral",
+  system: "Sistema",
+};
 
 export const COMMUNICATION_STATUSES = [
   "draft",
@@ -266,9 +302,18 @@ export type SegmentRuleConditionJson = {
   value: unknown;
 };
 
-export type SegmentRulesJson = {
-  all: SegmentRuleConditionJson[];
-};
+/** {"all": [...]} = AND, {"any": [...]} = OR. Nunca ambos a la vez, nunca anidado. */
+export type SegmentRulesJson =
+  | { all: SegmentRuleConditionJson[]; any?: never }
+  | { any: SegmentRuleConditionJson[]; all?: never };
+
+export type SegmentRulesMode = "all" | "any";
+
+/** Extrae las condiciones y el modo (AND/OR) de un SegmentRulesJson, sin asumir cuál de las dos claves trae. */
+export function getSegmentConditions(rules: SegmentRulesJson): { mode: SegmentRulesMode; conditions: SegmentRuleConditionJson[] } {
+  if ("any" in rules && rules.any) return { mode: "any", conditions: rules.any };
+  return { mode: "all", conditions: rules.all ?? [] };
+}
 
 type SegmentRow = {
   id: string;
@@ -519,11 +564,78 @@ export async function scheduleCommunication(communicationId: string, scheduledAt
   if (error) throw toDomainError(error, "No se pudo programar la comunicación.");
 }
 
-/** Cancela una comunicación en borrador o programada (app.cancel_communication). */
+/** Cancela una comunicación en borrador o programada (app.cancel_communication, requiere communications.cancel). */
 export async function cancelCommunication(communicationId: string): Promise<void> {
   const supabase = await createSupabaseServerClient();
   const { error } = await supabase.rpc("cancel_communication", { p_communication_id: communicationId });
   if (error) throw toDomainError(error, "No se pudo cancelar la comunicación.");
+}
+
+export type UpdateCommunicationInput = {
+  title?: string;
+  subject?: string;
+  bodyTemplate?: string;
+  purpose?: CommunicationPurpose;
+  channels?: CommunicationChannel[];
+};
+
+/** Edita una comunicación en borrador (app.update_communication, requiere communications.update). */
+export async function updateCommunication(communicationId: string, input: UpdateCommunicationInput): Promise<void> {
+  const supabase = await createSupabaseServerClient();
+  const { error } = await supabase.rpc("update_communication", {
+    p_communication_id: communicationId,
+    p_title: input.title ?? null,
+    p_subject: input.subject ?? null,
+    p_body_template: input.bodyTemplate ?? null,
+    p_purpose: input.purpose ?? null,
+    p_channels: input.channels ?? null,
+  });
+  if (error) throw toDomainError(error, "No se pudo actualizar la comunicación.");
+}
+
+// ---------------------------------------------------------------------------
+// Preferencias por categoría opcional (communication_category_preferences)
+// ---------------------------------------------------------------------------
+
+export type CategoryPreference = { category: OptionalCommunicationPurpose; optedOut: boolean };
+
+/** Preferencias de la persona autenticada para las categorías opcionales. */
+export async function listMyCommunicationCategoryPreferences(churchId: string): Promise<CategoryPreference[]> {
+  const supabase = await createSupabaseServerClient();
+  const { data, error } = await supabase.rpc("list_my_communication_category_preferences", { p_church_id: churchId });
+  if (error) throw toDomainError(error, "No se pudieron cargar tus preferencias de comunicación.");
+  return ((data ?? []) as { category: OptionalCommunicationPurpose; opted_out: boolean }[]).map((row) => ({
+    category: row.category,
+    optedOut: row.opted_out,
+  }));
+}
+
+/** Cambia la preferencia de la persona autenticada para una categoría opcional. */
+export async function setCommunicationCategoryPreference(
+  churchId: string,
+  category: OptionalCommunicationPurpose,
+  optedOut: boolean,
+): Promise<void> {
+  const supabase = await createSupabaseServerClient();
+  const { error } = await supabase.rpc("set_communication_category_preference", {
+    p_church_id: churchId,
+    p_category: category,
+    p_opted_out: optedOut,
+  });
+  if (error) throw toDomainError(error, "No se pudo guardar tu preferencia.");
+}
+
+/**
+ * Consume un token de baja (enlace público, sin sesión). Se usa desde una
+ * página pública fuera de (app), con el cliente normal (anon): la RPC está
+ * concedida a anon a propósito (app.unsubscribe_by_token).
+ */
+export async function unsubscribeByToken(token: string): Promise<{ category: CommunicationPurpose }> {
+  const supabase = await createSupabaseServerClient();
+  const { data, error } = await supabase.rpc("unsubscribe_by_token", { p_token: token });
+  if (error) throw toDomainError(error, "El enlace de baja no es válido o ya se usó.");
+  const result = (data ?? {}) as { category?: CommunicationPurpose };
+  return { category: result.category ?? "institutional" };
 }
 
 // ---------------------------------------------------------------------------

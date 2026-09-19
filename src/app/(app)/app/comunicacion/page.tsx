@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { Send, Clock3, FileText, AlertTriangle, Plus, LayoutTemplate, Users2 } from "lucide-react";
+import { Send, Clock3, FileText, AlertTriangle, Plus, LayoutTemplate, Users2, SlidersHorizontal } from "lucide-react";
 import StatCard from "@/components/shell/StatCard";
 import { requireTenantContext } from "@/server/tenant/tenant-context";
 import { hasCapability } from "@/server/tenant/authorize";
@@ -86,6 +86,9 @@ export default async function ComunicacionPage() {
         </Link>
         <Link href="/app/comunicacion/segmentos" style={secondaryButtonStyle()}>
           <Users2 size={14} /> Segmentos
+        </Link>
+        <Link href="/app/comunicacion/preferencias" style={secondaryButtonStyle()}>
+          <SlidersHorizontal size={14} /> Preferencias
         </Link>
       </section>
 

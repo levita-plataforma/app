@@ -4,7 +4,7 @@ import { useActionState, useMemo, useState, useTransition } from "react";
 import Link from "next/link";
 import { authInputStyle, authLabelStyle } from "@/components/shell/AuthCard";
 import { primaryButtonStyle, secondaryButtonStyle } from "../ui";
-import SegmentoRuleBuilder, { type SegmentOption, type SegmentRules } from "../segmentos/SegmentoRuleBuilder";
+import SegmentoRuleBuilder, { getRuleConditions, type SegmentOption, type SegmentRules } from "../segmentos/SegmentoRuleBuilder";
 import {
   crearYEnviarAction,
   crearYProgramarAction,
@@ -32,6 +32,36 @@ const EMPTY_RULES: SegmentRules = { all: [] };
 const EXCLUSION_REASON_LABELS: Record<string, string> = {
   sin_email: "Sin correo registrado",
   opt_out_email: "Ha desactivado los avisos por correo",
+};
+
+/**
+ * Duplicado a propósito de COMMUNICATION_PURPOSES/COMMUNICATION_PURPOSE_LABELS
+ * (communications-service.ts, "server-only"): ese módulo no puede
+ * importarse en este componente cliente. "system" se excluye porque es una
+ * finalidad reservada a comunicaciones generadas por el propio sistema, no
+ * seleccionable a mano.
+ */
+const SELECTABLE_PURPOSES: Exclude<CommunicationPurpose, "system">[] = [
+  "institutional",
+  "operational",
+  "services",
+  "groups",
+  "events",
+  "discipleship",
+  "kids",
+  "pastoral",
+];
+
+const PURPOSE_LABELS: Record<CommunicationPurpose, string> = {
+  institutional: "Institucional",
+  operational: "Operativa",
+  services: "Servicios",
+  groups: "Grupos",
+  events: "Eventos",
+  discipleship: "Discipulado",
+  kids: "Niños",
+  pastoral: "Pastoral",
+  system: "Sistema",
 };
 
 const CHANNEL_OPTIONS: { value: CommunicationChannel; label: string; disabled?: boolean }[] = [
@@ -90,7 +120,7 @@ export default function NuevaComunicacionWizard({ churchId, templates, segments,
   }
 
   function handlePreview() {
-    if (effectiveRules.all.length === 0 || channels.length === 0) return;
+    if (getRuleConditions(effectiveRules).conditions.length === 0 || channels.length === 0) return;
     setPreviewError(null);
     startPreview(async () => {
       const result = await previsualizarDestinatariosAction(churchId, effectiveRules, channels);
@@ -131,7 +161,7 @@ export default function NuevaComunicacionWizard({ churchId, templates, segments,
   }
 
   const canSubmit = Boolean(
-    title.trim() && bodyTemplate.trim() && effectiveRules.all.length > 0 && channels.length > 0 &&
+    title.trim() && bodyTemplate.trim() && getRuleConditions(effectiveRules).conditions.length > 0 && channels.length > 0 &&
       (sendMode === "now" ? true : Boolean(scheduledAt)),
   );
 
@@ -168,8 +198,11 @@ export default function NuevaComunicacionWizard({ churchId, templates, segments,
               onChange={(e) => setPurpose(e.target.value as CommunicationPurpose)}
               style={{ ...authInputStyle, minHeight: 44 }}
             >
-              <option value="institutional">Institucional</option>
-              <option value="operational">Operativa</option>
+              {SELECTABLE_PURPOSES.map((p) => (
+                <option key={p} value={p}>
+                  {PURPOSE_LABELS[p]}
+                </option>
+              ))}
             </select>
           </div>
 
@@ -308,7 +341,7 @@ export default function NuevaComunicacionWizard({ churchId, templates, segments,
         <button
           type="button"
           onClick={handlePreview}
-          disabled={previewPending || effectiveRules.all.length === 0 || channels.length === 0}
+          disabled={previewPending || getRuleConditions(effectiveRules).conditions.length === 0 || channels.length === 0}
           style={{ ...secondaryButtonStyle(previewPending), alignSelf: "flex-start" }}
         >
           {previewPending ? "Calculando…" : "Ver destinatarios"}

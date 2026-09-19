@@ -6,7 +6,7 @@
 -- communication_recipients inalcanzable por select directo.
 
 begin;
-select plan(38);
+select plan(50);
 
 create or replace function test_set_auth_uid(p_uid uuid) returns void as $$
 begin
@@ -64,6 +64,12 @@ $$ language sql security definer;
 create or replace function tr_reason(p_communication uuid, p_person uuid, p_channel notification_channel)
 returns text as $$
   select excluded_reason from communication_recipients
+  where communication_id = p_communication and person_id = p_person and channel = p_channel;
+$$ language sql security definer;
+
+create or replace function tr_unsubscribe_token(p_communication uuid, p_person uuid, p_channel notification_channel)
+returns text as $$
+  select unsubscribe_token from communication_recipients
   where communication_id = p_communication and person_id = p_person and channel = p_channel;
 $$ language sql security definer;
 
@@ -507,6 +513,150 @@ select is(
   t_err($$ select count(*) from communication_recipients $$),
   '42501',
   'authenticated no puede leer communication_recipients directamente (sin política de select)'
+);
+
+reset role;
+
+-- ============================================================
+-- 13. Segmentación con OR ({"any": [...]})
+-- ============================================================
+select test_set_auth_uid('79000000-0000-0000-0000-000000000001');
+
+select is(
+  (select array_agg(person_id order by person_id) from app.resolve_segment_recipients(
+    t_id('church_a'), jsonb_build_object('any', jsonb_build_array(
+      jsonb_build_object('field', 'relationship', 'op', 'eq', 'value', 'server'),
+      jsonb_build_object('field', 'tags', 'op', 'contains', 'value', t_id('tag_lider'))
+    ))
+  )),
+  array['79000000-0000-0000-0000-0000000e0001'::uuid, '79000000-0000-0000-0000-0000000e0002'::uuid],
+  '{"any": [...]} (OR) devuelve la unión: Beto (server) y Ana (tag lider), no la intersección'
+);
+
+select is(
+  t_err($$ select app.validate_segment_rules('{"all":[{"field":"relationship","op":"eq","value":"member"}], "any":[{"field":"relationship","op":"eq","value":"server"}]}'::jsonb) $$),
+  '22023',
+  'No se admite "all" y "any" a la vez en el mismo objeto de reglas'
+);
+
+-- ============================================================
+-- 14. Categorías opcionales, opt-out y unsubscribe por token
+-- ============================================================
+-- Se usa church_b (no church_a, ya al límite de creación por hora del test
+-- de la sección 10) con dos personas nuevas: Eva (se da de baja de
+-- "events") y Fer (no se da de baja).
+reset role;
+insert into auth.users (id, email) values
+  ('79000000-0000-0000-0000-000000000007', 'eva.c9@example.test'),
+  ('79000000-0000-0000-0000-000000000008', 'fer.c9@example.test');
+insert into people (id, first_name, email, user_id, source) values
+  ('79000000-0000-0000-0000-0000000e0007', 'Eva', 'eva@example.test', '79000000-0000-0000-0000-000000000007', 'manual'),
+  ('79000000-0000-0000-0000-0000000e0008', 'Fer', 'fer@example.test', '79000000-0000-0000-0000-000000000008', 'manual');
+insert into church_people (church_id, person_id, relationship, source) values
+  (t_id('church_b'), '79000000-0000-0000-0000-0000000e0007', 'member', 'manual'),
+  (t_id('church_b'), '79000000-0000-0000-0000-0000000e0008', 'member', 'manual');
+
+select test_set_auth_uid('79000000-0000-0000-0000-000000000007');
+select app.set_communication_category_preference(t_id('church_b'), 'events', true);
+reset role;
+
+select test_set_auth_uid('79000000-0000-0000-0000-000000000002');
+select t_set('comm_cat', (select app.create_communication(
+  t_id('church_b'), 'Recordatorio evento C9', 'events', null, 'Hola {{first_name}}',
+  array['inapp', 'email']::notification_channel[],
+  jsonb_build_object('all', jsonb_build_array(jsonb_build_object('field', 'relationship', 'op', 'eq', 'value', 'member')))
+))::text);
+select app.materialize_communication(t_id('comm_cat'));
+reset role;
+
+select is(
+  tr_status(t_id('comm_cat'), '79000000-0000-0000-0000-0000000e0007', 'email'),
+  'suppressed',
+  'Eva (opt-out de "events") queda suppressed en email'
+);
+
+select is(
+  tr_status(t_id('comm_cat'), '79000000-0000-0000-0000-0000000e0007', 'inapp'),
+  'pending',
+  'El opt-out de categoría opcional NO suprime el canal inapp: la bandeja interna sigue registrando el aviso'
+);
+
+select is(
+  tr_status(t_id('comm_cat'), '79000000-0000-0000-0000-0000000e0008', 'email'),
+  'pending',
+  'Fer no se dio de baja de "events": queda pending en email (categoría opcional sin opt-out)'
+);
+
+select ok(
+  tr_unsubscribe_token(t_id('comm_cat'), '79000000-0000-0000-0000-0000000e0008', 'email') is not null,
+  'Se genera un unsubscribe_token para el email de una categoría opcional sin opt-out'
+);
+
+-- institutional (obligatoria) nunca genera token ni consulta la tabla de opt-out.
+select test_set_auth_uid('79000000-0000-0000-0000-000000000002');
+select t_set('comm_inst', (select app.create_communication(
+  t_id('church_b'), 'Comunicado institucional C9', 'institutional', null, 'Hola {{first_name}}',
+  array['inapp', 'email']::notification_channel[],
+  jsonb_build_object('all', jsonb_build_array(jsonb_build_object('field', 'relationship', 'op', 'eq', 'value', 'member')))
+))::text);
+select app.materialize_communication(t_id('comm_inst'));
+reset role;
+
+select ok(
+  tr_unsubscribe_token(t_id('comm_inst'), '79000000-0000-0000-0000-0000000e0008', 'email') is null,
+  'institutional (obligatoria) nunca genera unsubscribe_token'
+);
+
+-- Consumir el token real de baja, sin sesión (anon), como llegaría desde el
+-- enlace del correo.
+select test_set_anon();
+
+select ok(
+  (app.unsubscribe_by_token(tr_unsubscribe_token(t_id('comm_cat'), '79000000-0000-0000-0000-0000000e0008', 'email')) ->> 'category') = 'events',
+  'unsubscribe_by_token funciona sin sesión (anon) y devuelve la categoría dada de baja'
+);
+
+select is(
+  t_err($$ select app.unsubscribe_by_token('token-que-no-existe-nunca') $$),
+  'P0002',
+  'Un token inexistente/ya usado se rechaza con RESOURCE_NOT_FOUND'
+);
+
+reset role;
+
+select is(
+  (select opted_out from communication_category_preferences
+   where church_id = t_id('church_b') and person_id = '79000000-0000-0000-0000-0000000e0008' and category = 'events'),
+  true,
+  'El token de baja marcó opted_out=true para Fer en la categoría "events"'
+);
+
+-- ============================================================
+-- 15. Aislamiento tenant del unsubscribe por token
+-- ============================================================
+-- El token de Fer (church_b) nunca debe aparecer con church_id = church_a.
+select is(
+  (select count(*)::int from communication_recipients
+   where unsubscribe_token = tr_unsubscribe_token(t_id('comm_cat'), '79000000-0000-0000-0000-0000000e0008', 'email')
+     and church_id = t_id('church_a')),
+  0,
+  'Un unsubscribe_token de la iglesia B nunca aparece bajo church_id de la iglesia A'
+);
+
+-- ============================================================
+-- 16. Capability communications.cancel separada de communications.schedule
+-- ============================================================
+select test_set_auth_uid('79000000-0000-0000-0000-000000000002');
+
+select t_set('comm_to_cancel', (select app.create_communication(
+  t_id('church_b'), 'Para cancelar', 'institutional', null, 'Hola {{first_name}}',
+  array['inapp']::notification_channel[],
+  jsonb_build_object('all', jsonb_build_array(jsonb_build_object('field', 'relationship', 'op', 'eq', 'value', 'member')))
+))::text);
+
+select ok(
+  t_err(format($$ select app.cancel_communication(%L) $$, t_id('comm_to_cancel'))) = 'ok',
+  'church_owner (con communications.cancel) puede cancelar una comunicación en draft'
 );
 
 reset role;
