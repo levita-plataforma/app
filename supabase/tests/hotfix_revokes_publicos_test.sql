@@ -18,10 +18,18 @@ select is(
      and exists (
        select 1 from pg_proc a
        where a.pronamespace = 'app'::regnamespace and a.proname = p.proname
-     )),
-  array['cancel_registration_by_token', 'event_registration_status',
-        'register_for_event', 'submit_marketing_lead'],
-  'En public, anon solo alcanza los wrappers de la superficie pública declarada'
+     )
+     and p.proname <> all (array[
+       -- Superficie pública declarada. Puede nombrar funciones que todavía no
+       -- existen: lo que se comprueba es que no haya nada fuera de aquí.
+       'register_for_event',            -- alta pública a un evento
+       'cancel_registration_by_token',  -- cancelación por enlace del correo
+       'event_registration_status',     -- plazas y estado del evento público
+       'submit_marketing_lead',         -- formulario de contacto de la web
+       'unsubscribe_by_token'           -- baja por enlace del correo (Fase 9)
+     ])),
+  array[]::text[],
+  'En public, anon no alcanza ningún wrapper fuera de la superficie pública declarada'
 );
 
 -- 2. En app, anon solo alcanza lo que la superficie pública necesita de verdad.
@@ -32,9 +40,16 @@ select is(
    join pg_namespace n on n.oid = p.pronamespace and n.nspname = 'app'
    where has_function_privilege('anon', p.oid, 'execute')
      and p.prosecdef
-     and pg_get_function_result(p.oid) <> 'trigger'),
-  array['can_read_event_public', 'cancel_registration_by_token', 'register_for_event', 'submit_marketing_lead'],
-  'En app, anon solo alcanza las funciones security definer de la superficie pública'
+     and pg_get_function_result(p.oid) <> 'trigger'
+     and p.proname <> all (array[
+       'register_for_event',
+       'cancel_registration_by_token',
+       'can_read_event_public',         -- la usa RLS para la lectura pública
+       'submit_marketing_lead',
+       'unsubscribe_by_token'           -- Fase 9
+     ])),
+  array[]::text[],
+  'En app, anon no alcanza ninguna función definer fuera de la superficie pública'
 );
 
 -- 3. Lo que se revoca sigue estando al alcance de quien lo usa: revocar de
