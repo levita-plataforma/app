@@ -485,7 +485,7 @@ select is(
 -- ============================================================
 -- 9. Límite de abuso dentro de la RPC (F-06)
 -- ============================================================
--- Por correo normalizado y evento: el uso legítimo es 1, se toleran 5.
+-- Por correo normalizado y evento: el uso legítimo es 1, se toleran 10.
 select t_bulk_register('76000000-0000-0000-0000-0000000b0004', 4, 'aforo-previo');
 
 select is(
@@ -493,28 +493,31 @@ select is(
     select app.register_for_event(
       '76000000-0000-0000-0000-0000000b0004', 'individual', 'Machacón', 'machacon@example.test',
       null, null, '[]'::jsonb, '[]'::jsonb, '[]'::jsonb, 'idem-machacon-' || g)
-    from generate_series(1, 5) g
+    from generate_series(1, 10) g
   ) s),
-  5,
-  'Cinco inscripciones con el mismo correo al mismo evento pasan'
+  10,
+  'Diez inscripciones con el mismo correo al mismo evento pasan'
 );
 
 select is(
   t_err($$ select * from app.register_for_event(
     '76000000-0000-0000-0000-0000000b0004', 'individual', 'Machacón', 'MACHACON@example.test',
-    null, null, '[]'::jsonb, '[]'::jsonb, '[]'::jsonb, 'idem-machacon-6') $$),
+    null, null, '[]'::jsonb, '[]'::jsonb, '[]'::jsonb, 'idem-machacon-11') $$),
   '53400',
-  'La sexta con el mismo correo (normalizado) se corta dentro de la RPC (F-06)'
+  'La undécima con el mismo correo (normalizado) se corta dentro de la RPC (F-06)'
 );
 
--- Por evento y ventana temporal: 50 altas públicas cada 10 minutos.
-select t_bulk_register('76000000-0000-0000-0000-0000000b0004', 41, 'tromba');
+-- Por evento y ventana temporal: 200 altas públicas cada 10 minutos. El límite
+-- se subió desde 50 porque una apertura de inscripciones anunciada a la vez
+-- llega en tromba y rechazaba a gente real; el que sostiene la defensa es el de
+-- por correo, que exigiría 200 buzones válidos en diez minutos.
+select t_bulk_register('76000000-0000-0000-0000-0000000b0004', 186, 'tromba');
 
 reset role;
 select is(
   (select count(*)::int from registrations where event_id = '76000000-0000-0000-0000-0000000b0004'),
-  50,
-  'El evento acumula ya 50 inscripciones públicas en la ventana'
+  200,
+  'El evento acumula ya 200 inscripciones públicas en la ventana'
 );
 
 select test_set_anon();
@@ -523,7 +526,7 @@ select is(
     '76000000-0000-0000-0000-0000000b0004', 'individual', 'Gota', 'gota@example.test',
     null, null, '[]'::jsonb, '[]'::jsonb, '[]'::jsonb, 'idem-gota') $$),
   '53400',
-  'La inscripción 51 del evento se corta: el límite vive en la RPC, no solo en la Server Action (F-06)'
+  'La inscripción 201 del evento se corta: el límite vive en la RPC, no solo en la Server Action (F-06)'
 );
 
 reset role;
