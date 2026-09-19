@@ -1,6 +1,6 @@
 # Funcionamiento de LEVITA y normas de trabajo
 
-Fecha de revisión: 16 de septiembre de 2026. Código de referencia: `e5679ca`.
+Fecha de revisión: 19 de septiembre de 2026. Código de referencia: `3c724d4`.
 Repositorio: https://github.com/levita-plataforma/app
 
 ## 1. Regla principal: validación por fase
