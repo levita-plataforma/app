@@ -7699,6 +7699,14 @@ export type Database = {
         Args: { p_church_id: string; p_input: Json; p_template_id: string }
         Returns: string
       }
+      save_communication_segment: {
+        Args: { p_church_id: string; p_input: Json }
+        Returns: string
+      }
+      save_communication_template: {
+        Args: { p_church_id: string; p_input: Json }
+        Returns: string
+      }
       save_course: {
         Args: { p_church_id: string; p_input: Json }
         Returns: string
@@ -7745,6 +7753,14 @@ export type Database = {
           p_church_id: string
           p_opted_out: boolean
         }
+        Returns: undefined
+      }
+      set_communication_segment_archived: {
+        Args: { p_archived: boolean; p_segment_id: string }
+        Returns: undefined
+      }
+      set_communication_template_archived: {
+        Args: { p_archived: boolean; p_template_id: string }
         Returns: undefined
       }
       set_course_archived: {
@@ -7975,6 +7991,7 @@ export type Database = {
         | "draft"
         | "scheduled"
         | "processing"
+        | "queued"
         | "sent"
         | "partially_sent"
         | "failed"
@@ -8340,6 +8357,7 @@ export const Constants = {
         "draft",
         "scheduled",
         "processing",
+        "queued",
         "sent",
         "partially_sent",
         "failed",

@@ -6,7 +6,7 @@
 -- communication_recipients inalcanzable por select directo.
 
 begin;
-select plan(50);
+select plan(51);
 
 create or replace function test_set_auth_uid(p_uid uuid) returns void as $$
 begin
@@ -170,7 +170,13 @@ select is(
 -- ============================================================
 -- 2. Segmentación por campus, tags, relationship, service_area
 -- ============================================================
+-- app.resolve_segment_recipients es interna: la llaman funciones security
+-- definer que ya comprueban capacidad, y está revocada de authenticated para
+-- que no sirva como oráculo de quién está en qué segmento. Estos dos bloques
+-- prueban su lógica por dentro, así que se ejecutan sin ese rol. Que desde una
+-- sesión normal no se pueda invocar se comprueba al final del bloque 3.
 select test_set_auth_uid('79000000-0000-0000-0000-000000000001');
+reset role;
 
 select is(
   (select array_agg(person_id order by person_id) from app.resolve_segment_recipients(
@@ -240,6 +246,18 @@ select is(
   )),
   0,
   'Un tag de la iglesia A no devuelve personas al consultarlo contra la iglesia B'
+);
+
+-- Desde una sesión normal la función interna no se puede invocar: es la otra
+-- mitad del aislamiento, y sin esto la prueba de arriba solo diría que filtra
+-- bien, no que esté fuera de alcance.
+select test_set_auth_uid('79000000-0000-0000-0000-000000000001');
+select is(
+  t_err($$ select count(*) from app.resolve_segment_recipients(
+    '00000000-0000-0000-0000-000000000000'::uuid,
+    '{"all":[{"field":"relationship","op":"eq","value":"member"}]}'::jsonb) $$),
+  '42501',
+  'Una sesión normal no puede llamar a la resolución de segmentos: es interna'
 );
 
 -- ============================================================
@@ -521,6 +539,9 @@ reset role;
 -- 13. Segmentación con OR ({"any": [...]})
 -- ============================================================
 select test_set_auth_uid('79000000-0000-0000-0000-000000000001');
+-- Igual que en la sección 2: se conserva el sub del JWT pero se suelta el rol
+-- authenticated, porque app.resolve_segment_recipients volvió a ser interna.
+reset role;
 
 select is(
   (select array_agg(person_id order by person_id) from app.resolve_segment_recipients(

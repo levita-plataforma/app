@@ -58,6 +58,7 @@ export const COMMUNICATION_STATUSES = [
   "draft",
   "scheduled",
   "processing",
+  "queued",
   "sent",
   "partially_sent",
   "failed",
@@ -254,33 +255,30 @@ export type CreateCommunicationTemplateInput = {
 export async function createCommunicationTemplate(
   churchId: string,
   input: CreateCommunicationTemplateInput,
-  createdByPersonId?: string,
 ): Promise<{ id: string }> {
+  // Por RPC, no por escritura directa: la tabla tiene revocado el insert para
+  // authenticated, y la capacidad se comprueba dentro de la función.
   const supabase = await createSupabaseServerClient();
-  const { data, error } = await supabase
-    .from("communication_templates")
-    .insert({
-      church_id: churchId,
+  const { data, error } = await supabase.rpc("save_communication_template", {
+    p_church_id: churchId,
+    p_input: {
       name: input.name,
       subject: input.subject ?? null,
       body: input.body,
       category: input.category ?? null,
-      created_by_person_id: createdByPersonId ?? null,
-    })
-    .select("id")
-    .single();
+    },
+  });
   if (error) throw toDomainError(error, "No se pudo crear la plantilla.");
-  return { id: (data as { id: string }).id };
+  return { id: data as string };
 }
 
 /** Archiva una plantilla (soft-delete vía archived_at). */
 export async function archiveCommunicationTemplate(churchId: string, templateId: string): Promise<void> {
   const supabase = await createSupabaseServerClient();
-  const { error } = await supabase
-    .from("communication_templates")
-    .update({ archived_at: new Date().toISOString() })
-    .eq("church_id", churchId)
-    .eq("id", templateId);
+  const { error } = await supabase.rpc("set_communication_template_archived", {
+    p_template_id: templateId,
+    p_archived: true,
+  });
   if (error) throw toDomainError(error, "No se pudo archivar la plantilla.");
 }
 
@@ -362,32 +360,29 @@ export type CreateCommunicationSegmentInput = {
 export async function createCommunicationSegment(
   churchId: string,
   input: CreateCommunicationSegmentInput,
-  createdByPersonId?: string,
 ): Promise<{ id: string }> {
+  // Por RPC: la tabla tiene revocado el insert para authenticated, y la
+  // función comprueba la capacidad y valida las reglas antes de escribir.
   const supabase = await createSupabaseServerClient();
-  const { data, error } = await supabase
-    .from("communication_segments")
-    .insert({
-      church_id: churchId,
+  const { data, error } = await supabase.rpc("save_communication_segment", {
+    p_church_id: churchId,
+    p_input: {
       name: input.name,
       description: input.description ?? null,
       rules: input.rules,
-      created_by_person_id: createdByPersonId ?? null,
-    })
-    .select("id")
-    .single();
+    },
+  });
   if (error) throw toDomainError(error, "No se pudo crear el segmento.");
-  return { id: (data as { id: string }).id };
+  return { id: data as string };
 }
 
 /** Archiva un segmento (soft-delete vía archived_at). */
 export async function archiveCommunicationSegment(churchId: string, segmentId: string): Promise<void> {
   const supabase = await createSupabaseServerClient();
-  const { error } = await supabase
-    .from("communication_segments")
-    .update({ archived_at: new Date().toISOString() })
-    .eq("church_id", churchId)
-    .eq("id", segmentId);
+  const { error } = await supabase.rpc("set_communication_segment_archived", {
+    p_segment_id: segmentId,
+    p_archived: true,
+  });
   if (error) throw toDomainError(error, "No se pudo archivar el segmento.");
 }
 

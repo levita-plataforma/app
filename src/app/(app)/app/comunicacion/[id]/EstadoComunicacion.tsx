@@ -27,6 +27,7 @@ const STATUS_LABELS: Record<CommunicationStatus, string> = {
   draft: "Borrador",
   scheduled: "Programada",
   processing: "Procesando",
+  queued: "En cola, sin enviar",
   sent: "Enviada",
   partially_sent: "Enviada parcialmente",
   failed: "Fallida",
@@ -37,6 +38,9 @@ const STATUS_CHIP_CLASS: Record<CommunicationStatus, string> = {
   draft: "is-muted",
   scheduled: "is-info",
   processing: "is-warning",
+  // En cola no se pinta como exito: el correo no ha salido, y no saldra
+  // mientras el transporte externo siga desactivado.
+  queued: "is-warning",
   sent: "is-success",
   partially_sent: "is-partial",
   failed: "is-danger",

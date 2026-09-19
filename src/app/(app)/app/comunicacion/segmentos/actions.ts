@@ -49,7 +49,6 @@ export async function crearSegmentoAction(
     await createCommunicationSegment(
       tenant.churchId,
       { name, description: description || undefined, rules },
-      tenant.personId,
     );
   } catch (err) {
     if (err instanceof DomainError) return { error: err.message };

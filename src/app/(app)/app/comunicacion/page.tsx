@@ -11,6 +11,7 @@ const STATUS_LABELS: Record<string, string> = {
   draft: "Borrador",
   scheduled: "Programada",
   processing: "Procesando",
+  queued: "En cola, sin enviar",
   sent: "Enviada",
   partially_sent: "Enviada parcialmente",
   failed: "Fallida",
