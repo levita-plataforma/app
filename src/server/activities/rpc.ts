@@ -21,6 +21,8 @@ export function toDomainError(error: PostgrestLikeError, fallback: string): Doma
   switch (error.code) {
     case "42501":
       return new DomainError("FORBIDDEN", message ?? "No tienes permiso para realizar esta acción.");
+    case "53400":
+      return new DomainError("RATE_LIMITED", message ?? "Se ha alcanzado un límite. Inténtalo de nuevo más tarde.");
     case "P0002":
       return new DomainError("RESOURCE_NOT_FOUND", message ?? "El elemento no existe.");
     case "23505":

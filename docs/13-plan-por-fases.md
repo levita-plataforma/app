@@ -327,6 +327,8 @@ Un menor entra y sale con trazabilidad y autorización correcta, sin exponer dat
 - preferencias/opt-out según canal y finalidad;
 - límites y prevención de abuso.
 
+Nota sobre "grupos": Fase 7 (grupos) no existía todavía al implementar esta fase. La segmentación por grupo queda reservada en el modelo (campo `group` presente en la allowlist de reglas de segmento) pero rechazada explícitamente en tiempo de ejecución, no fingida. Se activa cuando Fase 7 exista, sin cambio de esquema.
+
 ### Criterio de salida
 
 Un administrador autorizado envía una comunicación a un segmento definido sin exportar manualmente listas.
