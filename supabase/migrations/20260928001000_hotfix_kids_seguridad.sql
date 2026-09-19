@@ -241,46 +241,58 @@ security definer
 set search_path = pg_catalog, public
 as $$
 declare
-  v_reasons text[] := array[]::text[];
-  v_active boolean;
-  v_missing integer;
+  v_reasons text[] := '{}';
+  v_member_active boolean;
+  v_req record;
 begin
-  -- Lo que devuelve esto es información de personal: pertenencia y estado de la
-  -- credencial obligatoria. Sin capacidad sobre esa iglesia, no se responde.
+  -- Lo único que cambia respecto de la versión original es esta guardia: lo que
+  -- devuelve la función es información de personal —pertenencia y estado de la
+  -- credencial obligatoria, que aquí es el certificado de antecedentes—, y
+  -- antes respondía a cualquiera, incluso desde otra iglesia.
   if not (p_church_id = any (app.church_ids_for_user()))
      or not (app.has_capability(p_church_id, 'kids.session.manage')
-             or app.has_capability(p_church_id, 'kids.manage')) then
+             or app.has_capability(p_church_id, 'kids.manage')
+             or app.has_capability(p_church_id, 'kids.checkin')) then
     raise exception 'No autorizado.' using errcode = '42501';
   end if;
 
-  select exists (
-    select 1 from church_people cp
-    where cp.church_id = p_church_id and cp.person_id = p_person_id and cp.archived_at is null
-  ) into v_active;
+  select (cp.archived_at is null) into v_member_active
+  from church_people cp
+  where cp.church_id = p_church_id and cp.person_id = p_person_id;
 
-  if not v_active then
-    v_reasons := v_reasons || 'inactive_person';
+  if v_member_active is null or not v_member_active then
+    v_reasons := array_append(v_reasons, 'inactive_person');
   end if;
 
-  select count(*)::integer into v_missing
-  from kids_required_credentials krc
-  where krc.church_id = p_church_id
-    and krc.required
-    and krc.active
-    and not exists (
+  if p_campus_id is not null then
+    if not exists (
+      select 1 from church_people cp
+      where cp.church_id = p_church_id and cp.person_id = p_person_id
+        and (cp.primary_campus_id = p_campus_id or cp.primary_campus_id is null)
+    ) then
+      v_reasons := array_append(v_reasons, 'wrong_campus');
+    end if;
+  end if;
+
+  for v_req in
+    select krc.credential_type_id, ct.requires_expiry
+    from kids_required_credentials krc
+    join credential_types ct on ct.id = krc.credential_type_id and ct.church_id = krc.church_id
+    where krc.church_id = p_church_id and krc.active and krc.required
+  loop
+    if not exists (
       select 1 from person_credentials pc
       where pc.church_id = p_church_id
         and pc.person_id = p_person_id
-        and pc.credential_type_id = krc.credential_type_id
+        and pc.credential_type_id = v_req.credential_type_id
         and pc.status = 'valid'
-        and (pc.expires_on is null or pc.expires_on >= current_date)
-    );
+        and (not v_req.requires_expiry or pc.expires_at is null or pc.expires_at > now())
+    ) then
+      v_reasons := array_append(v_reasons, 'missing_credential');
+    end if;
+  end loop;
 
-  if v_missing > 0 then
-    v_reasons := v_reasons || 'missing_credential';
-  end if;
-
-  return query select cardinality(v_reasons) = 0, v_reasons;
+  return query select (array_length(v_reasons, 1) is null), v_reasons;
 end;
 $$;
 
@@ -415,7 +427,7 @@ begin
 
   insert into kids_session_staff (church_id, session_id, person_id, role,
                                   eligible_at_assignment, eligibility_reasons)
-  values (v_session.church_id, p_session_id, p_person_id, p_role, true, v_reasons)
+  values (v_session.church_id, p_session_id, p_person_id, p_role::kids_staff_role, true, v_reasons)
   returning id into v_id;
 
   perform app.write_audit_log(v_session.church_id, 'kids.staff_added', 'kids_session_staff', v_id,
@@ -550,6 +562,12 @@ begin
 
   if v_session.status not in ('scheduled', 'open') then
     raise exception 'La sesión no admite check-in.' using errcode = '22023';
+  end if;
+
+  -- El primer check-in abre la sesión, como hacía la versión original.
+  if v_session.status = 'scheduled' then
+    update kids_sessions set status = 'open', opened_at = now(), opened_by = auth.uid()
+    where id = p_session_id;
   end if;
 
   if not exists (select 1 from church_people cp where cp.church_id = v_church_id and cp.person_id = p_kid_person_id and cp.archived_at is null) then
