@@ -9,30 +9,57 @@
 -- y no salen. Ni esta migración ni la interfaz dicen que se haya enviado nada.
 
 -- 1. Tipos de evento ---------------------------------------------------------
--- Mismo patrón que usó la Fase 6 (20260924000700_avisos_eventos.sql:5-26):
--- el check es text + constraint precisamente para poder ampliarlo dentro de
--- una transacción, cosa que `alter type ... add value` no permite.
+-- El check es text + constraint, y no un enum, para poder ampliarlo dentro de
+-- una transacción: `alter type ... add value` no lo permite.
+--
+-- La Fase 6 lo amplió reescribiendo la lista entera, y la Fase 8 hizo lo mismo
+-- por su lado. El resultado fue que la última en aplicarse borraba los tipos de
+-- la otra, y en el caso de Kids eso no era un aviso perdido sino un check-in de
+-- un menor que fallaba entero. Aquí la lista se amplía CONSERVANDO la que
+-- hubiera, sin necesidad de saber qué declararon las demás fases.
+--
+-- El bloque va escrito aquí y no delegado en una función auxiliar porque esta
+-- migración tiene que poder aplicarse sola, antes de que exista esa función.
 
-alter table notification_events drop constraint notification_events_event_type_check;
-
-alter table notification_events add constraint notification_events_event_type_check
-  check (event_type in (
-    -- Fase 5
-    'assignment.proposed', 'assignment.accepted', 'assignment.declined',
-    'assignment.cancelled', 'assignment.substituted',
-    'assignment.substitution_requested', 'assignment.substitution_cancelled',
-    'assignment.reminder', 'assignment.coverage_at_risk', 'activity.rescheduled',
-    -- Fase 6
-    'event.published', 'event.cancelled', 'event.rescheduled', 'event.reminder',
-    'registration.confirmed', 'registration.waitlisted', 'registration.promoted',
-    'registration.cancelled',
-    -- Fase 7
+do $tipos$
+declare
+  v_def text;
+  v_lista text;
+  v_nuevos text[] := array[
     'group.join_request.received', 'group.join_request.accepted',
     'group.join_request.rejected', 'group.member.added',
     'group.meeting.rescheduled', 'group.meeting.cancelled',
     'course.session.rescheduled', 'course.session.cancelled',
     'course.enrollment.completed', 'path.step.completed'
-  ));
+  ];
+begin
+  select pg_get_constraintdef(c.oid) into v_def
+  from pg_constraint c
+  join pg_class t on t.oid = c.conrelid
+  join pg_namespace n on n.oid = t.relnamespace
+  where n.nspname = 'public'
+    and t.relname = 'notification_events'
+    and c.conname = 'notification_events_event_type_check';
+
+  select string_agg(quote_literal(x), ', ' order by x) into v_lista
+  from (
+    select distinct unnest(
+      coalesce((select array_agg(m[1]) from regexp_matches(coalesce(v_def, ''), '''([^'']+)''', 'g') as m),
+               array[]::text[])
+      || v_nuevos
+    ) as x
+  ) s;
+
+  if v_def is not null then
+    alter table notification_events drop constraint notification_events_event_type_check;
+  end if;
+
+  execute format(
+    'alter table notification_events add constraint notification_events_event_type_check check (event_type in (%s))',
+    v_lista
+  );
+end;
+$tipos$;
 
 -- 2. Textos ------------------------------------------------------------------
 --
