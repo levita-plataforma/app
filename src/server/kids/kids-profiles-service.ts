@@ -1,19 +1,25 @@
 import "server-only";
 import { createSupabaseServerClient } from "@/server/supabase/server-client";
-import { requireCapability, hasCapability } from "@/server/tenant/authorize";
+import { requireCapability } from "@/server/tenant/authorize";
 import { auditLog } from "@/server/audit/audit-log";
 import { DomainError } from "@/server/errors/domain-error";
+import { toDomainError } from "@/server/activities/rpc";
+import { candidateSearchTerms } from "@/server/assignments/assignments-service";
 import type { Database } from "@/lib/supabase/database.types";
 
 /**
  * Perfiles Kids (Fase 8 §4). Un `kids_profile` extiende una fila ya
  * existente en `people`: nunca se duplica `birth_date` (la edad se calcula
- * aquí a partir de `people.birth_date`). `accessibility_notes` y
- * `emergency_notes` son datos restringidos: RLS ya los protege a nivel de
- * fila entera junto al resto del perfil, pero como el resto del perfil sí
- * es visible con `kids.read`/`kids.manage`, aquí se filtra además en
- * aplicación (defensa en profundidad) para que ningún caller sin
- * `kids.sensitive.read` reciba esas dos notas.
+ * aquí a partir de `people.birth_date`).
+ *
+ * Desde el hotfix 20260928001000 las notas de accesibilidad y de emergencia
+ * ya NO viven en `kids_profiles`: están en la tabla aparte
+ * `kids_sensitive_notes`, cuya política de RLS exige `kids.sensitive.read`.
+ * Eso sustituye al filtrado que antes se hacía en Node después de traer las
+ * columnas de la base, que no era una barrera real (RLS filtra filas, no
+ * columnas, así que el dato salía igualmente del servidor). En
+ * `kids_profiles` se queda `medical_alert_flag`, que es el aviso de «hay
+ * algo que consultar» y sí debe verse en la sala.
  */
 
 export type KidsProfileStatus = Database["public"]["Enums"]["kids_profile_status"];
@@ -39,16 +45,30 @@ export type KidsProfile = {
   status: KidsProfileStatus;
   preferredName: string | null;
   medicalAlertFlag: boolean;
-  accessibilityNotes: string | null;
-  emergencyNotes: string | null;
   active: boolean;
   archivedAt: string | null;
 };
 
-type ProfileRow = Database["public"]["Tables"]["kids_profiles"]["Row"];
+/**
+ * Columnas de `kids_profiles` que existen tras el hotfix. Se listan de
+ * forma explícita en vez de `select("*")` para que la aparición de una
+ * columna sensible en la tabla sea siempre una decisión escrita.
+ */
+const PROFILE_COLUMNS = "id, person_id, status, preferred_name, medical_alert_flag, active, archived_at";
+
+type ProfileRow = {
+  id: string;
+  person_id: string;
+  status: KidsProfileStatus;
+  preferred_name: string | null;
+  medical_alert_flag: boolean;
+  active: boolean;
+  archived_at: string | null;
+};
+
 type PersonInfo = { first_name: string; last_name: string | null; birth_date: string | null };
 
-function mapProfile(row: ProfileRow, person: PersonInfo | null, includeSensitive: boolean): KidsProfile {
+function mapProfile(row: ProfileRow, person: PersonInfo | null): KidsProfile {
   return {
     id: row.id,
     personId: row.person_id,
@@ -59,8 +79,6 @@ function mapProfile(row: ProfileRow, person: PersonInfo | null, includeSensitive
     status: row.status,
     preferredName: row.preferred_name,
     medicalAlertFlag: row.medical_alert_flag,
-    accessibilityNotes: includeSensitive ? row.accessibility_notes : null,
-    emergencyNotes: includeSensitive ? row.emergency_notes : null,
     active: row.active,
     archivedAt: row.archived_at,
   };
@@ -74,7 +92,6 @@ export async function getOrCreateKidsProfile(churchId: string, personId: string)
   await requireCapability(churchId, "kids.manage");
 
   const supabase = await createSupabaseServerClient();
-  const canSeeSensitive = await hasCapability(churchId, "kids.sensitive.read");
 
   const { data: person, error: personError } = await supabase
     .from("people")
@@ -86,18 +103,18 @@ export async function getOrCreateKidsProfile(churchId: string, personId: string)
 
   const { data: existing, error: existingError } = await supabase
     .from("kids_profiles")
-    .select("*")
+    .select(PROFILE_COLUMNS)
     .eq("church_id", churchId)
     .eq("person_id", personId)
     .maybeSingle();
 
   if (existingError) throw new DomainError("INTERNAL_ERROR", "No se pudo consultar el perfil Kids.");
-  if (existing) return mapProfile(existing, person, canSeeSensitive);
+  if (existing) return mapProfile(existing as unknown as ProfileRow, person);
 
   const { data: created, error: createError } = await supabase
     .from("kids_profiles")
     .insert({ church_id: churchId, person_id: personId })
-    .select("*")
+    .select(PROFILE_COLUMNS)
     .single();
 
   if (createError || !created) {
@@ -105,24 +122,85 @@ export async function getOrCreateKidsProfile(churchId: string, personId: string)
       // Carrera: otro caller lo creó entre el select y el insert. Reintenta lectura.
       const { data: retry } = await supabase
         .from("kids_profiles")
-        .select("*")
+        .select(PROFILE_COLUMNS)
         .eq("church_id", churchId)
         .eq("person_id", personId)
         .single();
-      if (retry) return mapProfile(retry, person, canSeeSensitive);
+      if (retry) return mapProfile(retry as unknown as ProfileRow, person);
     }
     throw new DomainError("INTERNAL_ERROR", "No se pudo crear el perfil Kids.");
   }
+
+  const createdRow = created as unknown as ProfileRow;
 
   await auditLog({
     churchId,
     action: "kids.profile_created",
     entityType: "kids_profiles",
-    entityId: created.id,
+    entityId: createdRow.id,
     metadata: { person_id: personId },
   });
 
-  return mapProfile(created, person, canSeeSensitive);
+  return mapProfile(createdRow, person);
+}
+
+export type KidsSensitiveNotes = {
+  accessibilityNotes: string | null;
+  emergencyNotes: string | null;
+  updatedAt: string | null;
+};
+
+/**
+ * Notas de accesibilidad y de emergencia de un menor. La barrera es la
+ * política de RLS de `kids_sensitive_notes`, que exige
+ * `kids.sensitive.read`: a quien no la tenga, la consulta le devuelve vacío
+ * y esta función responde `null`. No se repite aquí la comprobación de
+ * capacidad para que el permiso tenga un único sitio donde vivir.
+ */
+export async function getKidsSensitiveNotes(churchId: string, personId: string): Promise<KidsSensitiveNotes | null> {
+  const supabase = await createSupabaseServerClient();
+  const { data, error } = await supabase
+    .from("kids_sensitive_notes")
+    .select("accessibility_notes, emergency_notes, updated_at")
+    .eq("church_id", churchId)
+    .eq("kid_person_id", personId)
+    .maybeSingle();
+
+  if (error || !data) return null;
+
+  const row = data as unknown as {
+    accessibility_notes: string | null;
+    emergency_notes: string | null;
+    updated_at: string | null;
+  };
+
+  return {
+    accessibilityNotes: row.accessibility_notes,
+    emergencyNotes: row.emergency_notes,
+    updatedAt: row.updated_at,
+  };
+}
+
+/**
+ * Guarda las notas sensibles. La escritura solo existe como RPC
+ * (`public.kids_save_sensitive_notes`), que exige `kids.manage` **y**
+ * `kids.sensitive.read` y escribe su propia auditoría
+ * ('kids.sensitive_notes_saved'): aquí no se duplica.
+ */
+export async function saveKidsSensitiveNotes(
+  churchId: string,
+  personId: string,
+  input: { accessibilityNotes?: string | null; emergencyNotes?: string | null },
+): Promise<void> {
+  const supabase = await createSupabaseServerClient();
+  const { error } = await supabase.rpc("kids_save_sensitive_notes", {
+    p_church_id: churchId,
+    p_kid_person_id: personId,
+    p_accessibility_notes: input.accessibilityNotes?.trim() || null,
+    p_emergency_notes: input.emergencyNotes?.trim() || null,
+  });
+
+  if (error) throw toDomainError(error, "No se pudieron guardar las notas del menor.");
 }
 
 export type KidsProfileFilters = {
@@ -173,8 +251,11 @@ export async function listKidsProfiles(
     .eq("church_id", churchId);
 
   if (filters.status) query = query.eq("status", filters.status);
-  if (filters.search?.trim()) {
-    const term = filters.search.trim();
+  // El término de búsqueda se parte y se limpia antes de entrar en el
+  // filtro `or` de PostgREST: sin limpiarlo, una coma o un paréntesis
+  // reescriben el filtro entero. Mismo criterio que `listCandidatePeople`
+  // en Asignaciones.
+  for (const term of candidateSearchTerms(filters.search)) {
     query = query.or(`first_name.ilike.%${term}%,last_name.ilike.%${term}%`, { referencedTable: "people" });
   }
 
@@ -245,12 +326,14 @@ export async function listKidsProfiles(
   return { items, total: count ?? items.length, page, pageSize };
 }
 
+/**
+ * Campos del perfil que siguen viviendo en `kids_profiles`. Las notas
+ * sensibles ya no se escriben por aquí: van por `saveKidsSensitiveNotes`.
+ */
 export type UpdateKidsProfileInput = {
   preferredName?: string | null;
   medicalAlertFlag?: boolean;
   status?: KidsProfileStatus;
-  accessibilityNotes?: string | null;
-  emergencyNotes?: string | null;
 };
 
 export async function updateKidsProfile(
@@ -260,23 +343,10 @@ export async function updateKidsProfile(
 ): Promise<void> {
   await requireCapability(churchId, "kids.manage");
 
-  const touchesSensitive = input.accessibilityNotes !== undefined || input.emergencyNotes !== undefined;
-  if (touchesSensitive) {
-    const canSeeSensitive = await hasCapability(churchId, "kids.sensitive.read");
-    if (!canSeeSensitive) {
-      throw new DomainError(
-        "FORBIDDEN",
-        "No tienes permiso para modificar las notas de accesibilidad o emergencia (kids.sensitive.read).",
-      );
-    }
-  }
-
   const patch: Record<string, unknown> = {};
   if (input.preferredName !== undefined) patch.preferred_name = input.preferredName?.trim() || null;
   if (input.medicalAlertFlag !== undefined) patch.medical_alert_flag = input.medicalAlertFlag;
   if (input.status !== undefined) patch.status = input.status;
-  if (input.accessibilityNotes !== undefined) patch.accessibility_notes = input.accessibilityNotes?.trim() || null;
-  if (input.emergencyNotes !== undefined) patch.emergency_notes = input.emergencyNotes?.trim() || null;
   if (Object.keys(patch).length === 0) return;
 
   const supabase = await createSupabaseServerClient();
@@ -293,7 +363,7 @@ export async function updateKidsProfile(
     action: "kids.profile_updated",
     entityType: "kids_profiles",
     entityId: personId,
-    metadata: { updated: Object.keys(patch).filter((k) => k !== "accessibility_notes" && k !== "emergency_notes") },
+    metadata: { updated: Object.keys(patch) },
   });
 }
 

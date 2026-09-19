@@ -3142,12 +3142,10 @@ export type Database = {
       }
       kids_profiles: {
         Row: {
-          accessibility_notes: string | null
           active: boolean
           archived_at: string | null
           church_id: string
           created_at: string
-          emergency_notes: string | null
           id: string
           medical_alert_flag: boolean
           person_id: string
@@ -3156,12 +3154,10 @@ export type Database = {
           updated_at: string
         }
         Insert: {
-          accessibility_notes?: string | null
           active?: boolean
           archived_at?: string | null
           church_id: string
           created_at?: string
-          emergency_notes?: string | null
           id?: string
           medical_alert_flag?: boolean
           person_id: string
@@ -3170,12 +3166,10 @@ export type Database = {
           updated_at?: string
         }
         Update: {
-          accessibility_notes?: string | null
           active?: boolean
           archived_at?: string | null
           church_id?: string
           created_at?: string
-          emergency_notes?: string | null
           id?: string
           medical_alert_flag?: boolean
           person_id?: string
@@ -3317,6 +3311,55 @@ export type Database = {
             columns: ["church_id"]
             isOneToOne: false
             referencedRelation: "churches"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      kids_sensitive_notes: {
+        Row: {
+          accessibility_notes: string | null
+          church_id: string
+          emergency_notes: string | null
+          kid_person_id: string
+          updated_at: string
+          updated_by: string | null
+        }
+        Insert: {
+          accessibility_notes?: string | null
+          church_id: string
+          emergency_notes?: string | null
+          kid_person_id: string
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Update: {
+          accessibility_notes?: string | null
+          church_id?: string
+          emergency_notes?: string | null
+          kid_person_id?: string
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "kids_sensitive_notes_church_id_fkey"
+            columns: ["church_id"]
+            isOneToOne: false
+            referencedRelation: "churches"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "kids_sensitive_notes_church_id_kid_person_id_fkey"
+            columns: ["church_id", "kid_person_id"]
+            isOneToOne: false
+            referencedRelation: "church_people"
+            referencedColumns: ["church_id", "person_id"]
+          },
+          {
+            foreignKeyName: "kids_sensitive_notes_updated_by_fkey"
+            columns: ["updated_by"]
+            isOneToOne: false
+            referencedRelation: "people"
             referencedColumns: ["id"]
           },
         ]
@@ -5568,6 +5611,10 @@ export type Database = {
           out_invitation_token: string
         }[]
       }
+      kids_add_session_staff: {
+        Args: { p_person_id: string; p_role?: string; p_session_id: string }
+        Returns: string
+      }
       kids_authorized_pickups: {
         Args: { p_church_id: string; p_kid_person_id: string }
         Returns: {
@@ -5599,6 +5646,20 @@ export type Database = {
           status: Database["public"]["Enums"]["kid_checkin_status"]
         }[]
       }
+      kids_lookup_pickup: {
+        Args: { p_pickup_code: string; p_session_id: string }
+        Returns: {
+          checkin_id: string
+          kid_name: string
+          kid_person_id: string
+          medical_alert: boolean
+          room_name: string
+        }[]
+      }
+      kids_remove_session_staff: {
+        Args: { p_reason?: string; p_staff_id: string }
+        Returns: undefined
+      }
       kids_room_ratio_status: {
         Args: { p_session_id: string }
         Returns: {
@@ -5610,6 +5671,17 @@ export type Database = {
           state: Database["public"]["Enums"]["kids_ratio_state"]
         }[]
       }
+      kids_save_sensitive_notes: {
+        Args: {
+          p_accessibility_notes: string
+          p_church_id: string
+          p_emergency_notes: string
+          p_kid_person_id: string
+        }
+        Returns: undefined
+      }
+      kids_staff_check_in: { Args: { p_staff_id: string }; Returns: undefined }
+      kids_staff_check_out: { Args: { p_staff_id: string }; Returns: undefined }
       kids_staff_eligibility: {
         Args: { p_campus_id?: string; p_church_id: string; p_person_id: string }
         Returns: {

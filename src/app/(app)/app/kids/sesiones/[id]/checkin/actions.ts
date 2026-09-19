@@ -8,7 +8,7 @@ import {
   type KidCheckinCandidate,
   type CheckinKidResult,
 } from "@/server/kids/kids-checkin-service";
-import { getRatioStatus, type KidsRatioStatus } from "@/server/kids/kids-sessions-service";
+import { getRatioStatus, type KidsRatioView } from "@/server/kids/kids-sessions-service";
 
 export type CheckinActionState<T> = { error: string | null; data?: T };
 
@@ -43,7 +43,14 @@ export async function confirmarCheckinAction(
   }
 }
 
-export async function ratioStatusCheckinAction(sessionId: string): Promise<CheckinActionState<KidsRatioStatus | null>> {
+/**
+ * El sessionId llega del cliente. `getRatioStatus` lo resuelve primero
+ * contra la iglesia del contexto y, si no le corresponde o falta permiso,
+ * devuelve un estado propio en vez de dejar que la consulta responda a
+ * cualquiera: hasta el hotfix, la función de la base contestaba con la
+ * ocupación de cualquier sala, también de otra iglesia.
+ */
+export async function ratioStatusCheckinAction(sessionId: string): Promise<CheckinActionState<KidsRatioView>> {
   const tenant = await requireTenantContext();
   try {
     const data = await getRatioStatus(tenant.churchId, sessionId);

@@ -4,20 +4,32 @@ import { useCallback, useEffect, useRef, useState, useTransition } from "react";
 import Link from "next/link";
 import { Search, Check } from "lucide-react";
 import type { KidCheckinCandidate, CheckinKidResult } from "@/server/kids/kids-checkin-service";
-import type { KidsRatioStatus } from "@/server/kids/kids-sessions-service";
-import { primaryButtonStyle, fullName } from "../../../ui";
+import type { KidsRatioView } from "@/server/kids/kids-sessions-service";
+import { primaryButtonStyle, fullName, ratioTone } from "../../../ui";
 import { buscarMenorCheckinAction, confirmarCheckinAction, ratioStatusCheckinAction } from "./actions";
 
 const RATIO_POLL_MS = 10000;
 
-function RatioStrip({ ratio }: { ratio: KidsRatioStatus | null }) {
-  if (!ratio) return null;
+/**
+ * El estado del ratio ya no es un adorno: desde el hotfix de seguridad,
+ * `app.kids_checkin` rechaza el check-in cuando faltan adultos o cuando se
+ * superaría el ratio de la sala. La franja avisa antes; el rechazo, si
+ * llega, se enseña con el mensaje que manda la base, que dice cuántos
+ * adultos hay y cuántos hacen falta.
+ */
+function RatioStrip({ view }: { view: KidsRatioView }) {
+  if (view.kind === "forbidden") {
+    return (
+      <div role="status" className="shell-card" style={{ padding: 12, fontSize: 12.5, color: "var(--shell-text-muted)" }}>
+        No tienes permiso para ver el estado del ratio de esta sala. El check-in lo seguirá comprobando la base.
+      </div>
+    );
+  }
 
-  const config = {
-    safe: { label: "RATIO SEGURO", bg: "#e6f4ea", fg: "#1e7e34" },
-    warning: { label: "RATIO EN AVISO", bg: "#fff4e0", fg: "#8a5a00" },
-    blocked: { label: "RATIO INSUFICIENTE — NO ACEPTES MÁS CHECK-IN", bg: "#fdeaea", fg: "#b3261e" },
-  }[ratio.state];
+  if (view.kind === "unavailable") return null;
+
+  const ratio = view.ratio;
+  const config = ratioTone(ratio.state);
 
   return (
     <div
@@ -37,9 +49,10 @@ function RatioStrip({ ratio }: { ratio: KidsRatioStatus | null }) {
         zIndex: 5,
       }}
     >
-      <span style={{ fontSize: 14, fontWeight: 800, color: config.fg }}>{config.label}</span>
+      <span style={{ fontSize: 14, fontWeight: 800, color: config.fg }}>{config.doorLabel}</span>
       <span style={{ fontSize: 12.5, color: config.fg }}>
-        {ratio.childrenCheckedIn} menores · {ratio.staffCheckedIn} staff (máx. actual: {ratio.maxChildrenForCurrentStaff})
+        {ratio.childrenCheckedIn} menores · {ratio.staffCheckedIn} de {ratio.minAdultsRequired} adultos mínimos (máx.
+        actual: {ratio.maxChildrenForCurrentStaff} menores)
       </span>
     </div>
   );
@@ -54,11 +67,11 @@ export default function CheckinClient({
   sessionId: string;
   activityTitle: string;
   roomName: string;
-  initialRatio: KidsRatioStatus | null;
+  initialRatio: KidsRatioView;
 }) {
   const [query, setQuery] = useState("");
   const [results, setResults] = useState<KidCheckinCandidate[]>([]);
-  const [ratio, setRatio] = useState(initialRatio);
+  const [ratio, setRatio] = useState<KidsRatioView>(initialRatio);
   const [error, setError] = useState<string | null>(null);
   const [lastResult, setLastResult] = useState<{ name: string; result: CheckinKidResult } | null>(null);
   const [searching, startSearch] = useTransition();
@@ -67,7 +80,7 @@ export default function CheckinClient({
 
   const refreshRatio = useCallback(() => {
     ratioStatusCheckinAction(sessionId).then((res) => {
-      if (!res.error) setRatio(res.data ?? null);
+      if (!res.error && res.data) setRatio(res.data);
     });
   }, [sessionId]);
 
@@ -105,6 +118,9 @@ export default function CheckinClient({
       const res = await confirmarCheckinAction(sessionId, candidate.personId);
       if (res.error) {
         setError(res.error);
+        // El rechazo casi siempre viene del ratio o del aforo: se vuelve a
+        // pedir el estado para que la franja de arriba cuadre con el motivo.
+        refreshRatio();
         return;
       }
       setError(null);
@@ -125,7 +141,7 @@ export default function CheckinClient({
   if (lastResult) {
     return (
       <div style={{ display: "flex", flexDirection: "column", gap: 16, maxWidth: 560, margin: "0 auto" }}>
-        <RatioStrip ratio={ratio} />
+        <RatioStrip view={ratio} />
         <div
           className="shell-card"
           style={{
@@ -183,7 +199,7 @@ export default function CheckinClient({
         </h1>
       </div>
 
-      <RatioStrip ratio={ratio} />
+      <RatioStrip view={ratio} />
 
       <div style={{ position: "relative" }}>
         <Search size={18} style={{ position: "absolute", left: 14, top: "50%", transform: "translateY(-50%)", color: "var(--shell-text-subtle)" }} />
@@ -205,10 +221,25 @@ export default function CheckinClient({
         />
       </div>
 
+      {/* El rechazo del check-in se lee de pie, con una familia delante: va
+          en tarjeta y con el mensaje completo de la base, que dice cuántos
+          adultos hay en la sala y cuántos hacen falta. */}
       {error ? (
-        <p role="alert" style={{ fontSize: 14, fontWeight: 600, color: "var(--shell-danger)" }}>
+        <div
+          role="alert"
+          className="shell-card"
+          style={{
+            padding: 16,
+            border: "2px solid #b3261e",
+            background: "#fdeaea",
+            color: "#8a1c17",
+            fontSize: 15,
+            fontWeight: 600,
+            lineHeight: 1.4,
+          }}
+        >
           {error}
-        </p>
+        </div>
       ) : null}
 
       {searching ? <p style={{ fontSize: 13, color: "var(--shell-text-muted)" }}>Buscando…</p> : null}

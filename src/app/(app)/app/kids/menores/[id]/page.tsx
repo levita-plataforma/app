@@ -1,7 +1,7 @@
 import { notFound } from "next/navigation";
 import { requireTenantContext } from "@/server/tenant/tenant-context";
 import { hasCapability } from "@/server/tenant/authorize";
-import { getOrCreateKidsProfile } from "@/server/kids/kids-profiles-service";
+import { getOrCreateKidsProfile, getKidsSensitiveNotes } from "@/server/kids/kids-profiles-service";
 import { listGuardiansForKid } from "@/server/kids/kid-guardians-service";
 import { listPickupAuthorizations } from "@/server/kids/kid-pickup-service";
 import { listIncidents } from "@/server/kids/kids-incidents-service";
@@ -41,13 +41,19 @@ export default async function KidFichaPage({ params }: { params: Promise<{ id: s
   const canManageIncidents = await hasCapability(tenant.churchId, "kids.incident.manage");
   const canReadSensitive = await hasCapability(tenant.churchId, "kids.sensitive.read");
 
-  const [guardians, pickupAuthorizations, incidents] = await Promise.all([
+  const [guardians, pickupAuthorizations, incidents, sensitiveNotes] = await Promise.all([
     listGuardiansForKid(tenant.churchId, id),
     canManagePickup ? listPickupAuthorizations(tenant.churchId, id) : Promise.resolve([]),
     // El tab de Incidencias SOLO se renderiza server-side si el caller tiene
     // kids.incident.read (encargo §C): no se oculta solo con CSS, la
     // consulta ni siquiera se ejecuta si no hay permiso.
     canReadIncidents ? listIncidents(tenant.churchId, { kidPersonId: id }) : Promise.resolve([]),
+    // Las notas sensibles viven en su propia tabla desde el hotfix
+    // 20260928001000: la RLS de kids_sensitive_notes exige
+    // kids.sensitive.read, así que sin ese permiso la consulta no devuelve
+    // nada. Aquí ni siquiera se lanza, para no pedir a la base algo que ya
+    // se sabe que no corresponde.
+    canReadSensitive ? getKidsSensitiveNotes(tenant.churchId, id) : Promise.resolve(null),
   ]);
 
   return (
@@ -56,6 +62,7 @@ export default async function KidFichaPage({ params }: { params: Promise<{ id: s
       guardians={guardians}
       pickupAuthorizations={pickupAuthorizations}
       incidents={incidents}
+      sensitiveNotes={sensitiveNotes}
       permissions={{
         canManageProfile,
         canManageGuardians,

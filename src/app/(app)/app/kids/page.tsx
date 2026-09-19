@@ -14,10 +14,12 @@ import { primaryButtonStyle, secondaryButtonStyle } from "./ui";
  * - Menores con perfil activo: listKidsProfiles(status: "active").
  * - Salas activas: listKidsRooms(active: true).
  * - Incidencias abiertas: SOLO el número (getIncidentsCount con
- *   status=open), requiere kids.read — nunca el contenido, que vive
- *   únicamente en la ficha del menor bajo kids.incident.read (§24 del
- *   encargo: "Dashboard puede mostrar solo: '1 incidencia abierta'. Sin
- *   contenido.").
+ *   status=open), nunca el contenido, que vive únicamente en la ficha del
+ *   menor (§24 del encargo: "Dashboard puede mostrar solo: '1 incidencia
+ *   abierta'. Sin contenido."). La tarjeta solo se pinta a quien tiene
+ *   kids.incident.read: el contador sale de la misma tabla protegida por
+ *   RLS, así que a cualquier otro perfil le habría salido siempre un cero,
+ *   y un cero falso es peor que no enseñar la tarjeta.
  *
  * Nota: "Credenciales Kids venciendo pronto" se deja fuera a propósito por
  * simplicidad de esta fase — no existe todavía un servicio de credenciales
@@ -29,12 +31,15 @@ export default async function KidsPage() {
   const disabled = await ensureKidsModule(tenant.churchId);
   if (disabled) return disabled;
 
-  const canManage = await hasCapability(tenant.churchId, "kids.manage");
+  const [canManage, canReadIncidents] = await Promise.all([
+    hasCapability(tenant.churchId, "kids.manage"),
+    hasCapability(tenant.churchId, "kids.incident.read"),
+  ]);
 
   const [activeProfiles, activeRooms, openIncidents] = await Promise.all([
     listKidsProfiles(tenant.churchId, { status: "active", pageSize: 1 }),
     listKidsRooms(tenant.churchId, { active: true }),
-    getIncidentsCount(tenant.churchId, { status: "open" }),
+    canReadIncidents ? getIncidentsCount(tenant.churchId, { status: "open" }) : Promise.resolve(null),
   ]);
 
   return (
@@ -82,13 +87,15 @@ export default async function KidsPage() {
           accentBg="var(--mod-kids-bg)"
           accentFg="var(--mod-kids-fg)"
         />
-        <StatCard
-          icon={ShieldAlert}
-          value={String(openIncidents)}
-          label="Incidencias abiertas"
-          accentBg="var(--mod-worship-bg)"
-          accentFg="var(--mod-worship-fg)"
-        />
+        {openIncidents !== null ? (
+          <StatCard
+            icon={ShieldAlert}
+            value={String(openIncidents)}
+            label="Incidencias abiertas"
+            accentBg="var(--mod-worship-bg)"
+            accentFg="var(--mod-worship-fg)"
+          />
+        ) : null}
       </div>
 
       <div className="shell-card list-card">

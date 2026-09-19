@@ -3,7 +3,11 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { requireTenantContext } from "@/server/tenant/tenant-context";
-import { updateKidsProfile, archiveKidsProfile } from "@/server/kids/kids-profiles-service";
+import {
+  updateKidsProfile,
+  archiveKidsProfile,
+  saveKidsSensitiveNotes,
+} from "@/server/kids/kids-profiles-service";
 import {
   addGuardian,
   removeGuardian,
@@ -137,18 +141,32 @@ export type GuardarConfiguracionInput = {
   emergencyNotes?: string;
 };
 
+/**
+ * Dos escrituras distintas, porque desde el hotfix 20260928001000 son dos
+ * sitios distintos: el perfil (nombre preferido, aviso médico) va a
+ * `kids_profiles`, y las notas de accesibilidad y de emergencia van a
+ * `kids_sensitive_notes` por su RPC, que exige kids.manage y
+ * kids.sensitive.read. Si el formulario no trae notas —porque quien edita
+ * no puede verlas— la segunda llamada ni se hace.
+ */
 export async function guardarConfiguracionAction(
   kidPersonId: string,
   input: GuardarConfiguracionInput,
 ): Promise<FichaState> {
   const tenant = await requireTenantContext();
+  const touchesNotes = input.accessibilityNotes !== undefined || input.emergencyNotes !== undefined;
+
   try {
     await updateKidsProfile(tenant.churchId, kidPersonId, {
       preferredName: input.preferredName,
       medicalAlertFlag: input.medicalAlertFlag,
-      accessibilityNotes: input.accessibilityNotes,
-      emergencyNotes: input.emergencyNotes,
     });
+    if (touchesNotes) {
+      await saveKidsSensitiveNotes(tenant.churchId, kidPersonId, {
+        accessibilityNotes: input.accessibilityNotes,
+        emergencyNotes: input.emergencyNotes,
+      });
+    }
   } catch (err) {
     return asState(err);
   }

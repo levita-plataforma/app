@@ -6,11 +6,25 @@ import { DomainError } from "@/server/errors/domain-error";
 import type { Database } from "@/lib/supabase/database.types";
 
 /**
- * Incidencias Kids (Fase 8 §23-24). Contenido SIEMPRE restricted: nunca se
- * expone en dashboards generales, People común, logs técnicos ni
- * notificaciones genéricas — solo un contador (getIncidentsCount, que
- * requiere el capability más débil kids.read, no kids.incident.read). Ver
- * `supabase/migrations/20260928000300_kids_checkins_incidentes.sql`.
+ * Incidencias Kids (Fase 8 §23-24). El contenido es SIEMPRE restricted:
+ * nunca se expone en dashboards generales, People común, logs técnicos ni
+ * notificaciones genéricas. El dashboard enseña como mucho el número de
+ * incidencias abiertas, nunca el detalle.
+ *
+ * Ese contador exige `kids.incident.read`, igual que la lectura del
+ * contenido. Antes pedía el permiso más débil `kids.read`, con la idea de
+ * que alguien sin acceso al detalle pudiera ver igualmente «1 incidencia
+ * abierta»; pero la política de la tabla filtra por
+ * `kids.incident.read`, así que bajo RLS ese perfil recibía un `count` de
+ * cero. El contador no engañaba: mentía siempre, y justo a quien decía
+ * servir. Servirlo de verdad exigiría una función `security definer` que
+ * devolviese solo el número, que hoy no existe en el esquema; hasta
+ * entonces, el contador pide la misma capacidad que el contenido y quien no
+ * la tenga no ve la cifra en lugar de ver un cero falso.
+ *
+ * Ver `supabase/migrations/20260928000300_kids_checkins_incidentes.sql` y
+ * el hotfix `20260928001000_hotfix_kids_seguridad.sql`, que además revocó
+ * el borrado: una incidencia no se borra, se cierra.
  */
 
 type KidsIncidentType = Database["public"]["Enums"]["kids_incident_type"];
@@ -102,13 +116,14 @@ export async function listIncidents(churchId: string, filters: KidsIncidentFilte
 }
 
 /**
- * SOLO cuenta (count(*)), nunca devuelve contenido. Es la función pensada
- * para dashboards generales: requiere kids.read (no kids.incident.read),
- * a propósito, para que alguien sin acceso al contenido de incidencias
- * pueda ver igualmente "1 incidencia abierta" sin poder leer el detalle.
+ * SOLO cuenta (count(*)), nunca devuelve contenido: es lo único de
+ * incidencias que puede salir en un dashboard. Exige `kids.incident.read`
+ * porque es lo que exige la política de la tabla, y un `count` bajo RLS
+ * solo ve las filas que la política deja ver (ver la nota de cabecera).
+ * Quien no tenga la capacidad recibe un error de dominio, no un cero.
  */
 export async function getIncidentsCount(churchId: string, filters: KidsIncidentFilters = {}): Promise<number> {
-  await requireCapability(churchId, "kids.read");
+  await requireCapability(churchId, "kids.incident.read");
 
   const supabase = await createSupabaseServerClient();
   let query = supabase

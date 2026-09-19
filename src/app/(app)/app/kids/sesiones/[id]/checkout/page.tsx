@@ -24,5 +24,7 @@ export default async function KidsCheckoutPage({ params }: { params: Promise<{ i
     );
   }
 
-  return <CheckoutClient sessionId={id} activityTitle={session.activityTitle || "Sesión Kids"} roomName={session.roomName} />;
+  return (
+    <CheckoutClient sessionId={id} activityTitle={session.activityTitle || "Sesión Kids"} roomName={session.roomName} />
+  );
 }

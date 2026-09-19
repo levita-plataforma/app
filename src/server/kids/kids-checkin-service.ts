@@ -1,15 +1,23 @@
 import "server-only";
 import { createSupabaseServerClient } from "@/server/supabase/server-client";
-import { requireCapability } from "@/server/tenant/authorize";
+import { requireCapability, hasCapability } from "@/server/tenant/authorize";
 import { DomainError } from "@/server/errors/domain-error";
+import { toDomainError } from "@/server/activities/rpc";
+import { candidateSearchTerms } from "@/server/assignments/assignments-service";
 import type { Database } from "@/lib/supabase/database.types";
 
 /**
  * Check-in/check-out de menores (Fase 8 §18-22, §44-45). Las mutaciones
  * viajan siempre por las RPC transaccionales `public.kids_checkin` /
- * `public.kids_checkout` (migración 20260928000700), que ya auditan
- * internamente ('kids.checkin', 'kids.checkout', 'kids.pickup_denied',
- * 'kids.pickup_override'): este servicio NUNCA duplica esa auditoría.
+ * `public.kids_checkout` (migración 20260928000700, reescritas en el hotfix
+ * 20260928001000), que ya auditan internamente ('kids.checkin',
+ * 'kids.checkout', 'kids.pickup_denied', 'kids.pickup_override'): este
+ * servicio NUNCA duplica esa auditoría.
+ *
+ * Desde el hotfix, `kid_checkins` no admite ninguna escritura directa y su
+ * columna `pickup_token_hash` ya no es legible: no se puede localizar un
+ * check-in recalculando el hash del código desde Node, eso lo hace
+ * `app.kids_checkout` por dentro.
  */
 
 type KidCheckinStatus = Database["public"]["Enums"]["kid_checkin_status"];
@@ -42,6 +50,26 @@ export type CheckinKidResult = {
   replayed: boolean;
 };
 
+/**
+ * Los rechazos del check-in (22023) llegan con el mensaje que escribe la
+ * propia RPC, que ya es accionable: dice el nombre de la sala, cuántos
+ * adultos exige y cuántos hay. Desde el hotfix 20260928001000 el ratio
+ * bloquea de verdad —antes la pantalla avisaba pero nada lo impedía—, así
+ * que a esos dos casos se les añade qué hacer para desbloquearlo.
+ */
+function translateCheckinRejection(error: { code?: string; message: string }): DomainError {
+  const domain = toDomainError(error, "No se pudo registrar el check-in.");
+
+  // Solo los rechazos por falta de adultos o por ratio hablan de adultos;
+  // el aforo, la sesión cerrada o el menor de otra iglesia, no.
+  if (!/adulto/i.test(domain.message)) return domain;
+
+  return new DomainError(
+    domain.code,
+    `${domain.message} Registra la entrada de más personal en la sala antes de aceptar a otro menor.`,
+  );
+}
+
 export async function checkinKid(
   churchId: string,
   sessionId: string,
@@ -59,15 +87,8 @@ export async function checkinKid(
   if (error) {
     if (error.code === "42501") throw new DomainError("FORBIDDEN", "No tienes permiso para hacer check-in.");
     if (error.code === "P0002") throw new DomainError("RESOURCE_NOT_FOUND", "Sesión Kids no encontrada.");
-    if (error.code === "22023") {
-      const message = error.message.includes("capacidad")
-        ? "La sala está a capacidad completa."
-        : error.message.includes("pertenece")
-          ? "El menor no pertenece a esta iglesia."
-          : "La sesión no admite check-in.";
-      throw new DomainError("VALIDATION_ERROR", message);
-    }
-    throw new DomainError("INTERNAL_ERROR", "No se pudo registrar el check-in.");
+    if (error.code === "22023") throw translateCheckinRejection(error);
+    throw toDomainError(error, "No se pudo registrar el check-in.");
   }
 
   const row = Array.isArray(data) ? data[0] : data;
@@ -101,8 +122,13 @@ export async function searchKidForCheckin(
   const activityId = await getSessionActivityId(churchId, sessionId);
   await requireCapability(churchId, "kids.checkin", "activity", activityId);
 
-  const term = query.trim();
-  if (!term) return [];
+  // El término se parte y se limpia (fuera comodines, comas, paréntesis,
+  // comillas y barras) antes de entrar en el filtro `or` de PostgREST: sin
+  // limpiarlo, una coma o un paréntesis reescriben el filtro entero y se
+  // puede consultar lo que no toca. Mismo criterio que `listCandidatePeople`
+  // en Asignaciones.
+  const terms = candidateSearchTerms(query);
+  if (terms.length === 0) return [];
 
   const supabase = await createSupabaseServerClient();
 
@@ -120,8 +146,13 @@ export async function searchKidForCheckin(
     .select("person_id, people!church_people_person_id_fkey!inner(first_name, last_name)")
     .eq("church_id", churchId)
     .is("archived_at", null)
-    .or(`first_name.ilike.%${term}%,last_name.ilike.%${term}%`, { referencedTable: "people" })
     .limit(25);
+
+  for (const term of terms) {
+    candidateQuery = candidateQuery.or(`first_name.ilike.%${term}%,last_name.ilike.%${term}%`, {
+      referencedTable: "people",
+    });
+  }
 
   if (excludeIds.length > 0) {
     candidateQuery = candidateQuery.not("person_id", "in", `(${excludeIds.join(",")})`);
@@ -153,6 +184,71 @@ export type CheckoutKidResult = {
   authorized: boolean;
 };
 
+export type PickupLookup = {
+  checkinId: string;
+  kidPersonId: string;
+  kidName: string;
+  roomName: string | null;
+  /**
+   * Aviso de que hay algo que consultar antes de entregar al menor. Es el
+   * indicador, no el detalle: las notas de accesibilidad y de emergencia
+   * viven en `kids_sensitive_notes` y solo las ve quien tenga
+   * `kids.sensitive.read`.
+   */
+  medicalAlert: boolean;
+};
+
+/**
+ * Localiza el check-in a partir del código de recogida, por
+ * `public.kids_lookup_pickup`. La aplicación no puede hacerlo por su
+ * cuenta: `kid_checkins.pickup_token_hash` dejó de ser legible en el hotfix
+ * 20260928001000 (con la huella a la vista se pudo recuperar un código
+ * real) y la fórmula lleva dentro el identificador del check-in. La función
+ * exige `kids.checkout`, devuelve solo lo justo para atender la puerta y no
+ * sirve como oráculo de códigos.
+ *
+ * Es solo lectura: la recogida sigue pasando por `kids_checkout`, que lo
+ * vuelve a validar todo dentro de la misma transacción.
+ */
+export async function lookupPickupByCode(
+  churchId: string,
+  sessionId: string,
+  pickupCode: string,
+): Promise<PickupLookup> {
+  const activityId = await getSessionActivityId(churchId, sessionId);
+  await requireCapability(churchId, "kids.checkout", "activity", activityId);
+
+  const supabase = await createSupabaseServerClient();
+  const { data, error } = await supabase.rpc("kids_lookup_pickup", {
+    p_session_id: sessionId,
+    p_pickup_code: pickupCode,
+  });
+
+  if (error) {
+    if (error.code === "P0002") throw new DomainError("RESOURCE_NOT_FOUND", "Código no válido o ya utilizado.");
+    throw toDomainError(error, "No se pudo comprobar el código de recogida.");
+  }
+
+  type PickupLookupRow = {
+    checkin_id: string;
+    kid_person_id: string;
+    kid_name: string | null;
+    room_name: string | null;
+    medical_alert: boolean | null;
+  };
+
+  const row = (Array.isArray(data) ? data[0] : data) as PickupLookupRow | undefined;
+  if (!row) throw new DomainError("RESOURCE_NOT_FOUND", "Código no válido o ya utilizado.");
+
+  return {
+    checkinId: row.checkin_id,
+    kidPersonId: row.kid_person_id,
+    kidName: row.kid_name?.trim() || "Menor",
+    roomName: row.room_name,
+    medicalAlert: row.medical_alert ?? false,
+  };
+}
+
 export async function checkoutKid(
   churchId: string,
   sessionId: string,
@@ -183,7 +279,7 @@ export async function checkoutKid(
       );
     }
     if (error.code === "P0002") throw new DomainError("RESOURCE_NOT_FOUND", "Código no válido o ya utilizado.");
-    throw new DomainError("INTERNAL_ERROR", "No se pudo registrar el check-out.");
+    throw toDomainError(error, "No se pudo registrar el check-out.");
   }
 
   const row = Array.isArray(data) ? data[0] : data;
@@ -249,8 +345,23 @@ type ActiveKidCheckinRow = {
   people: { first_name: string; last_name: string | null } | { first_name: string; last_name: string | null }[] | null;
 };
 
+/**
+ * Menores con la entrada registrada en una sesión. Se aceptan las dos
+ * mismas capacidades que acepta la política de lectura de `kid_checkins`
+ * (kids.read sobre la iglesia, o kids.checkin sobre la actividad): exigir
+ * solo kids.read dejaba fuera a quien atiende la puerta, que es quien más
+ * necesita ver la lista, y la consulta le habría devuelto vacío sin
+ * explicar por qué.
+ */
 export async function getCheckinsForSession(churchId: string, sessionId: string): Promise<ActiveKidCheckin[]> {
-  await requireCapability(churchId, "kids.read");
+  const activityId = await getSessionActivityId(churchId, sessionId);
+  const [canRead, canCheckin] = await Promise.all([
+    hasCapability(churchId, "kids.read"),
+    hasCapability(churchId, "kids.checkin", "activity", activityId),
+  ]);
+  if (!canRead && !canCheckin) {
+    throw new DomainError("FORBIDDEN", "No tienes permiso para ver los menores de esta sesión (kids.read).");
+  }
 
   const supabase = await createSupabaseServerClient();
   const { data, error } = await supabase

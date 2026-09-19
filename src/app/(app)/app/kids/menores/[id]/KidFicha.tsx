@@ -3,7 +3,7 @@
 import { useState, useTransition } from "react";
 import Link from "next/link";
 import { authInputStyle, authLabelStyle } from "@/components/shell/AuthCard";
-import type { KidsProfile } from "@/server/kids/kids-profiles-service";
+import type { KidsProfile, KidsSensitiveNotes } from "@/server/kids/kids-profiles-service";
 import type { KidGuardian, SuggestedGuardian } from "@/server/kids/kid-guardians-service";
 import type { PickupAuthorization, PickupAuthorizationType } from "@/server/kids/kid-pickup-service";
 import type { KidsIncident } from "@/server/kids/kids-incidents-service";
@@ -44,6 +44,13 @@ export type KidFichaProps = {
   guardians: KidGuardian[];
   pickupAuthorizations: PickupAuthorization[];
   incidents: KidsIncident[];
+  /**
+   * Notas de accesibilidad y de emergencia. Llegan en `null` cuando quien
+   * mira no tiene kids.sensitive.read: ya no son columnas del perfil, viven
+   * en `kids_sensitive_notes` con su propia RLS, así que el servidor ni
+   * siquiera las trae.
+   */
+  sensitiveNotes: KidsSensitiveNotes | null;
   permissions: {
     canManageProfile: boolean;
     canManageGuardians: boolean;
@@ -54,7 +61,14 @@ export type KidFichaProps = {
   };
 };
 
-export default function KidFicha({ profile, guardians, pickupAuthorizations, incidents, permissions }: KidFichaProps) {
+export default function KidFicha({
+  profile,
+  guardians,
+  pickupAuthorizations,
+  incidents,
+  sensitiveNotes,
+  permissions,
+}: KidFichaProps) {
   const [tab, setTab] = useState<Tab>("Resumen");
   const [error, setError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
@@ -113,7 +127,9 @@ export default function KidFicha({ profile, guardians, pickupAuthorizations, inc
         ))}
       </nav>
 
-      {tab === "Resumen" ? <ResumenTab profile={profile} guardiansCount={guardians.length} /> : null}
+      {tab === "Resumen" ? (
+        <ResumenTab profile={profile} guardiansCount={guardians.length} sensitiveNotes={sensitiveNotes} />
+      ) : null}
 
       {tab === "Responsables" ? (
         <ResponsablesTab
@@ -148,6 +164,7 @@ export default function KidFicha({ profile, guardians, pickupAuthorizations, inc
       {tab === "Configuración" ? (
         <ConfiguracionTab
           profile={profile}
+          sensitiveNotes={sensitiveNotes}
           canManage={permissions.canManageProfile}
           canSeeSensitive={permissions.canReadSensitive}
           pending={pending}
@@ -158,7 +175,15 @@ export default function KidFicha({ profile, guardians, pickupAuthorizations, inc
   );
 }
 
-function ResumenTab({ profile, guardiansCount }: { profile: KidsProfile; guardiansCount: number }) {
+function ResumenTab({
+  profile,
+  guardiansCount,
+  sensitiveNotes,
+}: {
+  profile: KidsProfile;
+  guardiansCount: number;
+  sensitiveNotes: KidsSensitiveNotes | null;
+}) {
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
       <div className="serving-grid">
@@ -176,21 +201,21 @@ function ResumenTab({ profile, guardiansCount }: { profile: KidsProfile; guardia
         </SummaryCard>
       </div>
 
-      {/* accessibilityNotes/emergencyNotes ya vienen null desde el servicio
-          si el caller no tiene kids.sensitive.read: solo se muestran si son
-          no-null, nunca se fuerza su visibilidad aquí. */}
-      {profile.accessibilityNotes || profile.emergencyNotes ? (
+      {/* Las notas llegan en null si quien mira no tiene
+          kids.sensitive.read: la RLS de kids_sensitive_notes no le devuelve
+          la fila. Aquí solo se pinta lo que haya llegado. */}
+      {sensitiveNotes?.accessibilityNotes || sensitiveNotes?.emergencyNotes ? (
         <div className="shell-card" style={{ padding: 18, display: "flex", flexDirection: "column", gap: 10 }}>
-          {profile.accessibilityNotes ? (
+          {sensitiveNotes.accessibilityNotes ? (
             <div>
               <p style={authLabelStyle}>Notas de accesibilidad</p>
-              <p style={{ fontSize: 13 }}>{profile.accessibilityNotes}</p>
+              <p style={{ fontSize: 13 }}>{sensitiveNotes.accessibilityNotes}</p>
             </div>
           ) : null}
-          {profile.emergencyNotes ? (
+          {sensitiveNotes.emergencyNotes ? (
             <div>
               <p style={authLabelStyle}>Notas de emergencia</p>
-              <p style={{ fontSize: 13 }}>{profile.emergencyNotes}</p>
+              <p style={{ fontSize: 13 }}>{sensitiveNotes.emergencyNotes}</p>
             </div>
           ) : null}
         </div>
@@ -798,12 +823,14 @@ function IncidenciasTab({
 
 function ConfiguracionTab({
   profile,
+  sensitiveNotes,
   canManage,
   canSeeSensitive,
   pending,
   run,
 }: {
   profile: KidsProfile;
+  sensitiveNotes: KidsSensitiveNotes | null;
   canManage: boolean;
   canSeeSensitive: boolean;
   pending: boolean;
@@ -811,8 +838,8 @@ function ConfiguracionTab({
 }) {
   const [preferredName, setPreferredName] = useState(profile.preferredName ?? "");
   const [medicalAlertFlag, setMedicalAlertFlag] = useState(profile.medicalAlertFlag);
-  const [accessibilityNotes, setAccessibilityNotes] = useState(profile.accessibilityNotes ?? "");
-  const [emergencyNotes, setEmergencyNotes] = useState(profile.emergencyNotes ?? "");
+  const [accessibilityNotes, setAccessibilityNotes] = useState(sensitiveNotes?.accessibilityNotes ?? "");
+  const [emergencyNotes, setEmergencyNotes] = useState(sensitiveNotes?.emergencyNotes ?? "");
   const [confirmArchive, setConfirmArchive] = useState(false);
 
   function save() {

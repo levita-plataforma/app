@@ -3,9 +3,9 @@
 import Link from "next/link";
 import { useCallback, useEffect, useRef, useState, useTransition } from "react";
 import { LogIn, LogOut, Plus, Trash2, UserPlus, X } from "lucide-react";
-import type { KidsSessionDetail, KidsRatioStatus } from "@/server/kids/kids-sessions-service";
+import type { KidsSessionDetail, KidsRatioView } from "@/server/kids/kids-sessions-service";
 import type { KidsSessionStaffMember, KidsStaffRole, StaffEligibility } from "@/server/kids/kids-staff-service";
-import { primaryButtonStyle, secondaryButtonStyle, fullName } from "../../ui";
+import { primaryButtonStyle, secondaryButtonStyle, fullName, ratioTone } from "../../ui";
 import {
   getRatioStatusAction,
   cerrarSesionAction,
@@ -38,8 +38,16 @@ function formatDateTime(value: string | null): string {
   return new Date(value).toLocaleString("es-ES", { dateStyle: "medium", timeStyle: "short" });
 }
 
-function RatioBanner({ ratio }: { ratio: KidsRatioStatus | null }) {
-  if (!ratio) {
+function RatioBanner({ view }: { view: KidsRatioView }) {
+  if (view.kind === "forbidden") {
+    return (
+      <div className="shell-card" style={{ padding: 14, fontSize: 13, color: "var(--shell-text-muted)" }}>
+        No tienes permiso para ver el estado del ratio de esta sala.
+      </div>
+    );
+  }
+
+  if (view.kind === "unavailable") {
     return (
       <div className="shell-card" style={{ padding: 14, fontSize: 13, color: "var(--shell-text-muted)" }}>
         No se pudo cargar el estado del ratio.
@@ -47,11 +55,8 @@ function RatioBanner({ ratio }: { ratio: KidsRatioStatus | null }) {
     );
   }
 
-  const config = {
-    safe: { label: "RATIO SEGURO", bg: "#e6f4ea", fg: "#1e7e34", border: "#1e7e34" },
-    warning: { label: "RATIO EN AVISO", bg: "#fff4e0", fg: "#8a5a00", border: "#8a5a00" },
-    blocked: { label: "RATIO INSUFICIENTE", bg: "#fdeaea", fg: "#b3261e", border: "#b3261e" },
-  }[ratio.state];
+  const ratio = view.ratio;
+  const config = ratioTone(ratio.state);
 
   return (
     <div
@@ -90,11 +95,11 @@ export default function SesionFicha({
   permissions,
 }: {
   session: KidsSessionDetail;
-  initialRatio: KidsRatioStatus | null;
+  initialRatio: KidsRatioView;
   initialStaff: KidsSessionStaffMember[];
   permissions: { canManage: boolean; canCheckin: boolean; canCheckout: boolean };
 }) {
-  const [ratio, setRatio] = useState(initialRatio);
+  const [ratio, setRatio] = useState<KidsRatioView>(initialRatio);
   const [staff, setStaff] = useState(initialStaff);
   const [error, setError] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
@@ -103,7 +108,7 @@ export default function SesionFicha({
 
   const refreshRatio = useCallback(() => {
     getRatioStatusAction(session.id).then((res) => {
-      if (!res.error) setRatio(res.data ?? null);
+      if (!res.error && res.data) setRatio(res.data);
     });
   }, [session.id]);
 
@@ -145,21 +150,32 @@ export default function SesionFicha({
   }
 
   function handleStaffCheckIn(staffRowId: string) {
+    setError(null);
+    setMessage(null);
     startAction(async () => {
       const res = await staffCheckInAction(session.id, staffRowId);
       if (res.error) {
+        // Puede ser la credencial, que la función revalida al entrar y no
+        // solo al asignar el turno.
         setError(res.error);
         return;
       }
-      setStaff((prev) => prev.map((s) => (s.id === staffRowId ? { ...s, checkedInAt: new Date().toISOString() } : s)));
+      setStaff((prev) =>
+        prev.map((s) => (s.id === staffRowId ? { ...s, checkedInAt: new Date().toISOString(), checkedOutAt: null } : s)),
+      );
       refreshRatio();
     });
   }
 
   function handleStaffCheckOut(staffRowId: string) {
+    setError(null);
+    setMessage(null);
     startAction(async () => {
       const res = await staffCheckOutAction(session.id, staffRowId);
       if (res.error) {
+        // La salida se deniega si quedan menores y la sala se quedaría por
+        // debajo del mínimo de adultos. El mensaje viene de la base con las
+        // cifras concretas y se enseña tal cual.
         setError(res.error);
         return;
       }
@@ -190,7 +206,7 @@ export default function SesionFicha({
         </div>
       </div>
 
-      <RatioBanner ratio={ratio} />
+      <RatioBanner view={ratio} />
 
       <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
         {permissions.canCheckin ? (
@@ -205,10 +221,27 @@ export default function SesionFicha({
         ) : null}
       </div>
 
+      {/* Aquí aterrizan los rechazos de la base: la credencial caducada al
+          registrar la entrada del personal y, sobre todo, la negativa a
+          dejar salir a un adulto cuando quedan menores en la sala. Ese
+          mensaje ya trae las cifras concretas, así que se enseña entero y
+          donde se lea. */}
       {error ? (
-        <p role="alert" style={{ fontSize: 12.5, color: "var(--shell-danger)" }}>
+        <div
+          role="alert"
+          className="shell-card"
+          style={{
+            padding: 14,
+            border: "2px solid #b3261e",
+            background: "#fdeaea",
+            color: "#8a1c17",
+            fontSize: 14,
+            fontWeight: 600,
+            lineHeight: 1.4,
+          }}
+        >
           {error}
-        </p>
+        </div>
       ) : null}
       {message ? (
         <p role="status" style={{ fontSize: 12.5, color: "var(--shell-success, green)" }}>

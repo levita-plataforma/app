@@ -3,7 +3,13 @@
 import { useState, useTransition } from "react";
 import Link from "next/link";
 import type { AuthorizedPickup } from "@/server/kids/kids-checkin-service";
-import { primaryButtonStyle, secondaryButtonStyle } from "../../../ui";
+import {
+  primaryButtonStyle,
+  secondaryButtonStyle,
+  normalizePickupCode,
+  isPickupCodeValid,
+  PICKUP_CODE_LENGTH,
+} from "../../../ui";
 import { buscarCheckinPorCodigoAction, confirmarCheckoutAction, type PickupLookupResult } from "./actions";
 
 const AUTH_TYPE_LABELS: Record<AuthorizedPickup["authorizationType"], string> = {
@@ -14,6 +20,15 @@ const AUTH_TYPE_LABELS: Record<AuthorizedPickup["authorizationType"], string> = 
 
 type Step = "code" | "pickup" | "denied" | "done";
 
+/**
+ * Check-out empezando por el código, que es como llega la familia a la
+ * puerta. Lo que cambió con el hotfix 20260928001000 es quién resuelve el
+ * código: antes la pantalla recalculaba la huella en Node contra una
+ * columna que era legible —y por eso se pudo recuperar un código real—, y
+ * ahora lo hace `public.kids_lookup_pickup`, que exige kids.checkout y solo
+ * devuelve el nombre del menor, su sala y si tiene aviso médico. La salida
+ * en sí la sigue registrando `kids_checkout`, que lo revalida todo.
+ */
 export default function CheckoutClient({
   sessionId,
   activityTitle,
@@ -31,6 +46,8 @@ export default function CheckoutClient({
   const [error, setError] = useState<string | null>(null);
   const [checkingCode, startCodeLookup] = useTransition();
   const [confirming, startConfirm] = useTransition();
+
+  const codeReady = isPickupCodeValid(code);
 
   function reset() {
     setStep("code");
@@ -55,10 +72,11 @@ export default function CheckoutClient({
     });
   }
 
-  function handleConfirmAuthorized(auth: AuthorizedPickup) {
-    setSelectedAuthId(auth.id);
+  function confirm(pickupPersonName: string, authorizedPickupId?: string) {
+    setError(null);
+    setSelectedAuthId(authorizedPickupId ?? null);
     startConfirm(async () => {
-      const res = await confirmarCheckoutAction(sessionId, code, auth.authorizedNameSnapshot, auth.id);
+      const res = await confirmarCheckoutAction(sessionId, code, pickupPersonName, authorizedPickupId);
       if (res.error) {
         setError(res.error);
         return;
@@ -77,25 +95,16 @@ export default function CheckoutClient({
       setError("Escribe el nombre de quien recoge.");
       return;
     }
-    setError(null);
-    startConfirm(async () => {
-      const res = await confirmarCheckoutAction(sessionId, code, name);
-      if (res.error) {
-        setError(res.error);
-        return;
-      }
-      if (!res.data?.authorized) {
-        setStep("denied");
-        return;
-      }
-      setStep("done");
-    });
+    confirm(name);
   }
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 16, maxWidth: 560, margin: "0 auto" }}>
       <div>
-        <Link href={`/app/kids/sesiones/${sessionId}`} style={{ fontSize: 12, color: "var(--shell-text-muted)", textDecoration: "none" }}>
+        <Link
+          href={`/app/kids/sesiones/${sessionId}`}
+          style={{ fontSize: 12, color: "var(--shell-text-muted)", textDecoration: "none" }}
+        >
           ← Volver a la sesión
         </Link>
         <h1 style={{ fontSize: 18, fontWeight: 600, marginTop: 4 }}>
@@ -110,12 +119,14 @@ export default function CheckoutClient({
             <input
               type="text"
               value={code}
-              onChange={(e) => setCode(e.target.value.toUpperCase())}
-              placeholder="Ej. A1B2C3D4"
+              onChange={(e) => setCode(normalizePickupCode(e.target.value))}
+              placeholder="Ej. K7RM2XQF"
               aria-label="Código de recogida"
               autoFocus
+              autoComplete="off"
               autoCapitalize="characters"
               autoCorrect="off"
+              maxLength={PICKUP_CODE_LENGTH}
               style={{
                 padding: "18px 16px",
                 borderRadius: "var(--shell-radius-md)",
@@ -127,6 +138,9 @@ export default function CheckoutClient({
                 textTransform: "uppercase",
               }}
             />
+            <span style={{ fontSize: 12, color: "var(--shell-text-muted)" }}>
+              {PICKUP_CODE_LENGTH} caracteres. No lleva las letras I ni O, ni los números 0 ni 1.
+            </span>
           </label>
 
           {error ? (
@@ -137,7 +151,7 @@ export default function CheckoutClient({
 
           <button
             type="submit"
-            disabled={checkingCode || code.trim().length === 0}
+            disabled={checkingCode || !codeReady}
             style={{ ...primaryButtonStyle(checkingCode), minHeight: 52, fontSize: 16, justifyContent: "center" }}
           >
             {checkingCode ? "Buscando…" : "Buscar check-in"}
@@ -150,7 +164,32 @@ export default function CheckoutClient({
           <div className="shell-card" style={{ padding: 16 }}>
             <p style={{ fontSize: 13, color: "var(--shell-text-muted)" }}>Menor localizado</p>
             <p style={{ fontSize: 18, fontWeight: 700 }}>{lookup.kidName}</p>
+            {lookup.roomName ? (
+              <p style={{ fontSize: 12.5, color: "var(--shell-text-muted)", marginTop: 2 }}>Sala {lookup.roomName}</p>
+            ) : null}
           </div>
+
+          {/* El aviso médico es un indicador, no el detalle: quien tenga
+              kids.sensitive.read encontrará las notas en la ficha del menor.
+              Se enseña antes de entregar al niño, que es cuando sirve. */}
+          {lookup.medicalAlert ? (
+            <div
+              role="alert"
+              className="shell-card"
+              style={{
+                padding: 14,
+                border: "2px solid #8a5a00",
+                background: "#fff4e0",
+                color: "#8a5a00",
+                fontSize: 14,
+                fontWeight: 700,
+                lineHeight: 1.4,
+              }}
+            >
+              ⚠︎ Este menor tiene un aviso médico. Consúltalo con la persona responsable de la sala antes de
+              entregarlo. El detalle está en su ficha y solo lo ve quien tiene permiso para las notas sensibles.
+            </div>
+          ) : null}
 
           <p style={{ fontSize: 14, fontWeight: 600 }}>¿Quién está recogiendo?</p>
 
@@ -163,7 +202,7 @@ export default function CheckoutClient({
                     <button
                       type="button"
                       disabled={confirming}
-                      onClick={() => handleConfirmAuthorized(auth)}
+                      onClick={() => confirm(auth.authorizedNameSnapshot, auth.id)}
                       style={{
                         width: "100%",
                         textAlign: "left",
@@ -177,7 +216,9 @@ export default function CheckoutClient({
                       }}
                     >
                       <span style={{ fontWeight: 700 }}>{auth.authorizedNameSnapshot}</span>
-                      {auth.relationText ? <span style={{ color: "var(--shell-text-muted)" }}> · {auth.relationText}</span> : null}
+                      {auth.relationText ? (
+                        <span style={{ color: "var(--shell-text-muted)" }}> · {auth.relationText}</span>
+                      ) : null}
                       <br />
                       <span style={{ fontSize: 12, color: "var(--shell-text-muted)" }}>
                         {AUTH_TYPE_LABELS[auth.authorizationType]}
@@ -189,12 +230,15 @@ export default function CheckoutClient({
               </ul>
             </div>
           ) : (
-            <p style={{ fontSize: 13, color: "var(--shell-text-muted)" }}>Este menor no tiene autorizaciones de recogida activas.</p>
+            <p style={{ fontSize: 13, color: "var(--shell-text-muted)" }}>
+              Este menor no tiene autorizaciones de recogida activas.
+            </p>
           )}
 
           <div className="shell-card" style={{ padding: 14, display: "flex", flexDirection: "column", gap: 8 }}>
             <p style={{ fontSize: 12.5, color: "var(--shell-text-muted)" }}>
-              O si la persona no está en la lista, busca igualmente escribiendo su nombre:
+              O si la persona no está en la lista, escribe su nombre: la recogida quedará registrada como no autorizada
+              y el menor no podrá salir sin que alguien con permiso anule la validación.
             </p>
             <input
               type="text"
@@ -235,14 +279,26 @@ export default function CheckoutClient({
         <div
           role="alert"
           className="shell-card"
-          style={{ padding: 24, textAlign: "center", display: "flex", flexDirection: "column", gap: 10, border: "2px solid #b3261e", background: "#fdeaea" }}
+          style={{
+            padding: 24,
+            textAlign: "center",
+            display: "flex",
+            flexDirection: "column",
+            gap: 10,
+            border: "2px solid #b3261e",
+            background: "#fdeaea",
+          }}
         >
           <p style={{ fontSize: 22, fontWeight: 800, color: "#b3261e" }}>⚠ RECOGIDA NO AUTORIZADA</p>
           <p style={{ fontSize: 14, color: "#8a1c17" }}>
             Esta persona no tiene una autorización de recogida activa para este menor. El menor NO puede salir con esta
             persona. Escala esta situación a alguien con permiso para anular la validación de recogida.
           </p>
-          <button type="button" style={{ ...secondaryButtonStyle(), justifyContent: "center", minHeight: 48 }} onClick={reset}>
+          <button
+            type="button"
+            style={{ ...secondaryButtonStyle(), justifyContent: "center", minHeight: 48 }}
+            onClick={reset}
+          >
             Volver a empezar
           </button>
         </div>
@@ -252,11 +308,22 @@ export default function CheckoutClient({
         <div
           role="status"
           className="shell-card"
-          style={{ padding: 24, textAlign: "center", display: "flex", flexDirection: "column", gap: 10, border: "2px solid var(--shell-brand)" }}
+          style={{
+            padding: 24,
+            textAlign: "center",
+            display: "flex",
+            flexDirection: "column",
+            gap: 10,
+            border: "2px solid var(--shell-brand)",
+          }}
         >
           <p style={{ fontSize: 20, fontWeight: 700 }}>Check-out registrado</p>
           <p style={{ fontSize: 14, color: "var(--shell-text-muted)" }}>{lookup?.kidName} ha salido de la sesión.</p>
-          <button type="button" style={{ ...primaryButtonStyle(), justifyContent: "center", minHeight: 48 }} onClick={reset}>
+          <button
+            type="button"
+            style={{ ...primaryButtonStyle(), justifyContent: "center", minHeight: 48 }}
+            onClick={reset}
+          >
             Hacer otro check-out
           </button>
         </div>
