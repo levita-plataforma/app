@@ -39,6 +39,24 @@ create or replace function test_id(p_name text) returns uuid as $$
   select id from test_ids where name = p_name;
 $$ language sql stable;
 
+-- El token de cancelación solo existe en el valor que devuelve la RPC: en la
+-- tabla se guarda únicamente su huella (20260930000100). Se conserva aquí para
+-- poder probar la cancelación igual que la hace quien recibe el enlace.
+create temporary table test_tokens (name text primary key, token text);
+grant all on test_tokens to public;
+
+create or replace function test_keep_token(p_name text, p_token text) returns text as $$
+begin
+  insert into test_tokens (name, token) values (p_name, p_token)
+  on conflict (name) do update set token = excluded.token;
+  return p_token;
+end;
+$$ language plpgsql;
+
+create or replace function test_token(p_name text) returns text as $$
+  select token from test_tokens where name = p_name;
+$$ language sql stable;
+
 -- Crea una activity vía RPC (INSERT directo no está permitido para
 -- authenticated), la publica y devuelve su id. p_status default 'published'
 -- ('draft' la deja sin publicar).
@@ -182,12 +200,13 @@ update events set registration_closes_at = null where id = '70000000-0000-0000-0
 -- 3. RPC de inscripción pública: aforo, waitlist, idempotencia
 -- ============================================================
 select isa_ok(
-  (select registration_id from app.register_for_event(
+  (select r.registration_id from app.register_for_event(
     '70000000-0000-0000-0000-0000000b0001', 'individual', 'Ana Pública', 'ana@example.test',
     null, null, '[]'::jsonb, '[]'::jsonb, '[]'::jsonb, 'idem-ana-1'
-  )),
+  ) r
+  where test_keep_token('ana', r.cancel_token) is not null),
   'uuid',
-  'Inscripción pública devuelve un registration_id'
+  'Inscripción pública devuelve un registration_id y su enlace de cancelación'
 );
 
 select is(
@@ -235,7 +254,7 @@ select is(
 -- ============================================================
 select ok(
   (select promoted_count > 0 from app.cancel_registration_by_token(
-    (select cancel_token from registrations where primary_email = 'ana@example.test')
+    test_token('ana')
   )),
   'Cancelar una confirmada promociona automáticamente a la waitlist'
 );

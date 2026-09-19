@@ -1,6 +1,7 @@
 import "server-only";
 import { createSupabaseServerClient } from "@/server/supabase/server-client";
 import { requireCapability } from "@/server/tenant/authorize";
+import { candidateSearchTerms } from "@/server/assignments/assignments-service";
 import { DomainError } from "@/server/errors/domain-error";
 import type { Database } from "@/lib/supabase/database.types";
 
@@ -62,7 +63,10 @@ export async function searchAttendeeForCheckin(
   const activityId = await getEventActivityId(churchId, eventId);
   await requireCapability(churchId, "event.checkin", "activity", activityId);
 
-  const term = query.trim();
+  // El término se sanea antes de entrar en un filtro `or` de PostgREST: con
+  // comas y paréntesis se puede alterar el filtro y sacar más de lo que toca.
+  // Se reutiliza el saneado de asignaciones en vez de repetirlo aquí.
+  const term = candidateSearchTerms(query).join(" ");
   if (!term) return [];
 
   const supabase = await createSupabaseServerClient();
