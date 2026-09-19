@@ -340,12 +340,12 @@ Un administrador autorizado envía una comunicación a un segmento definido sin 
 **Implementada y revisada; pendiente de validación e integración.**
 
 Construida por Diogo en `feature/diogo-fase-9-comunicacion`, reconciliada por él
-con la Fase 7 y con Kids, y revisada después en
-`hotfix/fase-9-comunicacion`, que corrige cuatro cosas:
+con la Fase 7 y con Kids, e iterada después con categorías opcionales,
+segmentación con OR, preferencias por categoría y baja por enlace. Revisada en
+`hotfix/fase-9-comunicacion`, que corrige cinco cosas:
 
 - Crear o archivar una plantilla o un segmento **fallaba siempre**: la escritura
   directa estaba revocada y las RPC que el código daba por hechas no existían.
-  Se añaden en `20260931000800`.
 - Una comunicación solo por correo se marcaba **«Enviada»** aunque no saliera
   nada. Se añade el estado `queued`, que la interfaz muestra como «En cola, sin
   enviar»: el transporte externo sigue desactivado (D20 y D21) y decir lo
@@ -354,10 +354,14 @@ con la Fase 7 y con Kids, y revisada después en
   se respetaban para el correo.
 - `app.resolve_segment_recipients`, que es interna, estaba concedida a
   `authenticated`.
+- El **enlace de baja no funcionaba con sesión abierta**: la función estaba
+  concedida solo a `anon`, pero la página pública usa el cliente del usuario, así
+  que un enlace válido respondía que no lo era.
 
-Migraciones `20260931000100`–`20260931000800`, **sin aplicar en producción**.
-Batería completa con las cuatro fases conviviendo: 1342 aserciones en 25 suites,
-sin fallos.
+Los arreglos van en `20261001001200`, aparte de las once migraciones de la fase
+(`20261001000100`–`20261001001100`), para no pisar el trabajo en curso.
+**Nada de esto está aplicado en producción.** Batería completa con las cinco
+fases conviviendo: 1355 aserciones en 25 suites, sin fallos.
 
 **Pendiente de decisión:** la segmentación por grupo, explicada en la nota de
 arriba.
