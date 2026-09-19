@@ -407,7 +407,7 @@ export async function listCandidatePeople(
   const peopleQuery = (only: "members" | "all") => {
     let query = supabase
       .from("people")
-      .select("id, first_name, last_name, preferred_name, user_id, church_people!inner(church_id, archived_at)")
+      .select("id, first_name, last_name, preferred_name, user_id, church_people!church_people_person_id_fkey!inner(church_id, archived_at)")
       .eq("church_people.church_id", churchId)
       .is("church_people.archived_at", null)
       .order("first_name")
