@@ -172,7 +172,7 @@ No implementar hasta decidir proveedor, fiscalidad y política de cancelación.
 
 ### A14 · Comunicaciones comerciales/masivas
 Finalidades, consentimiento, opt-out y proveedores.
-Resuelto (Fase 9, acordado con Diogo): finalidad limitada a `institutional`/`operational` — no se implementa `marketing` funcional en esta fase. Opt-out vía `notification_preferences` ya existente de Fase 5 (por canal, no se crea un sistema de consentimiento nuevo). Sin proveedor real de email/push: el envío externo queda `queued`, igual que el motor de avisos, gobernado por `NOTIFICATIONS_TRANSPORT=disabled`. Ver `docs/adr/0019-comunicaciones-vs-avisos.md`.
+Resuelto (Fase 9, acordado con Diogo): finalidad limitada a `institutional`/`operational` — no se implementa `marketing` funcional en esta fase. Opt-out vía `notification_preferences` ya existente de Fase 5 (por canal, no se crea un sistema de consentimiento nuevo). Sin proveedor real de email/push: el envío externo queda `queued`, igual que el motor de avisos, gobernado por `NOTIFICATIONS_TRANSPORT=disabled`. Ver `docs/adr/0020-comunicaciones-vs-avisos.md`.
 
 ## Cuestiones abiertas antes de Fase 11
 

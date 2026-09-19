@@ -43,7 +43,7 @@ end;
 $$ language plpgsql;
 
 -- communication_recipients no tiene política de select para authenticated
--- (a propósito, ver 20260929000500_rls_comunicaciones.sql): estos helpers
+-- (a propósito, ver 20260931000500_rls_comunicaciones.sql): estos helpers
 -- leen con security definer, como haría el propio service_role/una RPC de
 -- métricas, para poder aserto el resultado real de materialize/send sin
 -- exponer una superficie de lectura nueva al cliente.

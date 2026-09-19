@@ -1,7 +1,7 @@
 -- Fase 9 (Diogo) · Destinatarios materializados de una comunicación.
 --
 -- Se materializan UNA SOLA VEZ (communications.materialized_at como guarda,
--- ver app.materialize_communication en 20260929000600) para que un segmento
+-- ver app.materialize_communication en 20260931000600) para que un segmento
 -- cambiante no altere retroactivamente una comunicación ya enviada. Sin
 -- proveedor real de email/push (A14): 'queued' significa "resuelto y
 -- pendiente de transporte", nunca se finge 'sent' para esos canales.

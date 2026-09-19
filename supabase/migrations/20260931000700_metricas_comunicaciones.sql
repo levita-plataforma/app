@@ -1,14 +1,14 @@
 -- Fase 9 (Diogo) · Métricas de entrega y programación de comunicaciones.
 --
--- app.preview_communication_segment (20260929000600) sirve solo para el
+-- app.preview_communication_segment (20260931000600) sirve solo para el
 -- preview PRE-envío (aún no hay communication_recipients). Para la ficha de
 -- detalle de una comunicación ya materializada/enviada hace falta una
 -- lectura agregada de communication_recipients — tabla sin política de
 -- SELECT directa (PII masiva persona x canal). Se expone aquí una función
 -- de solo lectura, mismo patrón security definer + wrapper public.* +
--- revoke/grant que el resto de 20260929000600.
+-- revoke/grant que el resto de 20260931000600.
 --
--- Además, create_communication (20260929000600 §5) siempre crea en
+-- Además, create_communication (20260931000600 §5) siempre crea en
 -- 'draft': no acepta scheduled_at. Para "programar" hace falta una función
 -- separada que mueva la comunicación a status='scheduled', con el mismo
 -- patrón de capability check (communications.schedule) y auditoría que

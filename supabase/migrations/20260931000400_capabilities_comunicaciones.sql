@@ -22,7 +22,7 @@ select 'campus_admin', key from capabilities where key like 'communications.%';
 
 -- Líder de área: puede crear, enviar y programar comunicaciones acotadas a su
 -- área (validado en la capa RPC, ver app.communication_cap y
--- app.create_communication en 20260929000600), pero no gestiona plantillas,
+-- app.create_communication en 20260931000600), pero no gestiona plantillas,
 -- segmentos globales, métricas agregadas de toda la iglesia ni preferencias
 -- de otras personas.
 insert into role_capabilities (role_key, capability_key) values

@@ -92,7 +92,7 @@ La entrega es asíncrona, con retries y dead-letter/estado fallido. Toda tarea i
 
 ## 13. Implementación real de Comunicaciones (Fase 9)
 
-Estado: implementado. Ver `supabase/migrations/20260927*.sql` y `docs/adr/0019-comunicaciones-vs-avisos.md`.
+Estado: implementado. Ver `supabase/migrations/20260931*.sql` y `docs/adr/0020-comunicaciones-vs-avisos.md`.
 
 ### 13.1 Relación con el motor de avisos (Fase 5)
 

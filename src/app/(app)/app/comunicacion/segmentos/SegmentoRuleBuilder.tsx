@@ -26,7 +26,7 @@ import { subtleButtonStyle } from "../ui";
  *
  * Solo se soporta el nivel `all` (AND) en esta fase: no hay UI de OR ni de
  * anidamiento, y no debe añadirse sin revisar primero
- * app.validate_segment_rules (supabase/migrations/20260929000600_rpc_comunicaciones.sql),
+ * app.validate_segment_rules (supabase/migrations/20260931000600_rpc_comunicaciones.sql),
  * que solo acepta esa forma.
  *
  * El campo "group" aparece siempre como opción en el selector de campo,

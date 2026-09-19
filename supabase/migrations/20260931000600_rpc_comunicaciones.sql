@@ -14,29 +14,12 @@
 -- por destinatario inapp en notifications, sin pasar por
 -- process_notification_events y sin crear notification_deliveries.
 
-alter table notification_events drop constraint notification_events_event_type_check;
-alter table notification_events add constraint notification_events_event_type_check
-  check (event_type in (
-    'assignment.proposed',
-    'assignment.accepted',
-    'assignment.declined',
-    'assignment.cancelled',
-    'assignment.substituted',
-    'assignment.substitution_requested',
-    'assignment.substitution_cancelled',
-    'assignment.reminder',
-    'assignment.coverage_at_risk',
-    'activity.rescheduled',
-    'event.published',
-    'event.cancelled',
-    'event.rescheduled',
-    'event.reminder',
-    'registration.confirmed',
-    'registration.waitlisted',
-    'registration.promoted',
-    'registration.cancelled',
-    'communication.sent'
-  ));
+-- Se usa app.add_notification_event_types (20260928001000_hotfix_kids_seguridad.sql)
+-- en vez de reescribir la constraint entera: esa función une el tipo nuevo a
+-- los que ya hubiera, sin depender del orden de aplicación entre fases. Un
+-- drop/add con la lista completa hardcodeada es justo el patrón que dejó
+-- rotas mutuamente a la Fase 7 y la Fase 8 (ver comentario de esa función).
+select app.add_notification_event_types(array['communication.sent']);
 
 -- ============================================================================
 -- 1. Validación de reglas de segmento (allowlist positiva)

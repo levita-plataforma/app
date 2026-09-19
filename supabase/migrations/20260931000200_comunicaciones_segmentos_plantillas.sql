@@ -1,6 +1,6 @@
 -- Fase 9 (Diogo) · Segmentos reutilizables y plantillas.
 -- rules es JSON estructurado y validado server-side (app.validate_segment_rules,
--- ver 20260929000600): nunca SQL libre desde el cliente. group_id/grupos
+-- ver 20260931000600): nunca SQL libre desde el cliente. group_id/grupos
 -- quedan como campo reservado en la allowlist (Fase 7 no existe todavía).
 
 create table communication_segments (
@@ -30,7 +30,7 @@ alter table communication_segments enable row level security;
 alter table communication_segments force row level security;
 
 -- FK ahora que communication_segments existe (definida tras communications
--- en 20260929000100 sin FK porque la tabla referenciada no existía aún).
+-- en 20260931000100 sin FK porque la tabla referenciada no existía aún).
 alter table communications
   add constraint communications_segment_id_fkey
   foreign key (segment_id, church_id) references communication_segments (id, church_id) on delete set null (segment_id);

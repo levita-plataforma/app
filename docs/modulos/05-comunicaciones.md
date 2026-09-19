@@ -1,6 +1,6 @@
 # Módulo Communications
 
-Estado: implementado (Fase 9). Ver `supabase/migrations/20260927*.sql`, `docs/03-notificaciones.md` §13 y `docs/adr/0019-comunicaciones-vs-avisos.md`.
+Estado: implementado (Fase 9). Ver `supabase/migrations/20260931*.sql`, `docs/03-notificaciones.md` §13 y `docs/adr/0020-comunicaciones-vs-avisos.md`.
 
 ## Objetivo
 

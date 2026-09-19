@@ -25,7 +25,7 @@ create table communications (
   purpose communication_purpose not null default 'institutional',
   status communication_status not null default 'draft',
   -- Cuerpo con placeholders {{first_name}}/{{church_name}}, validados en la
-  -- plantilla de origen si aplica (ver 20260929000200). Se guarda ya
+  -- plantilla de origen si aplica (ver 20260931000200). Se guarda ya
   -- resuelto a nivel de plantilla permitida, nunca HTML arbitrario.
   subject text check (subject is null or char_length(subject) <= 200),
   body_template text not null check (btrim(body_template) <> '' and char_length(body_template) <= 5000),
