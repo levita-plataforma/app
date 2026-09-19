@@ -87,6 +87,22 @@ Diogo no había subido trabajo y las nueve decisiones compartidas seguían abier
 - **Transporte:** sin proveedor. El envío externo queda **desactivado** y las entregas de email y push se quedan en cola; la bandeja de la aplicación sí funciona.
 - **Pendiente:** reconciliar con Diogo si tiene trabajo local. Nada aplicado en remoto. Ver [FASE-5-AVISOS-DISPONIBILIDAD.md](FASE-5-AVISOS-DISPONIBILIDAD.md).
 
+### D22 · Fase 7, Grupos y discipulado — decidido por Carlos el 18 de septiembre de 2026; implementación pendiente de validar
+Ocho decisiones de producto, recogidas como P-1 a P-8 en [CONTRATO-FASE-7.md](CONTRATO-FASE-7.md):
+
+- **Visibilidad:** directorio interno para quien tiene sesión y pertenencia, y grupos privados solo para responsables y participantes. **Nada público sin sesión**: la Fase 7 no abre ninguna superficie para `anon`.
+- **Liderazgo y aforo:** el responsable no ocupa plaza; el aforo cuenta participantes. Se puede retirar al último responsable: el grupo queda **marcado como «sin responsable»** y no se bloquea nada.
+- **Formación:** dos vías de entrada, solicitud de plaza que resuelve el responsable y alta directa por el responsable.
+- **Finalizar un curso** es un acto explícito del responsable, con autor y fecha. La aplicación **sugiere** al alcanzar el umbral de asistencia de la cohorte; nunca lo decide sola.
+- **Datos personales:** el nombre se ve siempre; el teléfono y el correo, solo si la persona los ha hecho visibles o si quien mira tiene permiso expreso. El lugar de un grupo privado solo lo ven responsables y participantes.
+- **Avisos internos:** solo lo imprescindible (solicitud recibida, solicitud resuelta, incorporación, cambio o cancelación de reunión o sesión, curso o paso terminado). Transporte externo **desactivado**, como en D20 y D21.
+- **Solicitudes:** una sola pendiente por persona y grupo; el ingreso siempre requiere aprobación manual.
+- **Itinerarios:** los pasos se archivan, nunca se borran, y el progreso conseguido se conserva y se sigue leyendo.
+
+El scope `group` de `church_people_roles`, previsto desde la Fase 0 y sin usar hasta ahora, se activa aquí; el rol `group_leader`, que no tenía ninguna capacidad, recibe las suyas y **no** recibe la de ver contacto. Las reuniones de grupo y las sesiones de cohorte se apoyan en `activities` pero no recorren su máquina de estados, para no dar a quien lleva un grupo permisos sobre el calendario de toda la iglesia: ver [ADR 0019](adr/0019-grupos-y-formacion-sobre-activities.md) y [FASE-7-GRUPOS-DISCIPULADO.md](FASE-7-GRUPOS-DISCIPULADO.md).
+
+**Pendiente, transversal, sin resolver:** la política `people_select` de la Fase 0 deja ver correo y teléfono de cualquier persona a cualquier miembro de la misma iglesia. La Fase 7 aplica la regla del contacto en su propia superficie, pero cumplirla de extremo a extremo exige estrechar esa política, lo que afecta a F2, F5 y F6. Queda fuera de la Fase 7 y se propone como trabajo aparte (riesgo R-01 del contrato).
+
 ## Cuestiones abiertas antes de Fase 1
 
 ### A1 · Pricing
