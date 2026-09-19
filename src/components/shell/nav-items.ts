@@ -57,7 +57,7 @@ export const NAV_ITEMS: NavItem[] = [
   { href: "/app/grupos", label: "Grupos", icon: UserRound, moduleKey: "groups", accent: "groups" },
   { href: "/app/discipulado", label: "Discipulado", icon: GraduationCap, moduleKey: "discipleship", accent: "discipleship" },
   { href: "/app/eventos", label: "Eventos", icon: CalendarDays, moduleKey: "events", accent: "events" },
-  { href: "/app/ninos", label: "Niños", icon: Baby, moduleKey: "kids", accent: "kids" },
+  { href: "/app/kids", label: "Niños", icon: Baby, moduleKey: "kids", accent: "kids" },
   { href: "/app/comunicacion", label: "Comunicación", icon: MessageCircle, moduleKey: "communications", accent: "communications" },
   { href: "/app/acompanamiento", label: "Acompañamiento Pastoral", icon: HeartHandshake, moduleKey: "pastoral", accent: "pastoral" },
   { href: "/app/ofrendas", label: "Ofrendas", icon: Coins, moduleKey: "giving", accent: "giving" },

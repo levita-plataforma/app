@@ -45,6 +45,30 @@ jobs:
         with:
           version: latest
 
+      # Dos fases seguidas llegaron a producción con su suite muerta: declaraban
+      # plan(40) y no ejecutaban ni una aserción, porque usaban \gset, que es un
+      # metacomando de psql y no lo entiende cualquier cliente. Una suite así no
+      # falla: pasa en silencio y da tranquilidad falsa. Esto se comprueba antes
+      # de levantar nada, que es más rápido y dice exactamente qué corregir.
+      - name: Comprobar que ninguna suite pgTAP está muerta
+        run: |
+          fallos=0
+          for f in supabase/tests/*.sql; do
+            if grep -qE '^[[:space:]]*[\]' "$f"; then
+              echo "::error file=$f::Usa metacomandos de psql (\\gset, \\set...). La suite no se ejecuta fuera de psql y sus aserciones no prueban nada."
+              fallos=1
+            fi
+            if grep -q "select plan(" "$f" && ! grep -qE "select (ok|is|isnt|throws_ok|lives_ok|cmp_ok|matches|has_table|has_column)\(" "$f"; then
+              echo "::error file=$f::Declara plan() pero no tiene ninguna aserción."
+              fallos=1
+            fi
+          done
+          if [ "$fallos" -ne 0 ]; then
+            echo "Revisa las suites señaladas: el patrón vivo está en supabase/tests/fase6_eventos_test.sql (tabla temporal en vez de \\gset)."
+            exit 1
+          fi
+          echo "Ninguna suite usa metacomandos de psql."
+
       - name: Levantar Supabase local (aplica migraciones)
         run: supabase start
 

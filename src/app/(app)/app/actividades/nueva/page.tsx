@@ -56,7 +56,7 @@ export default async function NuevaActividadPage({ searchParams }: { searchParam
       // Orden por nombre en la consulta: el límite se aplica sobre la lista ya ordenada.
       supabase
         .from("people")
-        .select("id, first_name, last_name, preferred_name, church_people!inner(church_id, archived_at)")
+        .select("id, first_name, last_name, preferred_name, church_people!church_people_person_id_fkey!inner(church_id, archived_at)")
         .eq("church_people.church_id", tenant.churchId)
         .is("church_people.archived_at", null)
         .order("first_name")
