@@ -53,7 +53,7 @@ export default async function AreaDetallePage({ params }: { params: Promise<{ id
     hasCapability(tenant.churchId, "credential.read"),
     supabase
       .from("church_people")
-      .select("person_id, people!inner(id, first_name, last_name)")
+      .select("person_id, people!church_people_person_id_fkey!inner(id, first_name, last_name)")
       .eq("church_id", tenant.churchId)
       .is("archived_at", null)
       .limit(500),

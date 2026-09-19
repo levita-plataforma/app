@@ -44,7 +44,7 @@ export default async function CualificacionesPage({
     hasCapability(tenant.churchId, "qualification.manage"),
     supabase
       .from("church_people")
-      .select("people!inner(id, first_name, last_name)")
+      .select("people!church_people_person_id_fkey!inner(id, first_name, last_name)")
       .eq("church_id", tenant.churchId)
       .is("archived_at", null)
       .limit(500),

@@ -138,7 +138,7 @@ export default async function ActividadDetallePage({
     const [peopleRes, organizerRes] = await Promise.all([
       supabase
         .from("people")
-        .select("id, first_name, last_name, preferred_name, church_people!inner(church_id, archived_at)")
+        .select("id, first_name, last_name, preferred_name, church_people!church_people_person_id_fkey!inner(church_id, archived_at)")
         .eq("church_people.church_id", tenant.churchId)
         .is("church_people.archived_at", null)
         .order("first_name")

@@ -16,13 +16,13 @@ const CORE_MODULES = [
 const AVAILABLE_MODULES = [
   { key: "groups", label: "Grupos", description: "Crea comunidad." },
   { key: "discipleship", label: "Discipulado", description: "Forma y acompaña." },
+  { key: "kids", label: "Niños", description: "Check-in, salas y recogida segura." },
   { key: "facilities", label: "Instalaciones", description: "Espacios y recursos." },
   { key: "analytics", label: "Informes", description: "Toma mejores decisiones." },
 ];
 
 const COMING_SOON_MODULES = [
   { key: "worship", label: "Alabanza" },
-  { key: "kids", label: "Niños" },
   { key: "pastoral", label: "Acompañamiento pastoral" },
   { key: "giving", label: "Ofrendas" },
   { key: "integrations", label: "Integraciones" },
