@@ -342,7 +342,7 @@ Un administrador autorizado envía una comunicación a un segmento definido sin 
 Construida por Diogo en `feature/diogo-fase-9-comunicacion`, reconciliada por él
 con la Fase 7 y con Kids, e iterada después con categorías opcionales,
 segmentación con OR, preferencias por categoría y baja por enlace. Revisada en
-`hotfix/fase-9-comunicacion`, que corrige cinco cosas:
+`hotfix/fase-9-comunicacion`, que corrige seis cosas:
 
 - Crear o archivar una plantilla o un segmento **fallaba siempre**: la escritura
   directa estaba revocada y las RPC que el código daba por hechas no existían.
@@ -357,11 +357,15 @@ segmentación con OR, preferencias por categoría y baja por enlace. Revisada en
 - El **enlace de baja no funcionaba con sesión abierta**: la función estaba
   concedida solo a `anon`, pero la página pública usa el cliente del usuario, así
   que un enlace válido respondía que no lo era.
+- Diez wrappers de `public` **no tenían el `revoke` explícito**, así que `anon`
+  los alcanzaba. No era explotable —son security invoker y la función de `app`
+  que llaman sí está cerrada, de modo que una sesión anónima recibe 42501 al
+  llegar abajo—, pero el proyecto revoca siempre en las dos capas.
 
 Los arreglos van en `20261001001200`, aparte de las once migraciones de la fase
 (`20261001000100`–`20261001001100`), para no pisar el trabajo en curso.
 **Nada de esto está aplicado en producción.** Batería completa con las cinco
-fases conviviendo: 1355 aserciones en 25 suites, sin fallos.
+fases conviviendo: 1356 aserciones en 25 suites, sin fallos.
 
 **Pendiente de decisión:** la segmentación por grupo, explicada en la nota de
 arriba.

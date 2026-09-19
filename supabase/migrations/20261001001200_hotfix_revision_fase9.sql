@@ -544,3 +544,38 @@ begin
   end loop;
 end;
 $grants$;
+
+-- ===========================================================================
+-- 6. Los revoke que faltaban en los wrappers públicos de la fase
+-- ===========================================================================
+--
+-- PostgreSQL concede execute a PUBLIC al crear una función, así que un wrapper
+-- de public al que no se le revoca explícitamente queda al alcance de anon.
+-- Aquí no era explotable —los wrappers son security invoker y la función de
+-- app que llaman sí está revocada, de modo que una sesión anónima recibe
+-- 42501 al llegar abajo—, pero el proyecto revoca siempre en las dos capas y
+-- estas diez se quedaron solo con la de abajo.
+--
+-- Fuera de esta lista queda unsubscribe_by_token, que es pública a propósito.
+
+do $revokes$
+declare
+  r record;
+begin
+  for r in
+    select pr.oid::regprocedure as sig
+    from pg_proc pr
+    join pg_namespace n on n.oid = pr.pronamespace and n.nspname = 'public'
+    where pr.proname in (
+      'create_communication', 'update_communication', 'cancel_communication',
+      'schedule_communication', 'materialize_communication', 'send_communication',
+      'communication_metrics', 'preview_communication_segment',
+      'set_communication_category_preference',
+      'list_my_communication_category_preferences'
+    )
+  loop
+    execute format('revoke all on function %s from public, anon', r.sig);
+    execute format('grant execute on function %s to authenticated', r.sig);
+  end loop;
+end;
+$revokes$;

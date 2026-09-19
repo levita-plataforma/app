@@ -6,7 +6,7 @@
 -- communication_recipients inalcanzable por select directo.
 
 begin;
-select plan(51);
+select plan(52);
 
 create or replace function test_set_auth_uid(p_uid uuid) returns void as $$
 begin
@@ -681,6 +681,30 @@ select ok(
 );
 
 reset role;
+
+-- ============================================================
+-- 17. Ningún wrapper de la fase queda al alcance de una sesión anónima
+-- ============================================================
+-- PostgreSQL concede execute a PUBLIC al crear una función: si no se revoca
+-- explícitamente, el wrapper de public queda accesible para anon aunque la
+-- función de app que hay debajo sí esté cerrada. La única excepción es
+-- unsubscribe_by_token, que es pública a propósito.
+
+select is(
+  (select array_agg(p.proname::text order by p.proname)
+   from pg_proc p
+   join pg_namespace n on n.oid = p.pronamespace and n.nspname = 'public'
+   where p.proname in (
+     'create_communication', 'update_communication', 'cancel_communication',
+     'schedule_communication', 'materialize_communication', 'send_communication',
+     'communication_metrics', 'preview_communication_segment',
+     'set_communication_category_preference',
+     'list_my_communication_category_preferences', 'unsubscribe_by_token'
+   )
+     and has_function_privilege('anon', p.oid, 'execute')),
+  array['unsubscribe_by_token'],
+  'De los wrappers de comunicaciones, anon solo alcanza el de la baja por enlace'
+);
 
 select * from finish();
 rollback;
