@@ -4,6 +4,10 @@
     {
       "path": "/api/tareas/avisos",
       "schedule": "0 7 * * *"
+    },
+    {
+      "path": "/api/tareas/comunicaciones",
+      "schedule": "0 8 * * *"
     }
   ]
 }

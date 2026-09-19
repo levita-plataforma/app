@@ -767,6 +767,16 @@
   color: var(--shell-text-muted);
 }
 
+.serving-chip.is-info {
+  background: #e5eefc;
+  color: #2f5fac;
+}
+
+.serving-chip.is-partial {
+  background: #fde8d8;
+  color: #b05e17;
+}
+
 .serving-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));

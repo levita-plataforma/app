@@ -1750,6 +1750,258 @@ export type Database = {
           },
         ]
       }
+      communication_recipients: {
+        Row: {
+          attempt_count: number
+          channel: Database["public"]["Enums"]["notification_channel"]
+          church_id: string
+          communication_id: string
+          created_at: string
+          excluded_reason: string | null
+          failed_at: string | null
+          failure_code: string | null
+          id: string
+          person_id: string
+          sent_at: string | null
+          status: Database["public"]["Enums"]["communication_recipient_status"]
+          updated_at: string
+        }
+        Insert: {
+          attempt_count?: number
+          channel: Database["public"]["Enums"]["notification_channel"]
+          church_id: string
+          communication_id: string
+          created_at?: string
+          excluded_reason?: string | null
+          failed_at?: string | null
+          failure_code?: string | null
+          id?: string
+          person_id: string
+          sent_at?: string | null
+          status?: Database["public"]["Enums"]["communication_recipient_status"]
+          updated_at?: string
+        }
+        Update: {
+          attempt_count?: number
+          channel?: Database["public"]["Enums"]["notification_channel"]
+          church_id?: string
+          communication_id?: string
+          created_at?: string
+          excluded_reason?: string | null
+          failed_at?: string | null
+          failure_code?: string | null
+          id?: string
+          person_id?: string
+          sent_at?: string | null
+          status?: Database["public"]["Enums"]["communication_recipient_status"]
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "communication_recipients_church_id_fkey"
+            columns: ["church_id"]
+            isOneToOne: false
+            referencedRelation: "churches"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "communication_recipients_church_id_person_id_fkey"
+            columns: ["church_id", "person_id"]
+            isOneToOne: false
+            referencedRelation: "church_people"
+            referencedColumns: ["church_id", "person_id"]
+          },
+          {
+            foreignKeyName: "communication_recipients_communication_id_church_id_fkey"
+            columns: ["communication_id", "church_id"]
+            isOneToOne: false
+            referencedRelation: "communications"
+            referencedColumns: ["id", "church_id"]
+          },
+        ]
+      }
+      communication_segments: {
+        Row: {
+          archived_at: string | null
+          church_id: string
+          created_at: string
+          created_by_person_id: string | null
+          description: string | null
+          id: string
+          name: string
+          rules: Json
+          updated_at: string
+        }
+        Insert: {
+          archived_at?: string | null
+          church_id: string
+          created_at?: string
+          created_by_person_id?: string | null
+          description?: string | null
+          id?: string
+          name: string
+          rules: Json
+          updated_at?: string
+        }
+        Update: {
+          archived_at?: string | null
+          church_id?: string
+          created_at?: string
+          created_by_person_id?: string | null
+          description?: string | null
+          id?: string
+          name?: string
+          rules?: Json
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "communication_segments_church_id_fkey"
+            columns: ["church_id"]
+            isOneToOne: false
+            referencedRelation: "churches"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      communication_templates: {
+        Row: {
+          archived_at: string | null
+          body: string
+          category: string | null
+          church_id: string
+          created_at: string
+          created_by_person_id: string | null
+          id: string
+          name: string
+          placeholders_allowed: string[]
+          subject: string | null
+          updated_at: string
+        }
+        Insert: {
+          archived_at?: string | null
+          body: string
+          category?: string | null
+          church_id: string
+          created_at?: string
+          created_by_person_id?: string | null
+          id?: string
+          name: string
+          placeholders_allowed?: string[]
+          subject?: string | null
+          updated_at?: string
+        }
+        Update: {
+          archived_at?: string | null
+          body?: string
+          category?: string | null
+          church_id?: string
+          created_at?: string
+          created_by_person_id?: string | null
+          id?: string
+          name?: string
+          placeholders_allowed?: string[]
+          subject?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "communication_templates_church_id_fkey"
+            columns: ["church_id"]
+            isOneToOne: false
+            referencedRelation: "churches"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      communications: {
+        Row: {
+          archived_at: string | null
+          body_template: string
+          channels: Database["public"]["Enums"]["notification_channel"][]
+          church_id: string
+          created_at: string
+          created_by_person_id: string | null
+          id: string
+          materialized_at: string | null
+          purpose: Database["public"]["Enums"]["communication_purpose"]
+          scheduled_at: string | null
+          segment_id: string | null
+          segment_rules_snapshot: Json | null
+          sent_at: string | null
+          status: Database["public"]["Enums"]["communication_status"]
+          subject: string | null
+          template_id: string | null
+          title: string
+          updated_at: string
+          updated_by_person_id: string | null
+        }
+        Insert: {
+          archived_at?: string | null
+          body_template: string
+          channels: Database["public"]["Enums"]["notification_channel"][]
+          church_id: string
+          created_at?: string
+          created_by_person_id?: string | null
+          id?: string
+          materialized_at?: string | null
+          purpose?: Database["public"]["Enums"]["communication_purpose"]
+          scheduled_at?: string | null
+          segment_id?: string | null
+          segment_rules_snapshot?: Json | null
+          sent_at?: string | null
+          status?: Database["public"]["Enums"]["communication_status"]
+          subject?: string | null
+          template_id?: string | null
+          title: string
+          updated_at?: string
+          updated_by_person_id?: string | null
+        }
+        Update: {
+          archived_at?: string | null
+          body_template?: string
+          channels?: Database["public"]["Enums"]["notification_channel"][]
+          church_id?: string
+          created_at?: string
+          created_by_person_id?: string | null
+          id?: string
+          materialized_at?: string | null
+          purpose?: Database["public"]["Enums"]["communication_purpose"]
+          scheduled_at?: string | null
+          segment_id?: string | null
+          segment_rules_snapshot?: Json | null
+          sent_at?: string | null
+          status?: Database["public"]["Enums"]["communication_status"]
+          subject?: string | null
+          template_id?: string | null
+          title?: string
+          updated_at?: string
+          updated_by_person_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "communications_church_id_fkey"
+            columns: ["church_id"]
+            isOneToOne: false
+            referencedRelation: "churches"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "communications_segment_id_fkey"
+            columns: ["segment_id", "church_id"]
+            isOneToOne: false
+            referencedRelation: "communication_segments"
+            referencedColumns: ["id", "church_id"]
+          },
+          {
+            foreignKeyName: "communications_template_id_fkey"
+            columns: ["template_id", "church_id"]
+            isOneToOne: false
+            referencedRelation: "communication_templates"
+            referencedColumns: ["id", "church_id"]
+          },
+        ]
+      }
       consent_definitions: {
         Row: {
           active: boolean
@@ -4683,6 +4935,10 @@ export type Database = {
         Args: { p_assignment_id: string; p_expected_version?: number }
         Returns: Json
       }
+      cancel_communication: {
+        Args: { p_communication_id: string }
+        Returns: undefined
+      }
       cancel_registration_by_token: {
         Args: { p_cancel_token: string; p_reason?: string }
         Returns: {
@@ -4720,6 +4976,10 @@ export type Database = {
           title: string
         }[]
       }
+      communication_metrics: {
+        Args: { p_communication_id: string }
+        Returns: Json
+      }
       complete_notification_delivery: {
         Args: { p_delivery_id: string; p_error?: string; p_status: string }
         Returns: Json
@@ -4740,6 +5000,21 @@ export type Database = {
         }
         Returns: Json
       }
+      create_communication: {
+        Args: {
+          p_body_template: string
+          p_channels: Database["public"]["Enums"]["notification_channel"][]
+          p_church_id: string
+          p_purpose: Database["public"]["Enums"]["communication_purpose"]
+          p_rules: Json
+          p_segment_id?: string
+          p_service_area_id?: string
+          p_subject: string
+          p_template_id?: string
+          p_title: string
+        }
+        Returns: string
+      }
       create_person: {
         Args: {
           p_birth_date?: string
@@ -4755,8 +5030,22 @@ export type Database = {
         }
         Returns: string
       }
+      cron_materialize_communication: {
+        Args: { p_communication_id: string }
+        Returns: Json
+      }
+      cron_send_communication: {
+        Args: { p_batch_limit?: number; p_communication_id: string }
+        Returns: Json
+      }
       delete_my_unavailability_period: { Args: { p_id: string }; Returns: Json }
       delete_my_weekly_unavailability: { Args: { p_id: string }; Returns: Json }
+      due_scheduled_communications: {
+        Args: { p_limit?: number }
+        Returns: {
+          id: string
+        }[]
+      }
       duplicate_activity: {
         Args: { p_activity_id: string; p_input?: Json }
         Returns: Json
@@ -4851,6 +5140,10 @@ export type Database = {
         Args: { p_notification_id: string }
         Returns: Json
       }
+      materialize_communication: {
+        Args: { p_communication_id: string }
+        Returns: Json
+      }
       module_enabled: {
         Args: { p_church_id: string; p_module_key: string }
         Returns: boolean
@@ -4868,6 +5161,12 @@ export type Database = {
         }
         Returns: number
       }
+      pending_send_communications: {
+        Args: { p_limit?: number }
+        Returns: {
+          id: string
+        }[]
+      }
       preview_activity_recurrence: {
         Args: { p_church_id: string; p_input: Json }
         Returns: {
@@ -4882,6 +5181,14 @@ export type Database = {
           blocking: string[]
           warnings: string[]
         }[]
+      }
+      preview_communication_segment: {
+        Args: {
+          p_channels: Database["public"]["Enums"]["notification_channel"][]
+          p_church_id: string
+          p_rules: Json
+        }
+        Returns: Json
       }
       process_notification_events: { Args: { p_limit?: number }; Returns: Json }
       promote_waitlist: { Args: { p_event_id: string }; Returns: number }
@@ -5038,8 +5345,16 @@ export type Database = {
         Args: { p_church_id: string; p_input: Json; p_template_id: string }
         Returns: string
       }
+      schedule_communication: {
+        Args: { p_communication_id: string; p_scheduled_at: string }
+        Returns: undefined
+      }
       send_activity_assignments: {
         Args: { p_activity_id: string; p_assignment_ids?: string[] }
+        Returns: Json
+      }
+      send_communication: {
+        Args: { p_batch_limit?: number; p_communication_id: string }
         Returns: Json
       }
       set_activity_template_archived: {
@@ -5200,6 +5515,22 @@ export type Database = {
         | "suspended"
         | "cancelling"
         | "archived"
+      communication_purpose: "institutional" | "operational"
+      communication_recipient_status:
+        | "pending"
+        | "queued"
+        | "sent"
+        | "failed"
+        | "suppressed"
+        | "excluded"
+      communication_status:
+        | "draft"
+        | "scheduled"
+        | "processing"
+        | "sent"
+        | "partially_sent"
+        | "failed"
+        | "cancelled"
       credential_status:
         | "pending"
         | "valid"
@@ -5488,6 +5819,24 @@ export const Constants = {
         "suspended",
         "cancelling",
         "archived",
+      ],
+      communication_purpose: ["institutional", "operational"],
+      communication_recipient_status: [
+        "pending",
+        "queued",
+        "sent",
+        "failed",
+        "suppressed",
+        "excluded",
+      ],
+      communication_status: [
+        "draft",
+        "scheduled",
+        "processing",
+        "sent",
+        "partially_sent",
+        "failed",
+        "cancelled",
       ],
       credential_status: ["pending", "valid", "expired", "rejected", "revoked"],
       custom_field_type: [
