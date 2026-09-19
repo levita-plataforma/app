@@ -4,11 +4,12 @@
 -- notification_preferences ya existente de Fase 5).
 
 create type communication_status as enum (
-  'draft', 'scheduled', 'processing', 'sent', 'partially_sent', 'failed', 'cancelled'
+  'draft', 'scheduled', 'processing', 'queued', 'sent', 'partially_sent', 'failed', 'cancelled'
 );
 
 comment on type communication_status is
-  'draft: en edición. scheduled: con scheduled_at pendiente. processing: materializando/enviando. sent: todos los destinatarios resueltos. partially_sent: mezcla de sent/queued con failed/excluded. failed: ningún destinatario se procesó con éxito. cancelled: cancelada antes de procesar.';
+  'draft: en edición. scheduled: con scheduled_at pendiente. processing: materializando o enviando. queued: lo que había quedó en cola y NO ha salido, porque el transporte externo sigue desactivado (D20 y D21). sent: hubo entrega de verdad, en la bandeja de la aplicación. partially_sent: una parte se entregó y otra quedó en cola. failed: no se entregó ni se encoló nada. cancelled: cancelada antes de procesar.
+   El estado queued existe para no llamar «enviada» a una comunicación por correo que nunca sale: quien la manda se quedaría convencido de que su mensaje llegó.';
 
 -- Deliberadamente sin 'marketing': A14 limita esta fase a comunicación
 -- institucional. Ampliar este enum es una decisión de producto futura, no

@@ -35,7 +35,6 @@ export async function crearPlantillaAction(
         body,
         category: category || undefined,
       },
-      tenant.personId,
     );
   } catch (err) {
     if (err instanceof DomainError) return { error: err.message };

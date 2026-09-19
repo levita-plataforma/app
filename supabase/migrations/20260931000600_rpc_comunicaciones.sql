@@ -66,8 +66,15 @@ begin
     end if;
 
     if v_field = 'group' then
-      -- Reservado: existe en el schema para no romper el JSON, pero no hay
-      -- Fase 7 (grupos) todavía. Rechazo explícito, nunca fingido.
+      -- Reservado: el campo existe en el JSON pero no segmenta nada todavía.
+      --
+      -- El comentario original decía que no había Fase 7; ya la hay, con sus
+      -- grupos en producción. Habilitarlo no es solo enchufar la consulta: hay
+      -- que decidir antes quién puede escribir a los participantes de un grupo
+      -- privado y si eso lo gobierna la capacidad de comunicación o la del
+      -- propio grupo (que ya existe, en app.notify_group_members). Es una
+      -- decisión de producto, así que se sigue rechazando de forma explícita en
+      -- vez de resolverla por comodidad del código.
       raise exception 'Segmentación por grupo no disponible todavía.' using errcode = '0A000';
     end if;
 
@@ -283,8 +290,10 @@ begin
 end;
 $$;
 
-revoke all on function app.resolve_segment_recipients(uuid, jsonb) from public, anon;
-grant execute on function app.resolve_segment_recipients(uuid, jsonb) to authenticated;
+-- Interna: la llaman funciones security definer que ya comprueban capacidad.
+-- Concederla a authenticated la dejaba a un paso de servir como oraculo de
+-- quien esta en que segmento.
+revoke all on function app.resolve_segment_recipients(uuid, jsonb) from public, anon, authenticated;
 
 -- ============================================================================
 -- 4. Preview agregado (sin exponer filas de personas)
@@ -499,6 +508,7 @@ declare
   v_channel notification_channel;
   v_has_email boolean;
   v_email_enabled boolean;
+  v_inapp_enabled boolean;
   v_inserted integer := 0;
 begin
   select * into v_comm from communications where id = p_communication_id for update skip locked;
@@ -523,8 +533,20 @@ begin
     foreach v_channel in array v_comm.channels
     loop
       if v_channel = 'inapp' then
+        -- El canal de la aplicación también respeta las preferencias de la
+        -- persona. Antes solo se comprobaban para el correo, así que quien
+        -- había apagado los avisos en la aplicación los seguía recibiendo:
+        -- una preferencia que no se cumple es peor que no ofrecerla.
+        select coalesce((
+          select np.enabled from notification_preferences np
+          where np.church_id = v_comm.church_id and np.person_id = v_person_id and np.channel = 'inapp'
+        ), true) into v_inapp_enabled;
+
         insert into communication_recipients (church_id, communication_id, person_id, channel, status)
-        values (v_comm.church_id, p_communication_id, v_person_id, 'inapp', 'pending')
+        values (
+          v_comm.church_id, p_communication_id, v_person_id, 'inapp',
+          case when v_inapp_enabled then 'pending' else 'suppressed' end::communication_recipient_status
+        )
         on conflict (communication_id, person_id, channel) do nothing;
       elsif v_channel = 'email' then
         if not v_has_email then
@@ -654,6 +676,8 @@ declare
   v_processed integer := 0;
   v_remaining integer;
   v_final_status communication_status;
+  v_hubo_entrega boolean;
+  v_hubo_cola boolean;
 begin
   select * into v_comm from communications where id = p_communication_id for update skip locked;
 
@@ -731,19 +755,28 @@ begin
   where communication_id = p_communication_id and status = 'pending';
 
   if v_remaining = 0 then
-    if exists (
-      select 1 from communication_recipients
-      where communication_id = p_communication_id and status in ('sent', 'queued')
-    ) and exists (
-      select 1 from communication_recipients
-      where communication_id = p_communication_id and status in ('failed', 'excluded')
-    ) then
+    -- Una comunicación no se llama «enviada» por tener destinatarios en cola.
+    -- El correo no tiene proveedor y se queda en 'queued' para siempre, así que
+    -- contarlo como entregado haría que quien la manda creyera que su mensaje
+    -- salió. Se distingue lo que llegó de verdad (la bandeja de la aplicación)
+    -- de lo que solo está esperando.
+    --
+    -- 'suppressed' y 'excluded' no son fallos: son exclusiones previstas —quien
+    -- se dio de baja, quien no tiene correo— y no degradan el estado por sí
+    -- solas.
+    select
+      exists (select 1 from communication_recipients
+              where communication_id = p_communication_id and status = 'sent'),
+      exists (select 1 from communication_recipients
+              where communication_id = p_communication_id and status = 'queued')
+    into v_hubo_entrega, v_hubo_cola;
+
+    if v_hubo_entrega and v_hubo_cola then
       v_final_status := 'partially_sent';
-    elsif exists (
-      select 1 from communication_recipients
-      where communication_id = p_communication_id and status in ('sent', 'queued', 'suppressed')
-    ) then
+    elsif v_hubo_entrega then
       v_final_status := 'sent';
+    elsif v_hubo_cola then
+      v_final_status := 'queued';
     else
       v_final_status := 'failed';
     end if;
