@@ -142,3 +142,5 @@ No marcar una fase como completada solo por tener documentación o diseño.
 - [Encargo para Claude — Fase 4](PROMPT-CLAUDE-FASE-4.md): alcance de actividades y planificación adaptado al encargo de Diogo, con revisión obligatoria de Carlos.
 - [Reparto por nombres — Carlos y Diogo](REPARTO-CARLOS-DIOGO.md): responsables, tareas, dependencias y cierres conjuntos.
 - [Encargo para Claude — Fase 5](PROMPT-CLAUDE-FASE-5.md): modos Carlos/Diogo, contratos con F4, pruebas y cierre conjunto.
+- [Encargo para Claude — Fase 7](PROMPT-CLAUDE-FASE-7.md): Carlos, grupos y discipulado, contratos con F4–F6 y validación antes de main.
+- [Encargo para Claude — Fase 10](PROMPT-CLAUDE-FASE-10.md): Carlos, recursos, reservas sin solapes y mantenimiento integrado con Activity.
