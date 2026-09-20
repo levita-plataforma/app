@@ -467,6 +467,20 @@ Alabanza funciona dentro de la misma iglesia y experiencia, sin doble programaci
 
 Estas capacidades no bloquean el MVP.
 
+### Estado — 20 de septiembre de 2026 (Analítica, Diogo)
+
+**FASE 12 — ANALÍTICA: IMPLEMENTADA.** Construida en
+`feature/diogo-fase-12-analitica`, desde `main` en `04276be` (sin depender de
+Recursos F10, Alabanza F11 ni Giving F12, ninguna integrada en main en el
+momento de esta implementación — se entregan por separado, ver
+[REPARTO-CARLOS-DIOGO.md](REPARTO-CARLOS-DIOGO.md)). Dashboard agregado
+(`/app/informes`) sobre los módulos realmente integrados: Personas, Servicio,
+Eventos, Grupos, Discipulado, Niños y Comunicación. Detalle completo en
+[FASE-12-ANALITICA.md](FASE-12-ANALITICA.md).
+
+Pastoral y Giving de esta misma Fase 12 permanecen sin estado propio: no se
+declara "FASE 12 COMPLETA" hasta que los tres tengan el suyo.
+
 ---
 
 ## Fase 13 · Hardening, piloto ampliado y escala
