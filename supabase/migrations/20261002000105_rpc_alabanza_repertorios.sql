@@ -1,6 +1,6 @@
 -- Fase 11 (Diogo) · RPC de repertorios de Alabanza: crear, editar, archivar,
 -- añadir/quitar canción, reordenar, cambiar tonalidad elegida. Mismo patrón
--- de dos capas que 20261002000400_rpc_alabanza_canciones.sql.
+-- de dos capas que 20261002000104_rpc_alabanza_canciones.sql.
 
 create or replace function app.create_worship_repertoire(
   p_church_id uuid,

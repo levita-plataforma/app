@@ -101,7 +101,7 @@ Ocho decisiones de producto, recogidas como P-1 a P-8 en [CONTRATO-FASE-7.md](CO
 
 El scope `group` de `church_people_roles`, previsto desde la Fase 0 y sin usar hasta ahora, se activa aquí; el rol `group_leader`, que no tenía ninguna capacidad, recibe las suyas y **no** recibe la de ver contacto. Las reuniones de grupo y las sesiones de cohorte se apoyan en `activities` pero no recorren su máquina de estados, para no dar a quien lleva un grupo permisos sobre el calendario de toda la iglesia: ver [ADR 0019](adr/0019-grupos-y-formacion-sobre-activities.md) y [FASE-7-GRUPOS-DISCIPULADO.md](FASE-7-GRUPOS-DISCIPULADO.md).
 
-**Pendiente, transversal, sin resolver:** la política `people_select` de la Fase 0 deja ver correo y teléfono de cualquier persona a cualquier miembro de la misma iglesia. La Fase 7 aplica la regla del contacto en su propia superficie, pero cumplirla de extremo a extremo exige estrechar esa política, lo que afecta a F2, F5 y F6. Queda fuera de la Fase 7 y se propone como trabajo aparte (riesgo R-01 del contrato).
+**Resuelto el 20 de septiembre de 2026 (R-01).** La política `people_select` dejaba ver correo y teléfono de cualquier persona a cualquier miembro de la misma iglesia, porque RLS filtra filas y no columnas. Se resuelve con privilegios por columna —`authenticated` pierde el `select` sobre `email`, `phone`, sus versiones normalizadas, `birth_date` y `notes`— y dos RPC que aplican `app.can_read_person_contact`, la regla que ya se había decidido en la Fase 7: uno mismo, quien tenga `people.read`, o quien lidere un grupo del que esa persona es miembro. Las notas van solo con `people.read`, nunca por liderar un grupo. Migración `20261002000100`, suite `r01_datos_de_contacto_test.sql`.
 
 ## Cuestiones abiertas antes de Fase 1
 
@@ -189,7 +189,17 @@ comportamiento/UX a conservar, nunca como fuente de datos, schema o repositorio 
 Modelo de retención, visibilidad y requisitos legales/organizativos.
 
 ### A17 · Giving
-Proveedor, recibos, tratamiento fiscal, conciliación y exportación contable.
+**Parcialmente resuelto (20 de septiembre de 2026).** Conciliación y exportación contable: resueltas —
+modelo simple (`giving_reconciliations`, estados `unreconciled`/`reconciled`/`exception`) y exportación
+CSV con capability propia (`giving.export`) y mitigación de inyección de fórmula. **Proveedor de pago,
+recibos y tratamiento fiscal: siguen sin resolver**, deliberadamente — no hay proveedor real
+seleccionado, así que no se implementa cobro online, webhooks ni recibos/certificados fiscales
+automáticos (Stripe/Adyen/Redsys u otro es una decisión de producto futura, no tomada
+unilateralmente). Se preparó únicamente el contrato de abstracción (`GivingPaymentProvider`: crear/
+consultar/reembolsar pago, verificar webhook, normalizar evento) y las columnas de referencia externa
+(`provider`, `provider_payment_ref`, `provider_customer_ref`) en `giving_contributions`/
+`giving_recurring_plans`, sin ningún secreto ni integración real. Ver
+[FASE-12-GIVING.md](FASE-12-GIVING.md).
 
 ## Regla
 

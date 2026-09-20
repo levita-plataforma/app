@@ -6,7 +6,8 @@ Fecha: **17 de septiembre de 2026**. Responsable: **Carlos** (CA-04/CA-05). Rama
 
 ```
 F5-CARLOS: INTEGRADA EN MAIN Y APLICADA EN PRODUCCIÓN (17 de septiembre de 2026)
-FASE 5: PARCIAL — falta integrar disponibilidad y avisos (PR #5) y la prueba conjunta CO-03
+FASE 5: CERRADA — disponibilidad y avisos integrados (PR #5) y recorrido CO-03
+validado por Carlos el 20 de septiembre de 2026, sin fallos
 ```
 
 - Validada expresamente por Carlos sobre el commit `f9cb5b4`, integrada con la PR #4 (merge `a9fd3c8`) y desplegada en producción.

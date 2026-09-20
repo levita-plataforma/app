@@ -6,7 +6,7 @@ el detalle de implementación real frente a este contrato. Sigue el mismo criter
 [CONTRATO-FASE-7.md](CONTRATO-FASE-7.md) y [CONTRATO-FASE-10.md](CONTRATO-FASE-10.md): lo que no está
 aquí, o sobra o falta el acuerdo.
 
-Punto de partida real: `main` en `d498adc`. Migraciones `20261002000100` a `20261002000600`.
+Punto de partida real: `main` en `d498adc`. Migraciones `20261002000100` a `20261002000106`.
 
 ## Corrección de alcance (20 de septiembre de 2026)
 

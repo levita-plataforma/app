@@ -3250,6 +3250,412 @@ export type Database = {
           },
         ]
       }
+      giving_campaigns: {
+        Row: {
+          archived_at: string | null
+          church_id: string
+          created_at: string
+          currency: string
+          description: string | null
+          ends_at: string | null
+          fund_id: string
+          id: string
+          name: string
+          starts_at: string | null
+          status: Database["public"]["Enums"]["giving_campaign_status"]
+          target_amount_minor: number | null
+          updated_at: string
+        }
+        Insert: {
+          archived_at?: string | null
+          church_id: string
+          created_at?: string
+          currency: string
+          description?: string | null
+          ends_at?: string | null
+          fund_id: string
+          id?: string
+          name: string
+          starts_at?: string | null
+          status?: Database["public"]["Enums"]["giving_campaign_status"]
+          target_amount_minor?: number | null
+          updated_at?: string
+        }
+        Update: {
+          archived_at?: string | null
+          church_id?: string
+          created_at?: string
+          currency?: string
+          description?: string | null
+          ends_at?: string | null
+          fund_id?: string
+          id?: string
+          name?: string
+          starts_at?: string | null
+          status?: Database["public"]["Enums"]["giving_campaign_status"]
+          target_amount_minor?: number | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "giving_campaigns_church_id_fkey"
+            columns: ["church_id"]
+            isOneToOne: false
+            referencedRelation: "churches"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "giving_campaigns_fund_id_church_id_fkey"
+            columns: ["fund_id", "church_id"]
+            isOneToOne: false
+            referencedRelation: "giving_funds"
+            referencedColumns: ["id", "church_id"]
+          },
+        ]
+      }
+      giving_contributions: {
+        Row: {
+          amount_minor: number
+          anonymous: boolean
+          campaign_id: string | null
+          church_id: string
+          contributed_at: string
+          created_at: string
+          created_by_person_id: string | null
+          currency: string
+          fund_id: string
+          id: string
+          method: Database["public"]["Enums"]["giving_contribution_method"]
+          notes: string | null
+          person_id: string | null
+          provider: string | null
+          provider_customer_ref: string | null
+          provider_payment_ref: string | null
+          reconciliation_status: Database["public"]["Enums"]["giving_reconciliation_status"]
+          recurring_plan_id: string | null
+          reference: string | null
+          status: Database["public"]["Enums"]["giving_contribution_status"]
+          updated_at: string
+          updated_by_person_id: string | null
+        }
+        Insert: {
+          amount_minor: number
+          anonymous?: boolean
+          campaign_id?: string | null
+          church_id: string
+          contributed_at?: string
+          created_at?: string
+          created_by_person_id?: string | null
+          currency: string
+          fund_id: string
+          id?: string
+          method: Database["public"]["Enums"]["giving_contribution_method"]
+          notes?: string | null
+          person_id?: string | null
+          provider?: string | null
+          provider_customer_ref?: string | null
+          provider_payment_ref?: string | null
+          reconciliation_status?: Database["public"]["Enums"]["giving_reconciliation_status"]
+          recurring_plan_id?: string | null
+          reference?: string | null
+          status?: Database["public"]["Enums"]["giving_contribution_status"]
+          updated_at?: string
+          updated_by_person_id?: string | null
+        }
+        Update: {
+          amount_minor?: number
+          anonymous?: boolean
+          campaign_id?: string | null
+          church_id?: string
+          contributed_at?: string
+          created_at?: string
+          created_by_person_id?: string | null
+          currency?: string
+          fund_id?: string
+          id?: string
+          method?: Database["public"]["Enums"]["giving_contribution_method"]
+          notes?: string | null
+          person_id?: string | null
+          provider?: string | null
+          provider_customer_ref?: string | null
+          provider_payment_ref?: string | null
+          reconciliation_status?: Database["public"]["Enums"]["giving_reconciliation_status"]
+          recurring_plan_id?: string | null
+          reference?: string | null
+          status?: Database["public"]["Enums"]["giving_contribution_status"]
+          updated_at?: string
+          updated_by_person_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "giving_contributions_campaign_id_church_id_fkey"
+            columns: ["campaign_id", "church_id"]
+            isOneToOne: false
+            referencedRelation: "giving_campaigns"
+            referencedColumns: ["id", "church_id"]
+          },
+          {
+            foreignKeyName: "giving_contributions_church_id_fkey"
+            columns: ["church_id"]
+            isOneToOne: false
+            referencedRelation: "churches"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "giving_contributions_church_id_person_id_fkey"
+            columns: ["church_id", "person_id"]
+            isOneToOne: false
+            referencedRelation: "church_people"
+            referencedColumns: ["church_id", "person_id"]
+          },
+          {
+            foreignKeyName: "giving_contributions_fund_id_church_id_fkey"
+            columns: ["fund_id", "church_id"]
+            isOneToOne: false
+            referencedRelation: "giving_funds"
+            referencedColumns: ["id", "church_id"]
+          },
+          {
+            foreignKeyName: "giving_contributions_recurring_plan_fkey"
+            columns: ["recurring_plan_id", "church_id"]
+            isOneToOne: false
+            referencedRelation: "giving_recurring_plans"
+            referencedColumns: ["id", "church_id"]
+          },
+        ]
+      }
+      giving_funds: {
+        Row: {
+          archived_at: string | null
+          church_id: string
+          created_at: string
+          description: string | null
+          id: string
+          is_default: boolean
+          name: string
+          status: Database["public"]["Enums"]["giving_entity_status"]
+          updated_at: string
+        }
+        Insert: {
+          archived_at?: string | null
+          church_id: string
+          created_at?: string
+          description?: string | null
+          id?: string
+          is_default?: boolean
+          name: string
+          status?: Database["public"]["Enums"]["giving_entity_status"]
+          updated_at?: string
+        }
+        Update: {
+          archived_at?: string | null
+          church_id?: string
+          created_at?: string
+          description?: string | null
+          id?: string
+          is_default?: boolean
+          name?: string
+          status?: Database["public"]["Enums"]["giving_entity_status"]
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "giving_funds_church_id_fkey"
+            columns: ["church_id"]
+            isOneToOne: false
+            referencedRelation: "churches"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      giving_reconciliations: {
+        Row: {
+          church_id: string
+          contribution_id: string
+          external_reference: string | null
+          id: string
+          notes: string | null
+          reconciled_at: string
+          reconciled_by_person_id: string | null
+          status: Database["public"]["Enums"]["giving_reconciliation_status"]
+        }
+        Insert: {
+          church_id: string
+          contribution_id: string
+          external_reference?: string | null
+          id?: string
+          notes?: string | null
+          reconciled_at?: string
+          reconciled_by_person_id?: string | null
+          status?: Database["public"]["Enums"]["giving_reconciliation_status"]
+        }
+        Update: {
+          church_id?: string
+          contribution_id?: string
+          external_reference?: string | null
+          id?: string
+          notes?: string | null
+          reconciled_at?: string
+          reconciled_by_person_id?: string | null
+          status?: Database["public"]["Enums"]["giving_reconciliation_status"]
+        }
+        Relationships: [
+          {
+            foreignKeyName: "giving_reconciliations_church_id_fkey"
+            columns: ["church_id"]
+            isOneToOne: false
+            referencedRelation: "churches"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "giving_reconciliations_contribution_id_church_id_fkey"
+            columns: ["contribution_id", "church_id"]
+            isOneToOne: false
+            referencedRelation: "giving_contributions"
+            referencedColumns: ["id", "church_id"]
+          },
+        ]
+      }
+      giving_recurring_plans: {
+        Row: {
+          amount_minor: number
+          campaign_id: string | null
+          church_id: string
+          created_at: string
+          created_by_person_id: string | null
+          currency: string
+          ended_at: string | null
+          frequency: Database["public"]["Enums"]["giving_recurrence_frequency"]
+          fund_id: string
+          id: string
+          next_due_at: string | null
+          person_id: string | null
+          provider: string | null
+          provider_subscription_ref: string | null
+          starts_at: string
+          status: Database["public"]["Enums"]["giving_recurring_plan_status"]
+          updated_at: string
+        }
+        Insert: {
+          amount_minor: number
+          campaign_id?: string | null
+          church_id: string
+          created_at?: string
+          created_by_person_id?: string | null
+          currency: string
+          ended_at?: string | null
+          frequency: Database["public"]["Enums"]["giving_recurrence_frequency"]
+          fund_id: string
+          id?: string
+          next_due_at?: string | null
+          person_id?: string | null
+          provider?: string | null
+          provider_subscription_ref?: string | null
+          starts_at?: string
+          status?: Database["public"]["Enums"]["giving_recurring_plan_status"]
+          updated_at?: string
+        }
+        Update: {
+          amount_minor?: number
+          campaign_id?: string | null
+          church_id?: string
+          created_at?: string
+          created_by_person_id?: string | null
+          currency?: string
+          ended_at?: string | null
+          frequency?: Database["public"]["Enums"]["giving_recurrence_frequency"]
+          fund_id?: string
+          id?: string
+          next_due_at?: string | null
+          person_id?: string | null
+          provider?: string | null
+          provider_subscription_ref?: string | null
+          starts_at?: string
+          status?: Database["public"]["Enums"]["giving_recurring_plan_status"]
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "giving_recurring_plans_campaign_id_church_id_fkey"
+            columns: ["campaign_id", "church_id"]
+            isOneToOne: false
+            referencedRelation: "giving_campaigns"
+            referencedColumns: ["id", "church_id"]
+          },
+          {
+            foreignKeyName: "giving_recurring_plans_church_id_fkey"
+            columns: ["church_id"]
+            isOneToOne: false
+            referencedRelation: "churches"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "giving_recurring_plans_church_id_person_id_fkey"
+            columns: ["church_id", "person_id"]
+            isOneToOne: false
+            referencedRelation: "church_people"
+            referencedColumns: ["church_id", "person_id"]
+          },
+          {
+            foreignKeyName: "giving_recurring_plans_fund_id_church_id_fkey"
+            columns: ["fund_id", "church_id"]
+            isOneToOne: false
+            referencedRelation: "giving_funds"
+            referencedColumns: ["id", "church_id"]
+          },
+        ]
+      }
+      giving_refunds: {
+        Row: {
+          amount_minor: number
+          church_id: string
+          contribution_id: string
+          created_at: string
+          created_by_person_id: string | null
+          id: string
+          provider_ref: string | null
+          reason: string | null
+          status: Database["public"]["Enums"]["giving_refund_status"]
+        }
+        Insert: {
+          amount_minor: number
+          church_id: string
+          contribution_id: string
+          created_at?: string
+          created_by_person_id?: string | null
+          id?: string
+          provider_ref?: string | null
+          reason?: string | null
+          status?: Database["public"]["Enums"]["giving_refund_status"]
+        }
+        Update: {
+          amount_minor?: number
+          church_id?: string
+          contribution_id?: string
+          created_at?: string
+          created_by_person_id?: string | null
+          id?: string
+          provider_ref?: string | null
+          reason?: string | null
+          status?: Database["public"]["Enums"]["giving_refund_status"]
+        }
+        Relationships: [
+          {
+            foreignKeyName: "giving_refunds_church_id_fkey"
+            columns: ["church_id"]
+            isOneToOne: false
+            referencedRelation: "churches"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "giving_refunds_contribution_id_church_id_fkey"
+            columns: ["contribution_id", "church_id"]
+            isOneToOne: false
+            referencedRelation: "giving_contributions"
+            referencedColumns: ["id", "church_id"]
+          },
+        ]
+      }
       group_attendance: {
         Row: {
           church_id: string
@@ -7264,6 +7670,10 @@ export type Database = {
         Args: { p_activity_id: string; p_scope: string }
         Returns: number
       }
+      archive_giving_fund: {
+        Args: { p_church_id: string; p_fund_id: string }
+        Returns: undefined
+      }
       archive_worship_repertoire: {
         Args: { p_church_id: string; p_repertoire_id: string }
         Returns: undefined
@@ -7311,6 +7721,14 @@ export type Database = {
       }
       cancel_communication: {
         Args: { p_communication_id: string }
+        Returns: undefined
+      }
+      cancel_giving_contribution: {
+        Args: {
+          p_church_id: string
+          p_contribution_id: string
+          p_reason?: string
+        }
         Returns: undefined
       }
       cancel_group_join_request: {
@@ -7415,6 +7833,67 @@ export type Database = {
           p_subject: string
           p_template_id?: string
           p_title: string
+        }
+        Returns: string
+      }
+      create_giving_campaign: {
+        Args: {
+          p_church_id: string
+          p_currency?: string
+          p_description?: string
+          p_ends_at?: string
+          p_fund_id: string
+          p_name: string
+          p_starts_at?: string
+          p_target_amount_minor?: number
+        }
+        Returns: string
+      }
+      create_giving_contribution: {
+        Args: {
+          p_amount_minor: number
+          p_anonymous?: boolean
+          p_campaign_id?: string
+          p_church_id: string
+          p_contributed_at?: string
+          p_currency?: string
+          p_fund_id: string
+          p_method: Database["public"]["Enums"]["giving_contribution_method"]
+          p_notes?: string
+          p_person_id?: string
+          p_reference?: string
+          p_status?: Database["public"]["Enums"]["giving_contribution_status"]
+        }
+        Returns: string
+      }
+      create_giving_fund: {
+        Args: {
+          p_church_id: string
+          p_description?: string
+          p_is_default?: boolean
+          p_name: string
+        }
+        Returns: string
+      }
+      create_giving_recurring_plan: {
+        Args: {
+          p_amount_minor: number
+          p_campaign_id?: string
+          p_church_id: string
+          p_currency?: string
+          p_frequency: Database["public"]["Enums"]["giving_recurrence_frequency"]
+          p_fund_id: string
+          p_person_id?: string
+          p_starts_at?: string
+        }
+        Returns: string
+      }
+      create_giving_refund: {
+        Args: {
+          p_amount_minor: number
+          p_church_id: string
+          p_contribution_id: string
+          p_reason?: string
         }
         Returns: string
       }
@@ -7542,6 +8021,27 @@ export type Database = {
           out_match_type: string
           out_person_id: string
           out_phone: string
+        }[]
+      }
+      giving_summary: {
+        Args: { p_church_id: string; p_from?: string; p_to?: string }
+        Returns: Json
+      }
+      giving_summary_by_fund: {
+        Args: { p_church_id: string; p_from?: string; p_to?: string }
+        Returns: {
+          contributions_count: number
+          fund_id: string
+          fund_name: string
+          total_amount_minor: number
+        }[]
+      }
+      giving_summary_by_method: {
+        Args: { p_church_id: string; p_from?: string; p_to?: string }
+        Returns: {
+          contributions_count: number
+          method: Database["public"]["Enums"]["giving_contribution_method"]
+          total_amount_minor: number
         }[]
       }
       group_metrics: { Args: { p_church_id: string }; Returns: Json }
@@ -7703,6 +8203,14 @@ export type Database = {
         Args: { p_church_id: string }
         Returns: Json
       }
+      mark_giving_contribution_exception: {
+        Args: {
+          p_church_id: string
+          p_contribution_id: string
+          p_notes?: string
+        }
+        Returns: undefined
+      }
       mark_notification_read: {
         Args: { p_notification_id: string }
         Returns: Json
@@ -7741,6 +8249,24 @@ export type Database = {
         Args: { p_limit?: number }
         Returns: {
           id: string
+        }[]
+      }
+      people_birth_dates: {
+        Args: { p_church_id: string; p_person_ids: string[] }
+        Returns: {
+          birth_date: string
+          person_id: string
+        }[]
+      }
+      person_contact: {
+        Args: { p_church_id: string; p_person_id: string }
+        Returns: {
+          birth_date: string
+          can_read_contact: boolean
+          email: string
+          notes: string
+          person_id: string
+          phone: string
         }[]
       }
       person_path_progress_view: {
@@ -7858,6 +8384,15 @@ export type Database = {
           sort_order: number
           type: Database["public"]["Enums"]["form_field_type"]
         }[]
+      }
+      reconcile_giving_contribution: {
+        Args: {
+          p_church_id: string
+          p_contribution_id: string
+          p_external_reference?: string
+          p_notes?: string
+        }
+        Returns: string
       }
       record_assignment_response: {
         Args: {
@@ -8054,6 +8589,18 @@ export type Database = {
         Args: { p_archived: boolean; p_course_id: string }
         Returns: undefined
       }
+      set_giving_fund_default: {
+        Args: { p_church_id: string; p_fund_id: string }
+        Returns: undefined
+      }
+      set_giving_recurring_plan_status: {
+        Args: {
+          p_church_id: string
+          p_plan_id: string
+          p_status: Database["public"]["Enums"]["giving_recurring_plan_status"]
+        }
+        Returns: undefined
+      }
       set_group_archived: {
         Args: { p_archived: boolean; p_group_id: string }
         Returns: undefined
@@ -8128,6 +8675,14 @@ export type Database = {
         }
         Returns: Database["public"]["Enums"]["activity_status"]
       }
+      transition_giving_campaign_status: {
+        Args: {
+          p_campaign_id: string
+          p_church_id: string
+          p_status: Database["public"]["Enums"]["giving_campaign_status"]
+        }
+        Returns: undefined
+      }
       unaccent: { Args: { "": string }; Returns: string }
       undo_checkin_attendee: {
         Args: { p_attendee_id: string }
@@ -8173,6 +8728,39 @@ export type Database = {
           p_purpose?: Database["public"]["Enums"]["communication_purpose"]
           p_subject?: string
           p_title?: string
+        }
+        Returns: undefined
+      }
+      update_giving_campaign: {
+        Args: {
+          p_campaign_id: string
+          p_church_id: string
+          p_description?: string
+          p_ends_at?: string
+          p_name: string
+          p_starts_at?: string
+          p_target_amount_minor?: number
+        }
+        Returns: undefined
+      }
+      update_giving_contribution: {
+        Args: {
+          p_campaign_id?: string
+          p_church_id: string
+          p_contributed_at?: string
+          p_contribution_id: string
+          p_fund_id: string
+          p_notes?: string
+          p_reference?: string
+        }
+        Returns: undefined
+      }
+      update_giving_fund: {
+        Args: {
+          p_church_id: string
+          p_description?: string
+          p_fund_id: string
+          p_name: string
         }
         Returns: undefined
       }
@@ -8374,6 +8962,24 @@ export type Database = {
         | "checkbox"
         | "boolean"
         | "address"
+      giving_campaign_status: "draft" | "active" | "closed" | "archived"
+      giving_contribution_method:
+        | "cash"
+        | "bank_transfer"
+        | "card"
+        | "direct_debit"
+        | "other"
+      giving_contribution_status:
+        | "pending"
+        | "succeeded"
+        | "failed"
+        | "refunded"
+        | "cancelled"
+      giving_entity_status: "active" | "archived"
+      giving_reconciliation_status: "unreconciled" | "reconciled" | "exception"
+      giving_recurrence_frequency: "weekly" | "monthly" | "yearly"
+      giving_recurring_plan_status: "active" | "paused" | "ended"
+      giving_refund_status: "pending" | "succeeded" | "failed"
       group_attendance_status: "present" | "absent" | "excused"
       group_join_policy: "open_request" | "invite_only"
       group_join_request_status:
@@ -8757,6 +9363,26 @@ export const Constants = {
         "boolean",
         "address",
       ],
+      giving_campaign_status: ["draft", "active", "closed", "archived"],
+      giving_contribution_method: [
+        "cash",
+        "bank_transfer",
+        "card",
+        "direct_debit",
+        "other",
+      ],
+      giving_contribution_status: [
+        "pending",
+        "succeeded",
+        "failed",
+        "refunded",
+        "cancelled",
+      ],
+      giving_entity_status: ["active", "archived"],
+      giving_reconciliation_status: ["unreconciled", "reconciled", "exception"],
+      giving_recurrence_frequency: ["weekly", "monthly", "yearly"],
+      giving_recurring_plan_status: ["active", "paused", "ended"],
+      giving_refund_status: ["pending", "succeeded", "failed"],
       group_attendance_status: ["present", "absent", "excused"],
       group_join_policy: ["open_request", "invite_only"],
       group_join_request_status: [

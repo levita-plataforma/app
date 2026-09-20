@@ -95,11 +95,21 @@ export async function getOrCreateKidsProfile(churchId: string, personId: string)
 
   const { data: person, error: personError } = await supabase
     .from("people")
-    .select("first_name, last_name, birth_date")
+    .select("first_name, last_name")
     .eq("id", personId)
     .single();
 
   if (personError || !person) throw new DomainError("RESOURCE_NOT_FOUND", "No se encontró a la persona indicada.");
+
+  // La fecha de nacimiento no se lee con un select directo desde R-01: la sirve
+  // una RPC que exige kids.manage, que es justo la capacidad que esta función
+  // ya ha comprobado arriba.
+  const { data: fechas } = await supabase.rpc("people_birth_dates", {
+    p_church_id: churchId,
+    p_person_ids: [personId],
+  });
+  const birthDate = fechas?.[0]?.birth_date ?? null;
+  const personInfo = { ...person, birth_date: birthDate };
 
   const { data: existing, error: existingError } = await supabase
     .from("kids_profiles")
@@ -109,7 +119,7 @@ export async function getOrCreateKidsProfile(churchId: string, personId: string)
     .maybeSingle();
 
   if (existingError) throw new DomainError("INTERNAL_ERROR", "No se pudo consultar el perfil Kids.");
-  if (existing) return mapProfile(existing as unknown as ProfileRow, person);
+  if (existing) return mapProfile(existing as unknown as ProfileRow, personInfo);
 
   const { data: created, error: createError } = await supabase
     .from("kids_profiles")
@@ -126,7 +136,7 @@ export async function getOrCreateKidsProfile(churchId: string, personId: string)
         .eq("church_id", churchId)
         .eq("person_id", personId)
         .single();
-      if (retry) return mapProfile(retry as unknown as ProfileRow, person);
+      if (retry) return mapProfile(retry as unknown as ProfileRow, personInfo);
     }
     throw new DomainError("INTERNAL_ERROR", "No se pudo crear el perfil Kids.");
   }
@@ -141,7 +151,7 @@ export async function getOrCreateKidsProfile(churchId: string, personId: string)
     metadata: { person_id: personId },
   });
 
-  return mapProfile(createdRow, person);
+  return mapProfile(createdRow, personInfo);
 }
 
 export type KidsSensitiveNotes = {
@@ -262,11 +272,15 @@ export async function listKidsProfiles(
   const { data, count, error } = await query.order("created_at", { ascending: false }).range(from, to);
   if (error || !data) return { items: [], total: 0, page, pageSize };
 
-  const personIds = data.map((row) => row.person_id);
+  const personIds: string[] = data.map((row) => row.person_id);
   if (personIds.length === 0) return { items: [], total: count ?? 0, page, pageSize };
 
-  const [birthDates, householdRows, guardianCounts, pickupCounts] = await Promise.all([
-    supabase.from("people").select("id, birth_date").in("id", personIds),
+  const { data: birthDateRows } = await supabase.rpc("people_birth_dates", {
+    p_church_id: churchId,
+    p_person_ids: personIds,
+  });
+
+  const [householdRows, guardianCounts, pickupCounts] = await Promise.all([
     supabase
       .from("household_members")
       .select("person_id, household_id, households(name)")
@@ -286,7 +300,13 @@ export async function listKidsProfiles(
       .in("kid_person_id", personIds),
   ]);
 
-  const birthDateByPerson = new Map((birthDates.data ?? []).map((p) => [p.id, p.birth_date]));
+  // La forma se anota a mano: en este punto TypeScript no infiere el retorno de
+  // la RPC —sí lo hace en getOrCreateKidsProfile, con la misma llamada— y sin
+  // esto el mapa acaba siendo Map<any, {}> y la edad deja de calcularse.
+  type FechaNacimiento = { person_id: string; birth_date: string | null };
+  const birthDateByPerson = new Map<string, string | null>(
+    ((birthDateRows ?? []) as FechaNacimiento[]).map((p) => [p.person_id, p.birth_date]),
+  );
 
   const householdByPerson = new Map<string, { id: string; name: string | null }>();
   for (const row of householdRows.data ?? []) {

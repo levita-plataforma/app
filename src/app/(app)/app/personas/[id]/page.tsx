@@ -23,7 +23,7 @@ export default async function PersonaPage({
   const [{ data: person }, { data: churchPerson }, canManage] = await Promise.all([
     supabase
       .from("people")
-      .select("id, first_name, last_name, preferred_name, email, phone, birth_date, user_id, source, created_at")
+      .select("id, first_name, last_name, preferred_name, user_id, source, created_at")
       .eq("id", id)
       .maybeSingle(),
     supabase
@@ -34,6 +34,16 @@ export default async function PersonaPage({
       .maybeSingle(),
     hasCapability(tenant.churchId, "people.manage"),
   ]);
+
+  // El contacto no se puede leer con un select directo desde R-01: lo sirve una
+  // RPC que comprueba quién pregunta. Devuelve los campos en nulo cuando no hay
+  // derecho, y can_read_contact para que la ficha distinga «no tiene teléfono»
+  // de «no puedes verlo».
+  const { data: contactoRows } = await supabase.rpc("person_contact", {
+    p_church_id: tenant.churchId,
+    p_person_id: id,
+  });
+  const contacto = contactoRows?.[0] ?? null;
 
   if (!person || !churchPerson) notFound();
 
@@ -79,9 +89,10 @@ export default async function PersonaPage({
         firstName: person.first_name,
         lastName: person.last_name,
         preferredName: person.preferred_name,
-        email: person.email,
-        phone: person.phone,
-        birthDate: person.birth_date,
+        email: contacto?.email ?? null,
+        phone: contacto?.phone ?? null,
+        birthDate: contacto?.birth_date ?? null,
+        canReadContact: contacto?.can_read_contact ?? false,
         hasAccount: Boolean(person.user_id),
         source: person.source,
         createdAt: person.created_at,

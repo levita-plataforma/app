@@ -1,5 +1,5 @@
 -- Fase 11 (Diogo) · RLS de Alabanza. Toda escritura pasa por RPC security
--- definer (ver 20261002000400): las políticas de aquí solo cubren lectura
+-- definer (ver 20261002000104): las políticas de aquí solo cubren lectura
 -- directa desde el cliente autenticado. Sin superficie pública/anon.
 
 create policy worship_songs_select on worship_songs

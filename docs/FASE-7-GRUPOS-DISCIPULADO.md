@@ -93,11 +93,13 @@ su contacto**. `app.group_roster` devuelve el nombre siempre y el correo y el te
 cuando esa función lo permite, además de una columna `contact_visible` que lo dice
 explícitamente para que la interfaz no tenga que adivinarlo.
 
-**Límite conocido y anotado** (riesgo R-01 del contrato, pendiente transversal en D22): la
-política `people_select` de la Fase 0 sigue dejando leer la fila completa de `people` a
-cualquier miembro de la misma iglesia. La Fase 7 aplica la regla en su propia superficie y no
-amplía nada, pero cumplirla de extremo a extremo exige estrechar esa política, lo que afecta a
-F2, F5 y F6. Queda fuera de esta fase.
+**Límite que estaba anotado y ya no existe** (riesgo R-01): la política `people_select` de la
+Fase 0 dejaba leer la fila completa de `people` a cualquier miembro de la misma iglesia, así
+que la regla de esta fase se cumplía en su superficie pero se podía rodear por detrás. Se
+cerró el 20 de septiembre de 2026 con privilegios por columna y dos RPC que aplican
+`app.can_read_person_contact` —la misma función que usa esta fase—, de modo que ahora la regla
+es la misma mire uno por donde mire. Al medirlo, lo que se temía que afectara a F2, F5 y F6
+resultaron ser tres lecturas en todo el código.
 
 ---
 

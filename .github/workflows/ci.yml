@@ -69,6 +69,24 @@ jobs:
           fi
           echo "Ninguna suite usa metacomandos de psql."
 
+      - name: Comprobar que no hay prefijos de migración repetidos
+        run: |
+          # La CLI de Supabase indexa las migraciones por su número, no por el
+          # nombre del fichero. Dos ficheros con el mismo número son una
+          # migración que no se ejecuta y que no da error: la fase queda a
+          # medias en producción y nadie se entera hasta que falla una pantalla.
+          repetidos=$(ls supabase/migrations/*.sql 2>/dev/null             | xargs -n1 basename             | cut -d_ -f1             | sort | uniq -d)
+          if [ -n "$repetidos" ]; then
+            echo "::error::Hay prefijos de migración repetidos:"
+            for n in $repetidos; do
+              echo "  $n:"
+              ls supabase/migrations/"$n"_*.sql | sed 's/^/    /'
+            done
+            echo "Renumera la más nueva con la hora UTC de ahora: date -u +%Y%m%d%H%M%S"
+            exit 1
+          fi
+          echo "Ningún prefijo de migración está repetido."
+
       - name: Levantar Supabase local (aplica migraciones)
         run: supabase start
 

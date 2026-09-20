@@ -201,7 +201,7 @@ El coordinador prepara y publica una actividad —puntual o recurrente, desde ce
 
 **Parte de Carlos (CA-04/CA-05): integrada y aplicada en producción** el 17 de septiembre de 2026 (validación del commit `f9cb5b4`, PR #4, merge `a9fd3c8`), con las decisiones acordadas por Carlos (D20): estados, cobertura, conflictos, respuestas, cambios de F4, sustituciones, respuesta por representante, permisos y lectura mínima, tareas flexibles, publicación multiárea y enlaces solo autenticados. Detalle en [FASE-5-ASIGNACIONES.md](FASE-5-ASIGNACIONES.md).
 
-**Disponibilidad, frecuencia y avisos (DI-01 y DI-02): integrados y aplicados en producción** el 18 de septiembre de 2026 (PR #5, merge `8894c88`), con el envío externo desactivado y la tarea programada una vez al día. Los asumió Carlos (D21) y Diogo aprobó sus reglas de producto. **Falta el recorrido conjunto CO-03 para dar la fase por cerrada.**
+**Disponibilidad, frecuencia y avisos (DI-01 y DI-02): integrados y aplicados en producción** el 18 de septiembre de 2026 (PR #5, merge `8894c88`), con el envío externo desactivado y la tarea programada una vez al día. Los asumió Carlos (D21) y Diogo aprobó sus reglas de producto. **CO-03 recorrido y validado por Carlos el 20 de septiembre de 2026, sin fallos: FASE 5 CERRADA.**
 
 ### Alcance
 
@@ -331,7 +331,7 @@ Un menor entra y sale con trazabilidad y autorización correcta, sin exponer dat
 
 Nota sobre «grupos»: la segmentación por grupo queda reservada en el modelo —el campo `group` está en la lista de reglas permitidas— pero **rechazada explícitamente en tiempo de ejecución**, no fingida.
 
-Cuando se escribió esta fase la Fase 7 no existía. Ya existe, y aun así sigue rechazada a propósito: no es cuestión de esquema, que no habría que tocar, sino de permisos. Escribir a los participantes de un grupo privado exige permiso **sobre ese grupo**, como quedó resuelto en la Fase 7 con `app.notify_group_members`; habilitarlo desde comunicaciones con solo la capacidad de comunicación abriría por detrás lo que aquella cerró por delante. Queda como decisión de producto pendiente: qué permiso manda al escribir a un grupo, el del grupo o el de comunicaciones.
+Cuando se escribió esta fase la Fase 7 no existía. Ya existe, y aun así sigue rechazada a propósito: no es cuestión de esquema, que no habría que tocar, sino de permisos. Escribir a los participantes de un grupo privado exige permiso **sobre ese grupo**, como quedó resuelto en la Fase 7 con `app.notify_group_members`; habilitarlo desde comunicaciones con solo la capacidad de comunicación abriría por detrás lo que aquella cerró por delante. La pregunta —qué permiso manda al escribir a un grupo, el del grupo o el de comunicaciones— la respondió Carlos el 20 de septiembre de 2026: manda el del grupo, y por eso la segmentación por grupo se queda rechazada.
 
 ### Criterio de salida
 
@@ -372,8 +372,14 @@ Los arreglos van en `20261001001200`, aparte de las once migraciones de la fase
 Batería completa con las cinco fases conviviendo: 1360 aserciones en 26 suites,
 sin fallos.
 
-**Pendiente de decisión:** la segmentación por grupo, explicada en la nota de
-arriba.
+**Decidido el 20 de septiembre de 2026 (Carlos):** la segmentación por grupo
+**se queda rechazada**. No es una limitación técnica pendiente de resolver, es
+la respuesta: habilitarla con solo la capacidad de comunicación permitiría
+escribir a los miembros de un grupo privado a quien no tiene acceso a ese grupo,
+abriendo por detrás lo que la Fase 7 cerró por delante. Si algún día se pide de
+verdad, el camino es exigir permiso sobre el grupo concreto cruzando
+`app.group_cap`, como hace `app.notify_group_members`; mientras nadie lo pida,
+no se construye.
 
 **Comprobado en pantalla** por Carlos el 20 de septiembre de 2026, que es lo
 que permite decir «producción» y no solo «integrada».
@@ -433,8 +439,9 @@ de Carlos e integración en `main`. Cubre contenido nativo — canciones, tonali
 y archivos (vía `files` del núcleo) — sin ninguna dependencia de Calserv como fuente de datos o schema:
 corrección de alcance confirmada el 20 de septiembre de 2026, ver
 [CONTRATO-FASE-11-DIOGO.md](CONTRATO-FASE-11-DIOGO.md) y
-[FASE-11-ALABANZA-DIOGO.md](FASE-11-ALABANZA-DIOGO.md). Migraciones `20261002000100` a
-`20261002000600`. Batería completa del repositorio: 1408 aserciones en verde, sin drift de esquema.
+[FASE-11-ALABANZA-DIOGO.md](FASE-11-ALABANZA-DIOGO.md). Migraciones `20261002000101` a
+`20261002000106` (renumeradas tras integrar F9/R-01 en `main`, que ya ocupaban `20261002000100`).
+Batería completa del repositorio: 1408 aserciones en verde, sin drift de esquema.
 
 **Parte de Carlos** (identidad, actividades, programación, permisos finales, coordinación con
 Sonido/Multimedia, migración/compatibilidad, rollback de corte) **no iniciada**. La Fase 11 requiere
@@ -475,6 +482,27 @@ sola parte.
 - exportaciones.
 
 Estas capacidades no bloquean el MVP.
+
+### Estado — 20 de septiembre de 2026
+
+**Giving (parte de Diogo): IMPLEMENTADA** en `feature/diogo-fase-12-giving`, pendiente de validación
+de Carlos e integración en `main`. Cubre fondos, campañas, aportaciones (dinero en `amount_minor`
+bigint, nunca float), donante opcional/anónimo, recurrencia modelada sin cobro automático, refunds con
+tope validado server-side, conciliación simple, exportación CSV con mitigación de inyección de fórmula,
+resumen agregado separado del detalle (`giving.read_summary` ≠ `giving.read_contributions`), y
+`church_owner`/`church_admin` **sin** acceso automático al detalle financiero (deny-by-default, D10).
+Implementado directamente sin contrato documental separado (instrucción explícita del encargo). Ver
+[FASE-12-GIVING.md](FASE-12-GIVING.md). Migraciones `20261003000100` a `20261003001200`. Batería
+completa del repositorio: 1423 aserciones en verde, sin drift de esquema.
+
+Sin proveedor de pago real conectado: cobro online, webhooks y reconciliación bancaria automática
+quedan preparados arquitectónicamente (contrato `GivingPaymentProvider`, columnas
+`provider`/`provider_payment_ref`) pero no implementados — no hay proveedor que los dispare (mismo
+criterio que A14 en Fase 9). Registro manual (efectivo/transferencia), fondos, campañas, recurrencia
+modelada, conciliación y reporting son completamente operativos.
+
+**Pastoral y Analítica avanzada no iniciadas.** F12 no se declara completa: son entregas separadas
+según `docs/REPARTO-CARLOS-DIOGO.md` §4.
 
 ---
 
