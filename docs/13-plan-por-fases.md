@@ -406,6 +406,31 @@ que permite decir «producción» y no solo «integrada».
 
 Una actividad reserva recursos sin dobles reservas y deja trazabilidad.
 
+### Estado — 20 de septiembre de 2026
+
+**Implementada; pendiente de validación de Carlos.** No integrada ni aplicada en producción.
+
+Rama `feature/carlos-fase-10-recursos-instalaciones`, diez migraciones
+(`20261003000100`–`20261003001000`). El detalle está en
+[FASE-10-RECURSOS-INSTALACIONES.md](FASE-10-RECURSOS-INSTALACIONES.md) y lo acordado en
+[CONTRATO-FASE-10.md](CONTRATO-FASE-10.md).
+
+Lo que la sostiene es `resource_occupancy`, una capa única de ocupación con restricción de
+exclusión: **la primera del proyecto**. Registra tanto las reservas confirmadas como los
+mantenimientos que bloquean, de modo que una reserva y un mantenimiento no pueden cruzarse
+—dos restricciones separadas no se ven entre sí—. Comprobado con transacciones realmente
+simultáneas: la segunda espera a la primera y recibe 23P01, que es la diferencia entre
+proteger y avisar.
+
+Decisiones que conviene conocer sin leer el contrato entero: una reserva pendiente de
+aprobación **no ocupa** el recurso y el conflicto se decide al confirmar; mover una actividad
+a una hora en la que su sala está cogida **falla entera**, en vez de moverla y dejar la sala
+atrás; y archivar un recurso con reservas futuras se bloquea.
+
+**Límites conocidos:** sin recurrencia propia de reservas ni de mantenimiento, sin
+cantidades (cada unidad física es un recurso), sin buffers de montaje y sin calendario
+visual. Están escritos en el documento de la fase, no descubiertos más tarde.
+
 ---
 
 ## Fase 11 · Integración final de Alabanza
