@@ -6574,6 +6574,420 @@ export type Database = {
         }
         Relationships: []
       }
+      resource_maintenance: {
+        Row: {
+          blocks_availability: boolean
+          cancelled_at: string | null
+          cancelled_by: string | null
+          church_id: string
+          cost_note: string | null
+          created_at: string
+          created_by: string | null
+          description: string | null
+          ends_at: string
+          id: string
+          performed_at: string | null
+          performed_by: string | null
+          resource_id: string
+          responsible_person_id: string | null
+          result_notes: string | null
+          starts_at: string
+          status: Database["public"]["Enums"]["maintenance_status"]
+          title: string
+          type: string
+          updated_at: string
+        }
+        Insert: {
+          blocks_availability?: boolean
+          cancelled_at?: string | null
+          cancelled_by?: string | null
+          church_id: string
+          cost_note?: string | null
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          ends_at: string
+          id?: string
+          performed_at?: string | null
+          performed_by?: string | null
+          resource_id: string
+          responsible_person_id?: string | null
+          result_notes?: string | null
+          starts_at: string
+          status?: Database["public"]["Enums"]["maintenance_status"]
+          title: string
+          type: string
+          updated_at?: string
+        }
+        Update: {
+          blocks_availability?: boolean
+          cancelled_at?: string | null
+          cancelled_by?: string | null
+          church_id?: string
+          cost_note?: string | null
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          ends_at?: string
+          id?: string
+          performed_at?: string | null
+          performed_by?: string | null
+          resource_id?: string
+          responsible_person_id?: string | null
+          result_notes?: string | null
+          starts_at?: string
+          status?: Database["public"]["Enums"]["maintenance_status"]
+          title?: string
+          type?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "resource_maintenance_cancelled_by_fkey"
+            columns: ["cancelled_by"]
+            isOneToOne: false
+            referencedRelation: "people"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "resource_maintenance_church_id_fkey"
+            columns: ["church_id"]
+            isOneToOne: false
+            referencedRelation: "churches"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "resource_maintenance_church_id_responsible_person_id_fkey"
+            columns: ["church_id", "responsible_person_id"]
+            isOneToOne: false
+            referencedRelation: "church_people"
+            referencedColumns: ["church_id", "person_id"]
+          },
+          {
+            foreignKeyName: "resource_maintenance_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "people"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "resource_maintenance_performed_by_fkey"
+            columns: ["performed_by"]
+            isOneToOne: false
+            referencedRelation: "people"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "resource_maintenance_resource_id_church_id_fkey"
+            columns: ["resource_id", "church_id"]
+            isOneToOne: false
+            referencedRelation: "resources"
+            referencedColumns: ["id", "church_id"]
+          },
+          {
+            foreignKeyName: "resource_maintenance_responsible_person_id_fkey"
+            columns: ["responsible_person_id"]
+            isOneToOne: false
+            referencedRelation: "people"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      resource_occupancy: {
+        Row: {
+          church_id: string
+          created_at: string
+          during: unknown
+          id: string
+          maintenance_id: string | null
+          reservation_id: string | null
+          resource_id: string
+          source: Database["public"]["Enums"]["occupancy_source"]
+        }
+        Insert: {
+          church_id: string
+          created_at?: string
+          during: unknown
+          id?: string
+          maintenance_id?: string | null
+          reservation_id?: string | null
+          resource_id: string
+          source: Database["public"]["Enums"]["occupancy_source"]
+        }
+        Update: {
+          church_id?: string
+          created_at?: string
+          during?: unknown
+          id?: string
+          maintenance_id?: string | null
+          reservation_id?: string | null
+          resource_id?: string
+          source?: Database["public"]["Enums"]["occupancy_source"]
+        }
+        Relationships: [
+          {
+            foreignKeyName: "resource_occupancy_church_id_fkey"
+            columns: ["church_id"]
+            isOneToOne: false
+            referencedRelation: "churches"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "resource_occupancy_maintenance_id_church_id_fkey"
+            columns: ["maintenance_id", "church_id"]
+            isOneToOne: false
+            referencedRelation: "resource_maintenance"
+            referencedColumns: ["id", "church_id"]
+          },
+          {
+            foreignKeyName: "resource_occupancy_reservation_id_church_id_fkey"
+            columns: ["reservation_id", "church_id"]
+            isOneToOne: false
+            referencedRelation: "resource_reservations"
+            referencedColumns: ["id", "church_id"]
+          },
+          {
+            foreignKeyName: "resource_occupancy_resource_id_church_id_fkey"
+            columns: ["resource_id", "church_id"]
+            isOneToOne: false
+            referencedRelation: "resources"
+            referencedColumns: ["id", "church_id"]
+          },
+        ]
+      }
+      resource_reservations: {
+        Row: {
+          activity_id: string | null
+          cancelled_at: string | null
+          cancelled_by: string | null
+          cancelled_reason: string | null
+          church_id: string
+          created_at: string
+          ends_at: string
+          id: string
+          notes: string | null
+          purpose: string
+          rejected_at: string | null
+          rejected_by: string | null
+          requested_by: string
+          resource_id: string
+          responsible_person_id: string | null
+          starts_at: string
+          status: Database["public"]["Enums"]["reservation_status"]
+          updated_at: string
+        }
+        Insert: {
+          activity_id?: string | null
+          cancelled_at?: string | null
+          cancelled_by?: string | null
+          cancelled_reason?: string | null
+          church_id: string
+          created_at?: string
+          ends_at: string
+          id?: string
+          notes?: string | null
+          purpose: string
+          rejected_at?: string | null
+          rejected_by?: string | null
+          requested_by: string
+          resource_id: string
+          responsible_person_id?: string | null
+          starts_at: string
+          status?: Database["public"]["Enums"]["reservation_status"]
+          updated_at?: string
+        }
+        Update: {
+          activity_id?: string | null
+          cancelled_at?: string | null
+          cancelled_by?: string | null
+          cancelled_reason?: string | null
+          church_id?: string
+          created_at?: string
+          ends_at?: string
+          id?: string
+          notes?: string | null
+          purpose?: string
+          rejected_at?: string | null
+          rejected_by?: string | null
+          requested_by?: string
+          resource_id?: string
+          responsible_person_id?: string | null
+          starts_at?: string
+          status?: Database["public"]["Enums"]["reservation_status"]
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "resource_reservations_activity_id_church_id_fkey"
+            columns: ["activity_id", "church_id"]
+            isOneToOne: false
+            referencedRelation: "activities"
+            referencedColumns: ["id", "church_id"]
+          },
+          {
+            foreignKeyName: "resource_reservations_cancelled_by_fkey"
+            columns: ["cancelled_by"]
+            isOneToOne: false
+            referencedRelation: "people"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "resource_reservations_church_id_fkey"
+            columns: ["church_id"]
+            isOneToOne: false
+            referencedRelation: "churches"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "resource_reservations_church_id_requested_by_fkey"
+            columns: ["church_id", "requested_by"]
+            isOneToOne: false
+            referencedRelation: "church_people"
+            referencedColumns: ["church_id", "person_id"]
+          },
+          {
+            foreignKeyName: "resource_reservations_church_id_responsible_person_id_fkey"
+            columns: ["church_id", "responsible_person_id"]
+            isOneToOne: false
+            referencedRelation: "church_people"
+            referencedColumns: ["church_id", "person_id"]
+          },
+          {
+            foreignKeyName: "resource_reservations_rejected_by_fkey"
+            columns: ["rejected_by"]
+            isOneToOne: false
+            referencedRelation: "people"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "resource_reservations_requested_by_fkey"
+            columns: ["requested_by"]
+            isOneToOne: false
+            referencedRelation: "people"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "resource_reservations_resource_id_church_id_fkey"
+            columns: ["resource_id", "church_id"]
+            isOneToOne: false
+            referencedRelation: "resources"
+            referencedColumns: ["id", "church_id"]
+          },
+          {
+            foreignKeyName: "resource_reservations_responsible_person_id_fkey"
+            columns: ["responsible_person_id"]
+            isOneToOne: false
+            referencedRelation: "people"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      resources: {
+        Row: {
+          archived_at: string | null
+          archived_by: string | null
+          campus_id: string | null
+          capacity: number | null
+          church_id: string
+          created_at: string
+          created_by: string | null
+          description: string | null
+          id: string
+          location_details: string | null
+          metadata: Json
+          name: string
+          requires_approval: boolean
+          reservable: boolean
+          responsible_person_id: string | null
+          status: Database["public"]["Enums"]["resource_status"]
+          type: Database["public"]["Enums"]["resource_type"]
+          updated_at: string
+        }
+        Insert: {
+          archived_at?: string | null
+          archived_by?: string | null
+          campus_id?: string | null
+          capacity?: number | null
+          church_id: string
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          id?: string
+          location_details?: string | null
+          metadata?: Json
+          name: string
+          requires_approval?: boolean
+          reservable?: boolean
+          responsible_person_id?: string | null
+          status?: Database["public"]["Enums"]["resource_status"]
+          type: Database["public"]["Enums"]["resource_type"]
+          updated_at?: string
+        }
+        Update: {
+          archived_at?: string | null
+          archived_by?: string | null
+          campus_id?: string | null
+          capacity?: number | null
+          church_id?: string
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          id?: string
+          location_details?: string | null
+          metadata?: Json
+          name?: string
+          requires_approval?: boolean
+          reservable?: boolean
+          responsible_person_id?: string | null
+          status?: Database["public"]["Enums"]["resource_status"]
+          type?: Database["public"]["Enums"]["resource_type"]
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "resources_archived_by_fkey"
+            columns: ["archived_by"]
+            isOneToOne: false
+            referencedRelation: "people"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "resources_campus_id_church_id_fkey"
+            columns: ["campus_id", "church_id"]
+            isOneToOne: false
+            referencedRelation: "campuses"
+            referencedColumns: ["id", "church_id"]
+          },
+          {
+            foreignKeyName: "resources_church_id_fkey"
+            columns: ["church_id"]
+            isOneToOne: false
+            referencedRelation: "churches"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "resources_church_id_responsible_person_id_fkey"
+            columns: ["church_id", "responsible_person_id"]
+            isOneToOne: false
+            referencedRelation: "church_people"
+            referencedColumns: ["church_id", "person_id"]
+          },
+          {
+            foreignKeyName: "resources_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "people"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "resources_responsible_person_id_fkey"
+            columns: ["responsible_person_id"]
+            isOneToOne: false
+            referencedRelation: "people"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       role_capabilities: {
         Row: {
           capability_key: string
@@ -7670,10 +8084,15 @@ export type Database = {
         Args: { p_activity_id: string; p_scope: string }
         Returns: number
       }
+      approve_reservation: {
+        Args: { p_reservation_id: string }
+        Returns: undefined
+      }
       archive_giving_fund: {
         Args: { p_church_id: string; p_fund_id: string }
         Returns: undefined
       }
+      archive_resource: { Args: { p_resource_id: string }; Returns: undefined }
       archive_worship_repertoire: {
         Args: { p_church_id: string; p_repertoire_id: string }
         Returns: undefined
@@ -7739,6 +8158,10 @@ export type Database = {
         Args: { p_group_meeting_id: string; p_reason?: string }
         Returns: undefined
       }
+      cancel_maintenance: {
+        Args: { p_maintenance_id: string; p_reason?: string }
+        Returns: undefined
+      }
       cancel_registration_by_token: {
         Args: { p_cancel_token: string; p_reason?: string }
         Returns: {
@@ -7746,6 +8169,10 @@ export type Database = {
           registration_id: string
           status: Database["public"]["Enums"]["registration_status"]
         }[]
+      }
+      cancel_reservation: {
+        Args: { p_reason?: string; p_reservation_id: string }
+        Returns: undefined
       }
       cancel_substitution_request: {
         Args: { p_request_id: string }
@@ -7795,6 +8222,10 @@ export type Database = {
       }
       complete_cohort_enrollment: {
         Args: { p_enrollment_id: string; p_note?: string }
+        Returns: undefined
+      }
+      complete_maintenance: {
+        Args: { p_maintenance_id: string; p_result_notes?: string }
         Returns: undefined
       }
       complete_notification_delivery: {
@@ -7916,6 +8347,10 @@ export type Database = {
         }
         Returns: string
       }
+      create_reservation: {
+        Args: { p_church_id: string; p_input: Json }
+        Returns: string
+      }
       create_worship_repertoire: {
         Args: { p_church_id: string; p_description?: string; p_name: string }
         Returns: string
@@ -7949,6 +8384,7 @@ export type Database = {
       }
       delete_my_unavailability_period: { Args: { p_id: string }; Returns: Json }
       delete_my_weekly_unavailability: { Args: { p_id: string }; Returns: Json }
+      delete_resource: { Args: { p_resource_id: string }; Returns: undefined }
       detach_worship_song_file: {
         Args: { p_church_id: string; p_file_id: string }
         Returns: undefined
@@ -8199,6 +8635,13 @@ export type Database = {
           title: string
         }[]
       }
+      maintenance_internal_notes: {
+        Args: { p_maintenance_id: string }
+        Returns: {
+          cost_note: string
+          result_notes: string
+        }[]
+      }
       mark_all_notifications_read: {
         Args: { p_church_id: string }
         Returns: Json
@@ -8432,6 +8875,10 @@ export type Database = {
           waitlist_position: number
         }[]
       }
+      reject_reservation: {
+        Args: { p_reason?: string; p_reservation_id: string }
+        Returns: undefined
+      }
       remove_activity_area: {
         Args: { p_activity_service_area_id: string }
         Returns: undefined
@@ -8500,6 +8947,15 @@ export type Database = {
         Args: { p_accept: boolean; p_note?: string; p_request_id: string }
         Returns: undefined
       }
+      resource_is_available: {
+        Args: {
+          p_ends_at: string
+          p_exclude_reservation_id?: string
+          p_resource_id: string
+          p_starts_at: string
+        }
+        Returns: boolean
+      }
       respond_activity_assignment: {
         Args: {
           p_assignment_id: string
@@ -8509,6 +8965,7 @@ export type Database = {
         }
         Returns: Json
       }
+      restore_resource: { Args: { p_resource_id: string }; Returns: undefined }
       save_activity_position_requirement: {
         Args: {
           p_activity_position_id: string
@@ -8541,8 +8998,16 @@ export type Database = {
         Args: { p_church_id: string; p_input: Json }
         Returns: string
       }
+      save_maintenance: {
+        Args: { p_church_id: string; p_input: Json }
+        Returns: string
+      }
       save_path_step: {
         Args: { p_input: Json; p_learning_path_id: string }
+        Returns: string
+      }
+      save_resource: {
+        Args: { p_church_id: string; p_input: Json }
         Returns: string
       }
       schedule_cohort_session: {
@@ -8766,6 +9231,10 @@ export type Database = {
       }
       update_group: {
         Args: { p_group_id: string; p_input: Json }
+        Returns: undefined
+      }
+      update_reservation: {
+        Args: { p_input: Json; p_reservation_id: string }
         Returns: undefined
       }
       update_worship_repertoire: {
@@ -9008,8 +9477,14 @@ export type Database = {
       kids_session_status: "scheduled" | "open" | "closed" | "cancelled"
       kids_staff_role: "lead" | "assistant" | "support"
       learning_path_status: "draft" | "active" | "archived"
+      maintenance_status:
+        | "scheduled"
+        | "in_progress"
+        | "completed"
+        | "cancelled"
       notification_channel: "inapp" | "email" | "push"
       notification_delivery_status: "queued" | "sent" | "failed" | "suppressed"
+      occupancy_source: "reservation" | "maintenance"
       path_progress_status: "pending" | "in_progress" | "completed" | "skipped"
       path_step_kind: "course" | "manual"
       person_source:
@@ -9038,6 +9513,9 @@ export type Database = {
         | "waitlisted"
         | "cancelled"
         | "declined"
+      reservation_status: "pending" | "confirmed" | "cancelled" | "rejected"
+      resource_status: "active" | "unavailable" | "maintenance" | "archived"
+      resource_type: "room" | "equipment" | "vehicle" | "other"
       service_area_member_status:
         | "active"
         | "training"
@@ -9413,8 +9891,15 @@ export const Constants = {
       kids_session_status: ["scheduled", "open", "closed", "cancelled"],
       kids_staff_role: ["lead", "assistant", "support"],
       learning_path_status: ["draft", "active", "archived"],
+      maintenance_status: [
+        "scheduled",
+        "in_progress",
+        "completed",
+        "cancelled",
+      ],
       notification_channel: ["inapp", "email", "push"],
       notification_delivery_status: ["queued", "sent", "failed", "suppressed"],
+      occupancy_source: ["reservation", "maintenance"],
       path_progress_status: ["pending", "in_progress", "completed", "skipped"],
       path_step_kind: ["course", "manual"],
       person_source: [
@@ -9447,6 +9932,9 @@ export const Constants = {
         "cancelled",
         "declined",
       ],
+      reservation_status: ["pending", "confirmed", "cancelled", "rejected"],
+      resource_status: ["active", "unavailable", "maintenance", "archived"],
+      resource_type: ["room", "equipment", "vehicle", "other"],
       service_area_member_status: [
         "active",
         "training",

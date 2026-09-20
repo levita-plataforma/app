@@ -27,6 +27,12 @@ export function toDomainError(error: PostgrestLikeError, fallback: string): Doma
       return new DomainError("RESOURCE_NOT_FOUND", message ?? "El elemento no existe.");
     case "23505":
       return new DomainError("CONFLICT", message ?? "Ya existe un elemento con esos datos.");
+    case "23P01":
+      // Violación de restricción de exclusión: hoy solo la usa la ocupación de
+      // recursos (Fase 10), y su mensaje ya dice qué franja choca y a qué hora.
+      // Sin este caso caería en el default y esa explicación se perdería,
+      // sustituida por un texto genérico y un registro de error inesperado.
+      return new DomainError("CONFLICT", message ?? "Ese horario ya está ocupado.");
     case "PT409":
     case "55P03":
       return new DomainError("CONFLICT", message ?? "Los datos han cambiado. Recarga e inténtalo de nuevo.");
