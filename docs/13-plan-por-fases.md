@@ -411,7 +411,7 @@ Una actividad reserva recursos sin dobles reservas y deja trazabilidad.
 **Implementada; pendiente de validación de Carlos.** No integrada ni aplicada en producción.
 
 Rama `feature/carlos-fase-10-recursos-instalaciones`, diez migraciones
-(`20261003000100`–`20261003001000`). El detalle está en
+(`20261004000400`–`20261004000409`). El detalle está en
 [FASE-10-RECURSOS-INSTALACIONES.md](FASE-10-RECURSOS-INSTALACIONES.md) y lo acordado en
 [CONTRATO-FASE-10.md](CONTRATO-FASE-10.md).
 

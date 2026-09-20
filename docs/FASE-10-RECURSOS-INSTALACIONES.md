@@ -44,20 +44,20 @@ eso la escritura sobre reservas y mantenimientos está revocada y solo entra por
 
 ## 2. Migraciones
 
-Diez, con prefijo posterior a `20261002000100`, el último aplicado en producción.
+Diez, con prefijo posterior a `20261003001200`, el último que había en `main` al renumerarlas.
 
 | Fichero | Qué trae |
 |---|---|
-| `20261003000100_facilities_esquema.sql` | `resources`, `resource_reservations`, `resource_maintenance` y `resource_occupancy`, con sus enums, índices y la restricción de exclusión |
-| `20261003000200_capabilities_facilities.sql` | Las seis capacidades, su reparto por rol y `app.resource_cap` |
-| `20261003000300_rls_facilities.sql` | RLS habilitada y forzada, escritura revocada, políticas de lectura y el grant por columnas de las notas de mantenimiento |
-| `20261003000400_facilities_ocupacion.sql` | Adquirir, soltar y mover una franja, y la traducción del conflicto a un mensaje con sentido |
-| `20261003000500_rpc_facilities_recursos.sql` | Alta, edición, archivado, restauración y borrado del catálogo |
-| `20261003000600_rpc_facilities_reservas.sql` | Crear, editar, cancelar, aprobar y rechazar reservas |
-| `20261003000700_rpc_facilities_mantenimiento.sql` | Programar, editar, cerrar y cancelar intervenciones |
-| `20261003000800_facilities_activity_hooks.sql` | Reconciliación con Activity: cancelar, archivar y cambiar de hora |
-| `20261003000900_facilities_hora_local.sql` | Entrada por hora local más zona, como en la Fase 4 |
-| `20261003001000_avisos_facilities.sql` | Cuatro tipos de aviso, sus textos y su emisión |
+| `20261004000400_facilities_esquema.sql` | `resources`, `resource_reservations`, `resource_maintenance` y `resource_occupancy`, con sus enums, índices y la restricción de exclusión |
+| `20261004000401_capabilities_facilities.sql` | Las seis capacidades, su reparto por rol y `app.resource_cap` |
+| `20261004000402_rls_facilities.sql` | RLS habilitada y forzada, escritura revocada, políticas de lectura y el grant por columnas de las notas de mantenimiento |
+| `20261004000403_facilities_ocupacion.sql` | Adquirir, soltar y mover una franja, y la traducción del conflicto a un mensaje con sentido |
+| `20261004000404_rpc_facilities_recursos.sql` | Alta, edición, archivado, restauración y borrado del catálogo |
+| `20261004000405_rpc_facilities_reservas.sql` | Crear, editar, cancelar, aprobar y rechazar reservas |
+| `20261004000406_rpc_facilities_mantenimiento.sql` | Programar, editar, cerrar y cancelar intervenciones |
+| `20261004000407_facilities_activity_hooks.sql` | Reconciliación con Activity: cancelar, archivar y cambiar de hora |
+| `20261004000408_facilities_hora_local.sql` | Entrada por hora local más zona, como en la Fase 4 |
+| `20261004000409_avisos_facilities.sql` | Cuatro tipos de aviso, sus textos y su emisión |
 
 ---
 

@@ -50,7 +50,7 @@ begin
   end if;
 
   -- La ventana puede llegar como instante o como hora local más zona, igual
-  -- que en las reservas (20261003000900).
+  -- que en las reservas (20261004000408).
   select * into v_starts, v_ends from app.maintenance_window(p_church_id, p_input, v_starts, v_ends);
 
   if v_starts is null or v_ends is null then
