@@ -30,6 +30,8 @@ Determina qué registros pueden verse/modificarse.
 
 Ejemplo: una persona puede responder su asignación, pero no cambiar `person_id`, `event_id` o `church_id`.
 
+**Toda función nueva se revoca explícitamente de `public` y `anon`, en las dos capas.** PostgreSQL concede `execute` a PUBLIC al crear una función, así que una RPC sin `revoke` queda al alcance de una sesión sin autenticar aunque la capa de debajo la rechace. Lo comprueba la suite `hotfix_revokes_publicos_test.sql`, que fija la superficie anónima por lista blanca: si alguien añade una RPC y se olvida del `revoke`, falla sola. Al revocar hay que conceder a `authenticated` en el mismo sitio, porque muchas funciones llegaban a la aplicación heredando de PUBLIC y revocar sin conceder las deja sin acceso.
+
 ### Constraints — integridad
 
 Impedir físicamente referencias entre tenants.
