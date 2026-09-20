@@ -16,9 +16,7 @@ Repositorio: https://github.com/levita-plataforma/app
 - Lo que toca otra fase, el núcleo compartido (tenant, permisos, RLS, navegación, tipos generados) o estos documentos de normas lo valida Carlos, aunque lo proponga otra persona.
 - No activar auto-merge ni hacer push directo o forzado a `main` para saltarse esta revisión.
 - Un arreglo urgente también requiere validación. No hay excepción automática para hotfixes.
-- Producción se despliega desde `main`: no se promocionan ramas a producción desde Vercel. Aplicar migraciones remotas sigue siendo una decisión aparte de la validación.
 - **Cada fase se valida y se integra por separado, no en tandas.** No se espera a otra fase para integrar la propia, ni se juntan dos en un mismo merge: si una falla en producción, hay que poder revertir esa y solo esa. Cuanto más tiempo pasan dos fases sin integrar, más se pisan sus migraciones.
-- **El código y sus migraciones van juntos.** Una migración que añade tablas o funciones puede aplicarse antes del merge; una que quita permisos o columnas sobre algo que el código usa, no: deja la aplicación rota hasta que se despliegue. En ese caso, el merge va inmediatamente detrás.
 
 Estas son normas de trabajo. Este documento no configura protecciones de GitHub ni acredita que estén activas. Conviene proteger `main` con PR obligatoria, comprobaciones requeridas y descarte de aprobaciones obsoletas; además debe mantenerse la validación específica del responsable de la fase. Mientras las cuentas de GitHub y Vercel sean compartidas, ningún cambio tiene autor identificable: conviene que cada persona use la suya y que la compartida quede solo como propietaria.
 
@@ -143,7 +141,7 @@ git fetch origin
 git switch -c feature/43-calendario-actividades origin/main
 ```
 
-La validación de una PR no autoriza otras ramas ni futuros cambios. La integración tampoco sustituye las verificaciones y decisiones específicas de un despliegue o una migración remota.
+La validación de una PR no autoriza otras ramas ni futuros cambios.
 
 ## 7. Validaciones antes de integrar
 
@@ -188,6 +186,17 @@ Para obtener el prefijo:
 date -u +%Y%m%d%H%M%S
 ```
 
+**Con una salvedad mientras dure:** el repositorio arrastra prefijos con fechas por delante del calendario, porque se numeraron a mano y algunos apuntan a octubre. Hasta que el reloj los alcance, si la hora de ahora queda por detrás del último prefijo que ya existe, se usa el **segundo siguiente a ese último**. Una migración con número anterior al último aplicado obliga a `db push --include-all` y deja el orden de aplicación en el aire.
+
+Hay un script que hace esa cuenta y renumera una rama entera conservando su orden:
+
+```bash
+node scripts/renumerar-migraciones.mjs            # enseña qué haría
+node scripts/renumerar-migraciones.mjs --aplicar  # lo hace
+```
+
+Solo toca las migraciones de tu rama que no están en `main`: las ya integradas no se renombran nunca.
+
 **Por qué una colisión es grave y no molesta.** La CLI de Supabase indexa las migraciones por ese número, no por el nombre del fichero. Si el número ya consta como aplicado en el historial remoto, `db push` da la migración por hecha y **no ejecuta su SQL, sin dar ningún error**. El resultado es una fase a medias en producción que nadie descubre hasta que alguien abre la pantalla que falla.
 
 Las migraciones que ya existen con el formato antiguo se quedan como están: renombrar una migración aplicada rompería el historial. La regla vale para las nuevas.
@@ -196,9 +205,9 @@ Las migraciones que ya existen con el formato antiguo se quedan como están: ren
 
 No reescribir migraciones ya aplicadas o compartidas. Antes de integrar, probar el orden combinado de las ramas vivas de ambas personas, no solo el de la propia.
 
-**Cada responsable aplica las migraciones de sus fases y las integra por separado**, igual que valida sus propias fases (§1). No se espera a juntar dos fases en una misma tanda: cuanto más tiempo pasan dos conjuntos de migraciones sin integrar, más se pisan. Si una fase depende de otra, se dice en la PR y se integra en orden, no a la vez.
+**Cada responsable integra sus fases por separado**, igual que valida las suyas (§1). No se espera a juntar dos fases en una misma tanda: cuanto más tiempo pasan dos conjuntos de migraciones sin integrar, más se pisan. Si una fase depende de otra, se dice en la PR y se integra en orden, no a la vez.
 
-Mantener `church_id`, RLS y relaciones seguras entre tenants donde corresponda. Los cambios de permisos deben incluir pruebas de denegación. Aplicar cambios remotos según el procedimiento de despliegue, pasando primero por el entorno de pruebas correspondiente y definiendo recuperación cuando haya riesgo para datos. Revertir Git no revierte una migración aplicada.
+Mantener `church_id`, RLS y relaciones seguras entre tenants donde corresponda. Los cambios de permisos deben incluir pruebas de denegación. Revertir Git no revierte una migración aplicada.
 
 ## 9. Contenido mínimo de cada PR
 
