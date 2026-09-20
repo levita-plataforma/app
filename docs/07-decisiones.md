@@ -174,10 +174,14 @@ No implementar hasta decidir proveedor, fiscalidad y política de cancelación.
 Finalidades, consentimiento, opt-out y proveedores.
 Resuelto (Fase 9, acordado con Diogo): finalidad limitada a `institutional`/`operational`/`system`/`services`/`groups`/`events`/`discipleship`/`kids`/`pastoral` — no se implementa `marketing` funcional en esta fase. Opt-out en dos capas: por canal vía `notification_preferences` ya existente de Fase 5 (sin tocar), y por categoría opcional vía `communication_category_preferences`, tabla nueva y acotada solo a las 6 categorías opcionales (iteración posterior, ver `docs/adr/0021-comunicaciones-categorias-or-unsubscribe.md`). Baja sin sesión mediante token opaco (`unsubscribe_token`, mismo patrón que `cancel_token` de Fase 6). Sin proveedor real de email/push: el envío externo queda `queued`, igual que el motor de avisos, gobernado por `NOTIFICATIONS_TRANSPORT=disabled`; por el mismo motivo no se implementa webhook de proveedor, bounce real ni reintentos reales (columna `failure_kind` preparada, sin lógica activa). Ver `docs/adr/0020-comunicaciones-vs-avisos.md` y `docs/adr/0021-comunicaciones-categorias-or-unsubscribe.md`.
 
-## Cuestiones abiertas antes de Fase 11
-
 ### A15 · Migración Calserv
-Definir estrategia exacta de migración/vinculación, ventana de corte, rollback y conservación de IDs/historial.
+**Resuelto (20 de septiembre de 2026): no hay migración desde Calserv.** Calserv no forma parte del
+repositorio LEVITA, no existe un repositorio disponible ni debe esperarse uno, y no se diseña ninguna
+migración desde él. La parte de contenido de la Fase 11 (canciones, tonalidades, repertorios, atril,
+archivos) se implementa como módulo **nativo** de LEVITA, diseñado desde sus propias necesidades — ver
+`docs/CONTRATO-FASE-11-DIOGO.md` y `docs/FASE-11-ALABANZA-DIOGO.md`. Cualquier referencia a Calserv en
+documentación anterior (`docs/14-referencia-uiux-alabanza.md`) se trata como referencia histórica de
+comportamiento/UX a conservar, nunca como fuente de datos, schema o repositorio a migrar.
 
 ## Cuestiones abiertas antes de Fase 12
 
