@@ -64,7 +64,8 @@ export type Database = {
           starts_at: string | null
           status: Database["public"]["Enums"]["activity_status"]
           status_before_archive:
-            Database["public"]["Enums"]["activity_status"] | null
+            | Database["public"]["Enums"]["activity_status"]
+            | null
           template_id: string | null
           timezone: string
           title: string
@@ -101,7 +102,8 @@ export type Database = {
           starts_at?: string | null
           status?: Database["public"]["Enums"]["activity_status"]
           status_before_archive?:
-            Database["public"]["Enums"]["activity_status"] | null
+            | Database["public"]["Enums"]["activity_status"]
+            | null
           template_id?: string | null
           timezone: string
           title: string
@@ -138,7 +140,8 @@ export type Database = {
           starts_at?: string | null
           status?: Database["public"]["Enums"]["activity_status"]
           status_before_archive?:
-            Database["public"]["Enums"]["activity_status"] | null
+            | Database["public"]["Enums"]["activity_status"]
+            | null
           template_id?: string | null
           timezone?: string
           title?: string
@@ -517,7 +520,8 @@ export type Database = {
           id: string
           min_level: Database["public"]["Enums"]["qualification_level"] | null
           min_operational_level:
-            Database["public"]["Enums"]["service_operational_level"] | null
+            | Database["public"]["Enums"]["service_operational_level"]
+            | null
           origin: Database["public"]["Enums"]["activity_requirement_origin"]
           qualification_id: string | null
           requirement_type: Database["public"]["Enums"]["position_requirement_type"]
@@ -538,7 +542,8 @@ export type Database = {
           id?: string
           min_level?: Database["public"]["Enums"]["qualification_level"] | null
           min_operational_level?:
-            Database["public"]["Enums"]["service_operational_level"] | null
+            | Database["public"]["Enums"]["service_operational_level"]
+            | null
           origin: Database["public"]["Enums"]["activity_requirement_origin"]
           qualification_id?: string | null
           requirement_type: Database["public"]["Enums"]["position_requirement_type"]
@@ -559,7 +564,8 @@ export type Database = {
           id?: string
           min_level?: Database["public"]["Enums"]["qualification_level"] | null
           min_operational_level?:
-            Database["public"]["Enums"]["service_operational_level"] | null
+            | Database["public"]["Enums"]["service_operational_level"]
+            | null
           origin?: Database["public"]["Enums"]["activity_requirement_origin"]
           qualification_id?: string | null
           requirement_type?: Database["public"]["Enums"]["position_requirement_type"]
@@ -724,7 +730,8 @@ export type Database = {
           month_day_fallback: string
           month_weekday: number | null
           monthly_mode:
-            Database["public"]["Enums"]["activity_monthly_mode"] | null
+            | Database["public"]["Enums"]["activity_monthly_mode"]
+            | null
           occurrence_count: number | null
           rrule: string | null
           split_from_series_id: string | null
@@ -752,7 +759,8 @@ export type Database = {
           month_day_fallback?: string
           month_weekday?: number | null
           monthly_mode?:
-            Database["public"]["Enums"]["activity_monthly_mode"] | null
+            | Database["public"]["Enums"]["activity_monthly_mode"]
+            | null
           occurrence_count?: number | null
           rrule?: string | null
           split_from_series_id?: string | null
@@ -780,7 +788,8 @@ export type Database = {
           month_day_fallback?: string
           month_weekday?: number | null
           monthly_mode?:
-            Database["public"]["Enums"]["activity_monthly_mode"] | null
+            | Database["public"]["Enums"]["activity_monthly_mode"]
+            | null
           occurrence_count?: number | null
           rrule?: string | null
           split_from_series_id?: string | null
@@ -1798,7 +1807,8 @@ export type Database = {
           failed_at: string | null
           failure_code: string | null
           failure_kind:
-            Database["public"]["Enums"]["communication_failure_kind"] | null
+            | Database["public"]["Enums"]["communication_failure_kind"]
+            | null
           id: string
           person_id: string
           sent_at: string | null
@@ -1816,7 +1826,8 @@ export type Database = {
           failed_at?: string | null
           failure_code?: string | null
           failure_kind?:
-            Database["public"]["Enums"]["communication_failure_kind"] | null
+            | Database["public"]["Enums"]["communication_failure_kind"]
+            | null
           id?: string
           person_id: string
           sent_at?: string | null
@@ -1834,7 +1845,8 @@ export type Database = {
           failed_at?: string | null
           failure_code?: string | null
           failure_kind?:
-            Database["public"]["Enums"]["communication_failure_kind"] | null
+            | Database["public"]["Enums"]["communication_failure_kind"]
+            | null
           id?: string
           person_id?: string
           sent_at?: string | null
@@ -6250,7 +6262,8 @@ export type Database = {
           id: string
           min_level: Database["public"]["Enums"]["qualification_level"] | null
           min_operational_level:
-            Database["public"]["Enums"]["service_operational_level"] | null
+            | Database["public"]["Enums"]["service_operational_level"]
+            | null
           qualification_id: string | null
           requirement_type: Database["public"]["Enums"]["position_requirement_type"]
           requires_current_validity: boolean
@@ -6264,7 +6277,8 @@ export type Database = {
           id?: string
           min_level?: Database["public"]["Enums"]["qualification_level"] | null
           min_operational_level?:
-            Database["public"]["Enums"]["service_operational_level"] | null
+            | Database["public"]["Enums"]["service_operational_level"]
+            | null
           qualification_id?: string | null
           requirement_type: Database["public"]["Enums"]["position_requirement_type"]
           requires_current_validity?: boolean
@@ -6278,7 +6292,8 @@ export type Database = {
           id?: string
           min_level?: Database["public"]["Enums"]["qualification_level"] | null
           min_operational_level?:
-            Database["public"]["Enums"]["service_operational_level"] | null
+            | Database["public"]["Enums"]["service_operational_level"]
+            | null
           qualification_id?: string | null
           requirement_type?: Database["public"]["Enums"]["position_requirement_type"]
           requires_current_validity?: boolean
@@ -7761,7 +7776,8 @@ export type Database = {
           id: string
           min_level: Database["public"]["Enums"]["qualification_level"] | null
           min_operational_level:
-            Database["public"]["Enums"]["service_operational_level"] | null
+            | Database["public"]["Enums"]["service_operational_level"]
+            | null
           origin: Database["public"]["Enums"]["activity_requirement_origin"]
           qualification_id: string | null
           requirement_type: Database["public"]["Enums"]["position_requirement_type"]
@@ -8846,6 +8862,7 @@ export type Database = {
         }
         Returns: undefined
       }
+      unaccent: { Args: { "": string }; Returns: string }
       undo_checkin_attendee: {
         Args: { p_attendee_id: string }
         Returns: {
@@ -8854,7 +8871,6 @@ export type Database = {
         }[]
       }
       unsubscribe_by_token: { Args: { p_token: string }; Returns: Json }
-      unaccent: { Args: { "": string }; Returns: string }
       update_activity: {
         Args: { p_activity_id: string; p_input: Json }
         Returns: Json
@@ -8989,7 +9005,11 @@ export type Database = {
         | "shift"
       activity_visibility: "private" | "leaders" | "members" | "public_future"
       attendance_status:
-        "registered" | "checked_in" | "attended" | "no_show" | "cancelled"
+        | "registered"
+        | "checked_in"
+        | "attended"
+        | "no_show"
+        | "cancelled"
       attendee_type: "adult" | "minor"
       church_module_status: "enabled" | "disabled" | "trial" | "suspended"
       church_onboarding_step:
@@ -9028,7 +9048,12 @@ export type Database = {
         | "pastoral"
         | "system"
       communication_recipient_status:
-        "pending" | "queued" | "sent" | "failed" | "suppressed" | "excluded"
+        | "pending"
+        | "queued"
+        | "sent"
+        | "failed"
+        | "suppressed"
+        | "excluded"
       communication_status:
         | "draft"
         | "scheduled"
@@ -9039,22 +9064,46 @@ export type Database = {
         | "failed"
         | "cancelled"
       course_cohort_status:
-        "planned" | "open" | "running" | "finished" | "cancelled"
+        | "planned"
+        | "open"
+        | "running"
+        | "finished"
+        | "cancelled"
       course_enrollment_status:
-        "requested" | "enrolled" | "completed" | "dropped" | "rejected"
+        | "requested"
+        | "enrolled"
+        | "completed"
+        | "dropped"
+        | "rejected"
       course_status: "draft" | "active" | "archived"
       credential_status:
-        "pending" | "valid" | "expired" | "rejected" | "revoked"
+        | "pending"
+        | "valid"
+        | "expired"
+        | "rejected"
+        | "revoked"
       custom_field_type:
-        "text" | "number" | "date" | "boolean" | "select" | "multi_select"
+        | "text"
+        | "number"
+        | "date"
+        | "boolean"
+        | "select"
+        | "multi_select"
       eligibility_status: "eligible" | "eligible_with_warning" | "not_eligible"
       event_registration_source_hint: "public" | "authenticated" | "admin"
       event_registration_status:
-        "disabled" | "scheduled" | "open" | "full" | "closed"
+        | "disabled"
+        | "scheduled"
+        | "open"
+        | "full"
+        | "closed"
       event_registration_type: "individual" | "household" | "group"
       file_classification: "public" | "internal" | "personal" | "restricted"
       form_field_classification:
-        "normal" | "personal" | "sensitive" | "restricted"
+        | "normal"
+        | "personal"
+        | "sensitive"
+        | "restricted"
       form_field_type:
         | "text"
         | "textarea"
@@ -9069,9 +9118,17 @@ export type Database = {
         | "address"
       giving_campaign_status: "draft" | "active" | "closed" | "archived"
       giving_contribution_method:
-        "cash" | "bank_transfer" | "card" | "direct_debit" | "other"
+        | "cash"
+        | "bank_transfer"
+        | "card"
+        | "direct_debit"
+        | "other"
       giving_contribution_status:
-        "pending" | "succeeded" | "failed" | "refunded" | "cancelled"
+        | "pending"
+        | "succeeded"
+        | "failed"
+        | "refunded"
+        | "cancelled"
       giving_entity_status: "active" | "archived"
       giving_reconciliation_status: "unreconciled" | "reconciled" | "exception"
       giving_recurrence_frequency: "weekly" | "monthly" | "yearly"
@@ -9080,7 +9137,10 @@ export type Database = {
       group_attendance_status: "present" | "absent" | "excused"
       group_join_policy: "open_request" | "invite_only"
       group_join_request_status:
-        "pending" | "accepted" | "rejected" | "cancelled"
+        | "pending"
+        | "accepted"
+        | "rejected"
+        | "cancelled"
       group_leader_role: "leader" | "coleader"
       group_member_status: "active" | "left" | "removed"
       group_status: "active" | "paused" | "closed"
@@ -9091,40 +9151,72 @@ export type Database = {
       kids_incident_severity: "low" | "medium" | "high"
       kids_incident_status: "open" | "resolved"
       kids_incident_type:
-        "minor" | "medical" | "behavioral" | "security" | "pickup" | "other"
+        | "minor"
+        | "medical"
+        | "behavioral"
+        | "security"
+        | "pickup"
+        | "other"
       kids_profile_status: "active" | "inactive" | "archived"
       kids_ratio_state: "safe" | "warning" | "blocked"
       kids_session_status: "scheduled" | "open" | "closed" | "cancelled"
       kids_staff_role: "lead" | "assistant" | "support"
       learning_path_status: "draft" | "active" | "archived"
       maintenance_status:
-        "scheduled" | "in_progress" | "completed" | "cancelled"
+        | "scheduled"
+        | "in_progress"
+        | "completed"
+        | "cancelled"
       notification_channel: "inapp" | "email" | "push"
       notification_delivery_status: "queued" | "sent" | "failed" | "suppressed"
       occupancy_source: "reservation" | "maintenance"
       path_progress_status: "pending" | "in_progress" | "completed" | "skipped"
       path_step_kind: "course" | "manual"
       person_source:
-        "manual" | "import" | "registration" | "invitation" | "integration"
+        | "manual"
+        | "import"
+        | "registration"
+        | "invitation"
+        | "integration"
       pickup_authorization_status:
-        "active" | "expired" | "revoked" | "used" | "pending"
+        | "active"
+        | "expired"
+        | "revoked"
+        | "used"
+        | "pending"
       pickup_authorization_type: "permanent" | "date_range" | "one_time"
       position_requirement_strictness: "required" | "recommended"
       position_requirement_type:
-        "qualification" | "credential" | "minimum_level"
+        | "qualification"
+        | "credential"
+        | "minimum_level"
       qualification_level: "basic" | "intermediate" | "advanced" | "expert"
       registration_source: "public" | "authenticated" | "admin"
       registration_status:
-        "pending" | "confirmed" | "waitlisted" | "cancelled" | "declined"
+        | "pending"
+        | "confirmed"
+        | "waitlisted"
+        | "cancelled"
+        | "declined"
       reservation_status: "pending" | "confirmed" | "cancelled" | "rejected"
       resource_status: "active" | "unavailable" | "maintenance" | "archived"
       resource_type: "room" | "equipment" | "vehicle" | "other"
       service_area_member_status:
-        "active" | "training" | "inactive" | "suspended"
+        | "active"
+        | "training"
+        | "inactive"
+        | "suspended"
       service_operational_level:
-        "trainee" | "assisted" | "autonomous" | "leader"
+        | "trainee"
+        | "assisted"
+        | "autonomous"
+        | "leader"
       subscription_status:
-        "trial" | "active" | "past_due" | "suspended" | "cancelled"
+        | "trial"
+        | "active"
+        | "past_due"
+        | "suspended"
+        | "cancelled"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -9167,14 +9259,9 @@ export type Tables<
 
 export type TablesInsert<
   DefaultSchemaTableNameOrOptions extends
-<<<<<<< HEAD
     | keyof DefaultSchema["Tables"]
     | { schema: keyof DatabaseWithoutInternals },
   TableName extends DefaultSchemaTableNameOrOptions extends {
-=======
-    keyof DefaultSchema["Tables"] | { schema: keyof DatabaseWithoutInternals },
-  TableName extends (DefaultSchemaTableNameOrOptions extends {
->>>>>>> origin/main
     schema: keyof DatabaseWithoutInternals
   }
     ? keyof DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"]
@@ -9197,14 +9284,9 @@ export type TablesInsert<
 
 export type TablesUpdate<
   DefaultSchemaTableNameOrOptions extends
-<<<<<<< HEAD
     | keyof DefaultSchema["Tables"]
     | { schema: keyof DatabaseWithoutInternals },
   TableName extends DefaultSchemaTableNameOrOptions extends {
-=======
-    keyof DefaultSchema["Tables"] | { schema: keyof DatabaseWithoutInternals },
-  TableName extends (DefaultSchemaTableNameOrOptions extends {
->>>>>>> origin/main
     schema: keyof DatabaseWithoutInternals
   }
     ? keyof DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"]
@@ -9227,14 +9309,9 @@ export type TablesUpdate<
 
 export type Enums<
   DefaultSchemaEnumNameOrOptions extends
-<<<<<<< HEAD
     | keyof DefaultSchema["Enums"]
     | { schema: keyof DatabaseWithoutInternals },
   EnumName extends DefaultSchemaEnumNameOrOptions extends {
-=======
-    keyof DefaultSchema["Enums"] | { schema: keyof DatabaseWithoutInternals },
-  EnumName extends (DefaultSchemaEnumNameOrOptions extends {
->>>>>>> origin/main
     schema: keyof DatabaseWithoutInternals
   }
     ? keyof DatabaseWithoutInternals[DefaultSchemaEnumNameOrOptions["schema"]]["Enums"]
@@ -9550,3 +9627,4 @@ export const Constants = {
     },
   },
 } as const
+
