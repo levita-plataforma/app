@@ -100,6 +100,15 @@ No incluir notas pastorales en búsquedas globales, exportaciones generales ni l
 
 El importe y patrón de donaciones es información financiera privada. Acceso solo a roles autorizados; no mostrar a líderes generales por defecto.
 
+**Implementado (Fase 12, Diogo).** `giving_contributions.notes` es texto restringido: nunca aparece en
+listados generales, nunca se incluye en notificaciones (push/email siguen el motor común y, si en el
+futuro Giving genera alguna, el texto es genérico, nunca importe ni donante) y nunca se audita
+completo (el payload de auditoría de `giving.contribution.created` no incluye `notes`, verificado por
+test). No se guardan datos financieros dentro de `people` — `person_id` en `giving_contributions` es
+solo una referencia opcional a la persona ya existente en el núcleo, nunca una copia de sus datos.
+Exportación CSV exige capability propia (`giving.export`), separada de poder ver el detalle
+(`giving.read_contributions`), y queda auditada (`giving.export.created`).
+
 ## 12. Proveedores
 
 Mantener inventario de subprocesadores:
