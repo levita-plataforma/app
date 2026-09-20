@@ -1,6 +1,6 @@
 import "server-only";
 import { createSupabaseServerClient } from "@/server/supabase/server-client";
-import { requireCapability } from "@/server/tenant/authorize";
+import { hasCapability, requireCapability } from "@/server/tenant/authorize";
 import { auditLog } from "@/server/audit/audit-log";
 import { DomainError } from "@/server/errors/domain-error";
 
@@ -216,15 +216,25 @@ export async function updatePerson(
 
   const supabase = await createSupabaseServerClient();
 
+  // Quien no puede ver el contacto tampoco lo escribe. Sin esta condición, un
+  // rol con people.manage y sin people.read abriría la ficha con los campos en
+  // blanco —porque no se los servimos— y al guardar borraría el correo y el
+  // teléfono sin enterarse (R-01).
+  const puedeVerContacto = await hasCapability(churchId, "people.read");
+
   const { error: personError } = await supabase
     .from("people")
     .update({
       first_name: input.firstName.trim(),
       last_name: input.lastName?.trim() || null,
       preferred_name: input.preferredName?.trim() || null,
-      email: input.email?.trim() || null,
-      phone: input.phone?.trim() || null,
-      birth_date: input.birthDate || null,
+      ...(puedeVerContacto
+        ? {
+            email: input.email?.trim() || null,
+            phone: input.phone?.trim() || null,
+            birth_date: input.birthDate || null,
+          }
+        : {}),
     })
     .eq("id", personId);
 
