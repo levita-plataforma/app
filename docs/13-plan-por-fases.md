@@ -512,15 +512,15 @@ Estas capacidades no bloquean el MVP.
 
 ### Estado — 20 de septiembre de 2026
 
-**Giving (parte de Diogo): IMPLEMENTADA** en `feature/diogo-fase-12-giving`, pendiente de validación
-de Carlos e integración en `main`. Cubre fondos, campañas, aportaciones (dinero en `amount_minor`
-bigint, nunca float), donante opcional/anónimo, recurrencia modelada sin cobro automático, refunds con
-tope validado server-side, conciliación simple, exportación CSV con mitigación de inyección de fórmula,
-resumen agregado separado del detalle (`giving.read_summary` ≠ `giving.read_contributions`), y
-`church_owner`/`church_admin` **sin** acceso automático al detalle financiero (deny-by-default, D10).
-Implementado directamente sin contrato documental separado (instrucción explícita del encargo). Ver
-[FASE-12-GIVING.md](FASE-12-GIVING.md). Migraciones `20261003000100` a `20261003001200`. Batería
-completa del repositorio: 1423 aserciones en verde, sin drift de esquema.
+**Giving (parte de Diogo): IMPLEMENTADA**, integrada en `main`. Cubre fondos, campañas, aportaciones
+(dinero en `amount_minor` bigint, nunca float), donante opcional/anónimo, recurrencia modelada sin
+cobro automático, refunds con tope validado server-side, conciliación simple, exportación CSV con
+mitigación de inyección de fórmula, resumen agregado separado del detalle (`giving.read_summary` ≠
+`giving.read_contributions`), y `church_owner`/`church_admin` **sin** acceso automático al detalle
+financiero (deny-by-default, D10). Implementado directamente sin contrato documental separado
+(instrucción explícita del encargo). Ver [FASE-12-GIVING.md](FASE-12-GIVING.md). Migraciones
+`20261003000100` a `20261003001200`. Batería completa del repositorio: 1423 aserciones en verde, sin
+drift de esquema.
 
 Sin proveedor de pago real conectado: cobro online, webhooks y reconciliación bancaria automática
 quedan preparados arquitectónicamente (contrato `GivingPaymentProvider`, columnas
@@ -528,8 +528,13 @@ quedan preparados arquitectónicamente (contrato `GivingPaymentProvider`, column
 criterio que A14 en Fase 9). Registro manual (efectivo/transferencia), fondos, campañas, recurrencia
 modelada, conciliación y reporting son completamente operativos.
 
-**Pastoral y Analítica avanzada no iniciadas.** F12 no se declara completa: son entregas separadas
-según `docs/REPARTO-CARLOS-DIOGO.md` §4.
+**Analítica (parte de Diogo): IMPLEMENTADA**, integrada en `main`. Dashboard agregado (`/app/informes`)
+sobre los módulos realmente integrados en el momento de su construcción: Personas, Servicio, Eventos,
+Grupos, Discipulado, Niños y Comunicación. `analytics.read` nunca sustituye la capability real de
+lectura del módulo de origen. Ver [FASE-12-ANALITICA.md](FASE-12-ANALITICA.md).
+
+**Pastoral no iniciada.** F12 no se declara completa: es una entrega separada según
+`docs/REPARTO-CARLOS-DIOGO.md` §4.
 
 ---
 

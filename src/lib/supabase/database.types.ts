@@ -8080,6 +8080,16 @@ export type Database = {
           status: Database["public"]["Enums"]["registration_status"]
         }[]
       }
+      analytics_dashboard: {
+        Args: {
+          p_campus_id?: string
+          p_church_id: string
+          p_from?: string
+          p_period?: string
+          p_to?: string
+        }
+        Returns: Json
+      }
       apply_activity_structure_to_series: {
         Args: { p_activity_id: string; p_scope: string }
         Returns: number

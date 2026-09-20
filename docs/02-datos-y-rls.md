@@ -133,6 +133,20 @@ El acceso se basa en:
 - relación tutor-menor cuando el acceso es familiar;
 - necesidad operativa.
 
+## 11.1 Analítica
+
+Un dashboard agregado no debe conceder acceso a datos que el usuario no podría ver en el módulo de origen.
+
+**Implementado (Fase 12, Diogo).** `analytics.read` autoriza a llamar a
+`app.analytics_dashboard`, pero cada bloque por módulo dentro de esa función
+comprueba además la capability real de lectura del módulo de origen
+(`people.read`, `service.read`, `event.read`, `group.read`, `course.read`,
+`kids.read`, `communications.read_metrics`) antes de incluirse — nunca solo
+`analytics.read`. Un usuario con `analytics.read` pero sin `kids.read` no ve
+el bloque de Niños en absoluto (ni siquiera en cero), no se le oculta un dato
+sensible con un número: el bloque no existe en la respuesta. Ver
+[FASE-12-ANALITICA.md](FASE-12-ANALITICA.md).
+
 ## 12. Storage
 
 Objetos privados deben organizarse con metadatos tenant-aware y políticas coherentes. No confiar exclusivamente en rutas de archivo manipulables por cliente.
