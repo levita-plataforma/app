@@ -145,3 +145,5 @@ No marcar una fase como completada solo por tener documentación o diseño.
 - [Encargo para Claude — Fase 5](PROMPT-CLAUDE-FASE-5.md): modos Carlos/Diogo, contratos con F4, pruebas y cierre conjunto.
 - [Encargo para Claude — Fase 7](PROMPT-CLAUDE-FASE-7.md): Carlos, grupos y discipulado, contratos con F4–F6 y validación antes de main.
 - [Encargo para Claude — Fase 10](PROMPT-CLAUDE-FASE-10.md): Carlos, recursos, reservas sin solapes y mantenimiento integrado con Activity.
+- [Contrato de la Fase 10](CONTRATO-FASE-10.md): entidades, estados, permisos y la capa de ocupación que impide la doble reserva.
+- [Fase 10 — Recursos e instalaciones](FASE-10-RECURSOS-INSTALACIONES.md): qué se construyó, cómo se usa y qué límites tiene.

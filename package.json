@@ -7,7 +7,8 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint . --max-warnings=0",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "test:concurrencia": "node supabase/tests/concurrencia/reservas.mjs"
   },
   "engines": {
     "node": ">=22.0.0"
@@ -27,6 +28,7 @@
     "@types/react-dom": "^19.3.0",
     "eslint": "^9.39.5",
     "eslint-config-next": "^16.3.5",
+    "pg": "^8.23.0",
     "typescript": "^6.0.3"
   }
 }
