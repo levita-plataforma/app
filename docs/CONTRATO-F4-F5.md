@@ -13,7 +13,8 @@ F4:            INTEGRADA Y APLICADA EN PRODUCCIÓN (17 de septiembre de 2026)
 F5 · CARLOS:   INTEGRADA EN MAIN Y APLICADA EN PRODUCCIÓN (17 de septiembre de 2026)
 F5 · COMPARTIDO Y DIOGO: DECIDIDO POR CARLOS COMO PROPIETARIO (17 de septiembre de 2026),
                APROBADO POR DIOGO E INTEGRADO Y APLICADO EN PRODUCCIÓN (18 de septiembre de 2026)
-FASE 5 COMPLETA: pendiente del recorrido conjunto CO-03
+FASE 5 COMPLETA Y CERRADA: CO-03 recorrido y validado por Carlos
+               el 20 de septiembre de 2026, sin fallos
 ```
 
 - **F4.** Los datos de §2 proceden de las migraciones `20260920000100`–`20260920000900` y de `src/server/activities/`, integradas en `main` con la PR #2 (merge `b3f5add`), validadas por Carlos en el commit `93eb369` y **aplicadas en producción el 17 de septiembre de 2026**. Detalle y evidencias: [FASE-4-ACTIVIDADES.md §9](FASE-4-ACTIVIDADES.md) y [ADR 0017](adr/0017-actividades-planificacion-fase-4.md).

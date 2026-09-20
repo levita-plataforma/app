@@ -145,25 +145,28 @@ Si ves cualquiera de estas, anótala y dímela; no sigas como si nada:
 
 ## Veredicto
 
-Al terminar, rellena esto y con eso se cierra la fase:
+Recorrido el 20 de septiembre de 2026:
 
 ```
 CO-03 · Recorrido integral de la Fase 5
-Fecha:
-Quien lo recorre:
-Versión probada (commit de main):
+Fecha: 20 de septiembre de 2026
+Quien lo recorre: Carlos
+Versión probada (commit de main): 44476da
 
-Parte A (regresión F4):   correcta / con fallos
-Parte B (disponibilidad): correcta / con fallos
-Parte C (asignaciones):   correcta / con fallos
-Parte D (avisos):         correcta / con fallos
-Parte E (tarea diaria):   correcta / con fallos / pendiente
-Parte F (cambios del 20):  correcta / con fallos
+Parte A (regresión F4):   correcta
+Parte B (disponibilidad): correcta
+Parte C (asignaciones):   correcta
+Parte D (avisos):         correcta
+Parte E (tarea diaria):   correcta
+Parte F (cambios del 20): correcta
 
-Fallos encontrados:
+Fallos encontrados: ninguno
 
-Veredicto: FASE 5 CERRADA / FASE 5 PARCIAL — queda:
+Veredicto: FASE 5 CERRADA
 ```
+
+El guión se conserva para volver a pasarlo cuando algo toque asignaciones,
+disponibilidad o avisos: sirve igual como recorrido de regresión.
 
 Cuando esté, actualizo [13-plan-por-fases.md](13-plan-por-fases.md),
 [FASE-5-ASIGNACIONES.md](FASE-5-ASIGNACIONES.md) y
