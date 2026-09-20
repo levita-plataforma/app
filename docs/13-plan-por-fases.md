@@ -408,10 +408,12 @@ Una actividad reserva recursos sin dobles reservas y deja trazabilidad.
 
 ### Estado — 20 de septiembre de 2026
 
-**Implementada; pendiente de validación de Carlos.** No integrada ni aplicada en producción.
+**Integrada y aplicada en producción** (merge `fa6704c`), pendiente de comprobar en
+pantalla.
 
-Rama `feature/carlos-fase-10-recursos-instalaciones`, diez migraciones
-(`20261004000400`–`20261004000409`). El detalle está en
+Diez migraciones (`20261004000400`–`20261004000409`). Nacieron con prefijo `20261003*` y se
+renumeraron al integrarse la Fase 12 de donaciones, que ocupaba esos mismos números: el
+caso real que motivó la regla nueva de numeración (FUNCIONAMIENTO.md §8). El detalle está en
 [FASE-10-RECURSOS-INSTALACIONES.md](FASE-10-RECURSOS-INSTALACIONES.md) y lo acordado en
 [CONTRATO-FASE-10.md](CONTRATO-FASE-10.md).
 
