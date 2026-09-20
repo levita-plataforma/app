@@ -64,8 +64,7 @@ export type Database = {
           starts_at: string | null
           status: Database["public"]["Enums"]["activity_status"]
           status_before_archive:
-            | Database["public"]["Enums"]["activity_status"]
-            | null
+            Database["public"]["Enums"]["activity_status"] | null
           template_id: string | null
           timezone: string
           title: string
@@ -102,8 +101,7 @@ export type Database = {
           starts_at?: string | null
           status?: Database["public"]["Enums"]["activity_status"]
           status_before_archive?:
-            | Database["public"]["Enums"]["activity_status"]
-            | null
+            Database["public"]["Enums"]["activity_status"] | null
           template_id?: string | null
           timezone: string
           title: string
@@ -140,8 +138,7 @@ export type Database = {
           starts_at?: string | null
           status?: Database["public"]["Enums"]["activity_status"]
           status_before_archive?:
-            | Database["public"]["Enums"]["activity_status"]
-            | null
+            Database["public"]["Enums"]["activity_status"] | null
           template_id?: string | null
           timezone?: string
           title?: string
@@ -520,8 +517,7 @@ export type Database = {
           id: string
           min_level: Database["public"]["Enums"]["qualification_level"] | null
           min_operational_level:
-            | Database["public"]["Enums"]["service_operational_level"]
-            | null
+            Database["public"]["Enums"]["service_operational_level"] | null
           origin: Database["public"]["Enums"]["activity_requirement_origin"]
           qualification_id: string | null
           requirement_type: Database["public"]["Enums"]["position_requirement_type"]
@@ -542,8 +538,7 @@ export type Database = {
           id?: string
           min_level?: Database["public"]["Enums"]["qualification_level"] | null
           min_operational_level?:
-            | Database["public"]["Enums"]["service_operational_level"]
-            | null
+            Database["public"]["Enums"]["service_operational_level"] | null
           origin: Database["public"]["Enums"]["activity_requirement_origin"]
           qualification_id?: string | null
           requirement_type: Database["public"]["Enums"]["position_requirement_type"]
@@ -564,8 +559,7 @@ export type Database = {
           id?: string
           min_level?: Database["public"]["Enums"]["qualification_level"] | null
           min_operational_level?:
-            | Database["public"]["Enums"]["service_operational_level"]
-            | null
+            Database["public"]["Enums"]["service_operational_level"] | null
           origin?: Database["public"]["Enums"]["activity_requirement_origin"]
           qualification_id?: string | null
           requirement_type?: Database["public"]["Enums"]["position_requirement_type"]
@@ -730,8 +724,7 @@ export type Database = {
           month_day_fallback: string
           month_weekday: number | null
           monthly_mode:
-            | Database["public"]["Enums"]["activity_monthly_mode"]
-            | null
+            Database["public"]["Enums"]["activity_monthly_mode"] | null
           occurrence_count: number | null
           rrule: string | null
           split_from_series_id: string | null
@@ -759,8 +752,7 @@ export type Database = {
           month_day_fallback?: string
           month_weekday?: number | null
           monthly_mode?:
-            | Database["public"]["Enums"]["activity_monthly_mode"]
-            | null
+            Database["public"]["Enums"]["activity_monthly_mode"] | null
           occurrence_count?: number | null
           rrule?: string | null
           split_from_series_id?: string | null
@@ -788,8 +780,7 @@ export type Database = {
           month_day_fallback?: string
           month_weekday?: number | null
           monthly_mode?:
-            | Database["public"]["Enums"]["activity_monthly_mode"]
-            | null
+            Database["public"]["Enums"]["activity_monthly_mode"] | null
           occurrence_count?: number | null
           rrule?: string | null
           split_from_series_id?: string | null
@@ -1807,8 +1798,7 @@ export type Database = {
           failed_at: string | null
           failure_code: string | null
           failure_kind:
-            | Database["public"]["Enums"]["communication_failure_kind"]
-            | null
+            Database["public"]["Enums"]["communication_failure_kind"] | null
           id: string
           person_id: string
           sent_at: string | null
@@ -1826,8 +1816,7 @@ export type Database = {
           failed_at?: string | null
           failure_code?: string | null
           failure_kind?:
-            | Database["public"]["Enums"]["communication_failure_kind"]
-            | null
+            Database["public"]["Enums"]["communication_failure_kind"] | null
           id?: string
           person_id: string
           sent_at?: string | null
@@ -1845,8 +1834,7 @@ export type Database = {
           failed_at?: string | null
           failure_code?: string | null
           failure_kind?:
-            | Database["public"]["Enums"]["communication_failure_kind"]
-            | null
+            Database["public"]["Enums"]["communication_failure_kind"] | null
           id?: string
           person_id?: string
           sent_at?: string | null
@@ -3247,6 +3235,412 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "churches"
             referencedColumns: ["id"]
+          },
+        ]
+      }
+      giving_campaigns: {
+        Row: {
+          archived_at: string | null
+          church_id: string
+          created_at: string
+          currency: string
+          description: string | null
+          ends_at: string | null
+          fund_id: string
+          id: string
+          name: string
+          starts_at: string | null
+          status: Database["public"]["Enums"]["giving_campaign_status"]
+          target_amount_minor: number | null
+          updated_at: string
+        }
+        Insert: {
+          archived_at?: string | null
+          church_id: string
+          created_at?: string
+          currency: string
+          description?: string | null
+          ends_at?: string | null
+          fund_id: string
+          id?: string
+          name: string
+          starts_at?: string | null
+          status?: Database["public"]["Enums"]["giving_campaign_status"]
+          target_amount_minor?: number | null
+          updated_at?: string
+        }
+        Update: {
+          archived_at?: string | null
+          church_id?: string
+          created_at?: string
+          currency?: string
+          description?: string | null
+          ends_at?: string | null
+          fund_id?: string
+          id?: string
+          name?: string
+          starts_at?: string | null
+          status?: Database["public"]["Enums"]["giving_campaign_status"]
+          target_amount_minor?: number | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "giving_campaigns_church_id_fkey"
+            columns: ["church_id"]
+            isOneToOne: false
+            referencedRelation: "churches"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "giving_campaigns_fund_id_church_id_fkey"
+            columns: ["fund_id", "church_id"]
+            isOneToOne: false
+            referencedRelation: "giving_funds"
+            referencedColumns: ["id", "church_id"]
+          },
+        ]
+      }
+      giving_contributions: {
+        Row: {
+          amount_minor: number
+          anonymous: boolean
+          campaign_id: string | null
+          church_id: string
+          contributed_at: string
+          created_at: string
+          created_by_person_id: string | null
+          currency: string
+          fund_id: string
+          id: string
+          method: Database["public"]["Enums"]["giving_contribution_method"]
+          notes: string | null
+          person_id: string | null
+          provider: string | null
+          provider_customer_ref: string | null
+          provider_payment_ref: string | null
+          reconciliation_status: Database["public"]["Enums"]["giving_reconciliation_status"]
+          recurring_plan_id: string | null
+          reference: string | null
+          status: Database["public"]["Enums"]["giving_contribution_status"]
+          updated_at: string
+          updated_by_person_id: string | null
+        }
+        Insert: {
+          amount_minor: number
+          anonymous?: boolean
+          campaign_id?: string | null
+          church_id: string
+          contributed_at?: string
+          created_at?: string
+          created_by_person_id?: string | null
+          currency: string
+          fund_id: string
+          id?: string
+          method: Database["public"]["Enums"]["giving_contribution_method"]
+          notes?: string | null
+          person_id?: string | null
+          provider?: string | null
+          provider_customer_ref?: string | null
+          provider_payment_ref?: string | null
+          reconciliation_status?: Database["public"]["Enums"]["giving_reconciliation_status"]
+          recurring_plan_id?: string | null
+          reference?: string | null
+          status?: Database["public"]["Enums"]["giving_contribution_status"]
+          updated_at?: string
+          updated_by_person_id?: string | null
+        }
+        Update: {
+          amount_minor?: number
+          anonymous?: boolean
+          campaign_id?: string | null
+          church_id?: string
+          contributed_at?: string
+          created_at?: string
+          created_by_person_id?: string | null
+          currency?: string
+          fund_id?: string
+          id?: string
+          method?: Database["public"]["Enums"]["giving_contribution_method"]
+          notes?: string | null
+          person_id?: string | null
+          provider?: string | null
+          provider_customer_ref?: string | null
+          provider_payment_ref?: string | null
+          reconciliation_status?: Database["public"]["Enums"]["giving_reconciliation_status"]
+          recurring_plan_id?: string | null
+          reference?: string | null
+          status?: Database["public"]["Enums"]["giving_contribution_status"]
+          updated_at?: string
+          updated_by_person_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "giving_contributions_campaign_id_church_id_fkey"
+            columns: ["campaign_id", "church_id"]
+            isOneToOne: false
+            referencedRelation: "giving_campaigns"
+            referencedColumns: ["id", "church_id"]
+          },
+          {
+            foreignKeyName: "giving_contributions_church_id_fkey"
+            columns: ["church_id"]
+            isOneToOne: false
+            referencedRelation: "churches"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "giving_contributions_church_id_person_id_fkey"
+            columns: ["church_id", "person_id"]
+            isOneToOne: false
+            referencedRelation: "church_people"
+            referencedColumns: ["church_id", "person_id"]
+          },
+          {
+            foreignKeyName: "giving_contributions_fund_id_church_id_fkey"
+            columns: ["fund_id", "church_id"]
+            isOneToOne: false
+            referencedRelation: "giving_funds"
+            referencedColumns: ["id", "church_id"]
+          },
+          {
+            foreignKeyName: "giving_contributions_recurring_plan_fkey"
+            columns: ["recurring_plan_id", "church_id"]
+            isOneToOne: false
+            referencedRelation: "giving_recurring_plans"
+            referencedColumns: ["id", "church_id"]
+          },
+        ]
+      }
+      giving_funds: {
+        Row: {
+          archived_at: string | null
+          church_id: string
+          created_at: string
+          description: string | null
+          id: string
+          is_default: boolean
+          name: string
+          status: Database["public"]["Enums"]["giving_entity_status"]
+          updated_at: string
+        }
+        Insert: {
+          archived_at?: string | null
+          church_id: string
+          created_at?: string
+          description?: string | null
+          id?: string
+          is_default?: boolean
+          name: string
+          status?: Database["public"]["Enums"]["giving_entity_status"]
+          updated_at?: string
+        }
+        Update: {
+          archived_at?: string | null
+          church_id?: string
+          created_at?: string
+          description?: string | null
+          id?: string
+          is_default?: boolean
+          name?: string
+          status?: Database["public"]["Enums"]["giving_entity_status"]
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "giving_funds_church_id_fkey"
+            columns: ["church_id"]
+            isOneToOne: false
+            referencedRelation: "churches"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      giving_reconciliations: {
+        Row: {
+          church_id: string
+          contribution_id: string
+          external_reference: string | null
+          id: string
+          notes: string | null
+          reconciled_at: string
+          reconciled_by_person_id: string | null
+          status: Database["public"]["Enums"]["giving_reconciliation_status"]
+        }
+        Insert: {
+          church_id: string
+          contribution_id: string
+          external_reference?: string | null
+          id?: string
+          notes?: string | null
+          reconciled_at?: string
+          reconciled_by_person_id?: string | null
+          status?: Database["public"]["Enums"]["giving_reconciliation_status"]
+        }
+        Update: {
+          church_id?: string
+          contribution_id?: string
+          external_reference?: string | null
+          id?: string
+          notes?: string | null
+          reconciled_at?: string
+          reconciled_by_person_id?: string | null
+          status?: Database["public"]["Enums"]["giving_reconciliation_status"]
+        }
+        Relationships: [
+          {
+            foreignKeyName: "giving_reconciliations_church_id_fkey"
+            columns: ["church_id"]
+            isOneToOne: false
+            referencedRelation: "churches"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "giving_reconciliations_contribution_id_church_id_fkey"
+            columns: ["contribution_id", "church_id"]
+            isOneToOne: false
+            referencedRelation: "giving_contributions"
+            referencedColumns: ["id", "church_id"]
+          },
+        ]
+      }
+      giving_recurring_plans: {
+        Row: {
+          amount_minor: number
+          campaign_id: string | null
+          church_id: string
+          created_at: string
+          created_by_person_id: string | null
+          currency: string
+          ended_at: string | null
+          frequency: Database["public"]["Enums"]["giving_recurrence_frequency"]
+          fund_id: string
+          id: string
+          next_due_at: string | null
+          person_id: string | null
+          provider: string | null
+          provider_subscription_ref: string | null
+          starts_at: string
+          status: Database["public"]["Enums"]["giving_recurring_plan_status"]
+          updated_at: string
+        }
+        Insert: {
+          amount_minor: number
+          campaign_id?: string | null
+          church_id: string
+          created_at?: string
+          created_by_person_id?: string | null
+          currency: string
+          ended_at?: string | null
+          frequency: Database["public"]["Enums"]["giving_recurrence_frequency"]
+          fund_id: string
+          id?: string
+          next_due_at?: string | null
+          person_id?: string | null
+          provider?: string | null
+          provider_subscription_ref?: string | null
+          starts_at?: string
+          status?: Database["public"]["Enums"]["giving_recurring_plan_status"]
+          updated_at?: string
+        }
+        Update: {
+          amount_minor?: number
+          campaign_id?: string | null
+          church_id?: string
+          created_at?: string
+          created_by_person_id?: string | null
+          currency?: string
+          ended_at?: string | null
+          frequency?: Database["public"]["Enums"]["giving_recurrence_frequency"]
+          fund_id?: string
+          id?: string
+          next_due_at?: string | null
+          person_id?: string | null
+          provider?: string | null
+          provider_subscription_ref?: string | null
+          starts_at?: string
+          status?: Database["public"]["Enums"]["giving_recurring_plan_status"]
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "giving_recurring_plans_campaign_id_church_id_fkey"
+            columns: ["campaign_id", "church_id"]
+            isOneToOne: false
+            referencedRelation: "giving_campaigns"
+            referencedColumns: ["id", "church_id"]
+          },
+          {
+            foreignKeyName: "giving_recurring_plans_church_id_fkey"
+            columns: ["church_id"]
+            isOneToOne: false
+            referencedRelation: "churches"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "giving_recurring_plans_church_id_person_id_fkey"
+            columns: ["church_id", "person_id"]
+            isOneToOne: false
+            referencedRelation: "church_people"
+            referencedColumns: ["church_id", "person_id"]
+          },
+          {
+            foreignKeyName: "giving_recurring_plans_fund_id_church_id_fkey"
+            columns: ["fund_id", "church_id"]
+            isOneToOne: false
+            referencedRelation: "giving_funds"
+            referencedColumns: ["id", "church_id"]
+          },
+        ]
+      }
+      giving_refunds: {
+        Row: {
+          amount_minor: number
+          church_id: string
+          contribution_id: string
+          created_at: string
+          created_by_person_id: string | null
+          id: string
+          provider_ref: string | null
+          reason: string | null
+          status: Database["public"]["Enums"]["giving_refund_status"]
+        }
+        Insert: {
+          amount_minor: number
+          church_id: string
+          contribution_id: string
+          created_at?: string
+          created_by_person_id?: string | null
+          id?: string
+          provider_ref?: string | null
+          reason?: string | null
+          status?: Database["public"]["Enums"]["giving_refund_status"]
+        }
+        Update: {
+          amount_minor?: number
+          church_id?: string
+          contribution_id?: string
+          created_at?: string
+          created_by_person_id?: string | null
+          id?: string
+          provider_ref?: string | null
+          reason?: string | null
+          status?: Database["public"]["Enums"]["giving_refund_status"]
+        }
+        Relationships: [
+          {
+            foreignKeyName: "giving_refunds_church_id_fkey"
+            columns: ["church_id"]
+            isOneToOne: false
+            referencedRelation: "churches"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "giving_refunds_contribution_id_church_id_fkey"
+            columns: ["contribution_id", "church_id"]
+            isOneToOne: false
+            referencedRelation: "giving_contributions"
+            referencedColumns: ["id", "church_id"]
           },
         ]
       }
@@ -5856,8 +6250,7 @@ export type Database = {
           id: string
           min_level: Database["public"]["Enums"]["qualification_level"] | null
           min_operational_level:
-            | Database["public"]["Enums"]["service_operational_level"]
-            | null
+            Database["public"]["Enums"]["service_operational_level"] | null
           qualification_id: string | null
           requirement_type: Database["public"]["Enums"]["position_requirement_type"]
           requires_current_validity: boolean
@@ -5871,8 +6264,7 @@ export type Database = {
           id?: string
           min_level?: Database["public"]["Enums"]["qualification_level"] | null
           min_operational_level?:
-            | Database["public"]["Enums"]["service_operational_level"]
-            | null
+            Database["public"]["Enums"]["service_operational_level"] | null
           qualification_id?: string | null
           requirement_type: Database["public"]["Enums"]["position_requirement_type"]
           requires_current_validity?: boolean
@@ -5886,8 +6278,7 @@ export type Database = {
           id?: string
           min_level?: Database["public"]["Enums"]["qualification_level"] | null
           min_operational_level?:
-            | Database["public"]["Enums"]["service_operational_level"]
-            | null
+            Database["public"]["Enums"]["service_operational_level"] | null
           qualification_id?: string | null
           requirement_type?: Database["public"]["Enums"]["position_requirement_type"]
           requires_current_validity?: boolean
@@ -6167,6 +6558,420 @@ export type Database = {
           slug?: string
         }
         Relationships: []
+      }
+      resource_maintenance: {
+        Row: {
+          blocks_availability: boolean
+          cancelled_at: string | null
+          cancelled_by: string | null
+          church_id: string
+          cost_note: string | null
+          created_at: string
+          created_by: string | null
+          description: string | null
+          ends_at: string
+          id: string
+          performed_at: string | null
+          performed_by: string | null
+          resource_id: string
+          responsible_person_id: string | null
+          result_notes: string | null
+          starts_at: string
+          status: Database["public"]["Enums"]["maintenance_status"]
+          title: string
+          type: string
+          updated_at: string
+        }
+        Insert: {
+          blocks_availability?: boolean
+          cancelled_at?: string | null
+          cancelled_by?: string | null
+          church_id: string
+          cost_note?: string | null
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          ends_at: string
+          id?: string
+          performed_at?: string | null
+          performed_by?: string | null
+          resource_id: string
+          responsible_person_id?: string | null
+          result_notes?: string | null
+          starts_at: string
+          status?: Database["public"]["Enums"]["maintenance_status"]
+          title: string
+          type: string
+          updated_at?: string
+        }
+        Update: {
+          blocks_availability?: boolean
+          cancelled_at?: string | null
+          cancelled_by?: string | null
+          church_id?: string
+          cost_note?: string | null
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          ends_at?: string
+          id?: string
+          performed_at?: string | null
+          performed_by?: string | null
+          resource_id?: string
+          responsible_person_id?: string | null
+          result_notes?: string | null
+          starts_at?: string
+          status?: Database["public"]["Enums"]["maintenance_status"]
+          title?: string
+          type?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "resource_maintenance_cancelled_by_fkey"
+            columns: ["cancelled_by"]
+            isOneToOne: false
+            referencedRelation: "people"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "resource_maintenance_church_id_fkey"
+            columns: ["church_id"]
+            isOneToOne: false
+            referencedRelation: "churches"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "resource_maintenance_church_id_responsible_person_id_fkey"
+            columns: ["church_id", "responsible_person_id"]
+            isOneToOne: false
+            referencedRelation: "church_people"
+            referencedColumns: ["church_id", "person_id"]
+          },
+          {
+            foreignKeyName: "resource_maintenance_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "people"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "resource_maintenance_performed_by_fkey"
+            columns: ["performed_by"]
+            isOneToOne: false
+            referencedRelation: "people"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "resource_maintenance_resource_id_church_id_fkey"
+            columns: ["resource_id", "church_id"]
+            isOneToOne: false
+            referencedRelation: "resources"
+            referencedColumns: ["id", "church_id"]
+          },
+          {
+            foreignKeyName: "resource_maintenance_responsible_person_id_fkey"
+            columns: ["responsible_person_id"]
+            isOneToOne: false
+            referencedRelation: "people"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      resource_occupancy: {
+        Row: {
+          church_id: string
+          created_at: string
+          during: unknown
+          id: string
+          maintenance_id: string | null
+          reservation_id: string | null
+          resource_id: string
+          source: Database["public"]["Enums"]["occupancy_source"]
+        }
+        Insert: {
+          church_id: string
+          created_at?: string
+          during: unknown
+          id?: string
+          maintenance_id?: string | null
+          reservation_id?: string | null
+          resource_id: string
+          source: Database["public"]["Enums"]["occupancy_source"]
+        }
+        Update: {
+          church_id?: string
+          created_at?: string
+          during?: unknown
+          id?: string
+          maintenance_id?: string | null
+          reservation_id?: string | null
+          resource_id?: string
+          source?: Database["public"]["Enums"]["occupancy_source"]
+        }
+        Relationships: [
+          {
+            foreignKeyName: "resource_occupancy_church_id_fkey"
+            columns: ["church_id"]
+            isOneToOne: false
+            referencedRelation: "churches"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "resource_occupancy_maintenance_id_church_id_fkey"
+            columns: ["maintenance_id", "church_id"]
+            isOneToOne: false
+            referencedRelation: "resource_maintenance"
+            referencedColumns: ["id", "church_id"]
+          },
+          {
+            foreignKeyName: "resource_occupancy_reservation_id_church_id_fkey"
+            columns: ["reservation_id", "church_id"]
+            isOneToOne: false
+            referencedRelation: "resource_reservations"
+            referencedColumns: ["id", "church_id"]
+          },
+          {
+            foreignKeyName: "resource_occupancy_resource_id_church_id_fkey"
+            columns: ["resource_id", "church_id"]
+            isOneToOne: false
+            referencedRelation: "resources"
+            referencedColumns: ["id", "church_id"]
+          },
+        ]
+      }
+      resource_reservations: {
+        Row: {
+          activity_id: string | null
+          cancelled_at: string | null
+          cancelled_by: string | null
+          cancelled_reason: string | null
+          church_id: string
+          created_at: string
+          ends_at: string
+          id: string
+          notes: string | null
+          purpose: string
+          rejected_at: string | null
+          rejected_by: string | null
+          requested_by: string
+          resource_id: string
+          responsible_person_id: string | null
+          starts_at: string
+          status: Database["public"]["Enums"]["reservation_status"]
+          updated_at: string
+        }
+        Insert: {
+          activity_id?: string | null
+          cancelled_at?: string | null
+          cancelled_by?: string | null
+          cancelled_reason?: string | null
+          church_id: string
+          created_at?: string
+          ends_at: string
+          id?: string
+          notes?: string | null
+          purpose: string
+          rejected_at?: string | null
+          rejected_by?: string | null
+          requested_by: string
+          resource_id: string
+          responsible_person_id?: string | null
+          starts_at: string
+          status?: Database["public"]["Enums"]["reservation_status"]
+          updated_at?: string
+        }
+        Update: {
+          activity_id?: string | null
+          cancelled_at?: string | null
+          cancelled_by?: string | null
+          cancelled_reason?: string | null
+          church_id?: string
+          created_at?: string
+          ends_at?: string
+          id?: string
+          notes?: string | null
+          purpose?: string
+          rejected_at?: string | null
+          rejected_by?: string | null
+          requested_by?: string
+          resource_id?: string
+          responsible_person_id?: string | null
+          starts_at?: string
+          status?: Database["public"]["Enums"]["reservation_status"]
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "resource_reservations_activity_id_church_id_fkey"
+            columns: ["activity_id", "church_id"]
+            isOneToOne: false
+            referencedRelation: "activities"
+            referencedColumns: ["id", "church_id"]
+          },
+          {
+            foreignKeyName: "resource_reservations_cancelled_by_fkey"
+            columns: ["cancelled_by"]
+            isOneToOne: false
+            referencedRelation: "people"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "resource_reservations_church_id_fkey"
+            columns: ["church_id"]
+            isOneToOne: false
+            referencedRelation: "churches"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "resource_reservations_church_id_requested_by_fkey"
+            columns: ["church_id", "requested_by"]
+            isOneToOne: false
+            referencedRelation: "church_people"
+            referencedColumns: ["church_id", "person_id"]
+          },
+          {
+            foreignKeyName: "resource_reservations_church_id_responsible_person_id_fkey"
+            columns: ["church_id", "responsible_person_id"]
+            isOneToOne: false
+            referencedRelation: "church_people"
+            referencedColumns: ["church_id", "person_id"]
+          },
+          {
+            foreignKeyName: "resource_reservations_rejected_by_fkey"
+            columns: ["rejected_by"]
+            isOneToOne: false
+            referencedRelation: "people"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "resource_reservations_requested_by_fkey"
+            columns: ["requested_by"]
+            isOneToOne: false
+            referencedRelation: "people"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "resource_reservations_resource_id_church_id_fkey"
+            columns: ["resource_id", "church_id"]
+            isOneToOne: false
+            referencedRelation: "resources"
+            referencedColumns: ["id", "church_id"]
+          },
+          {
+            foreignKeyName: "resource_reservations_responsible_person_id_fkey"
+            columns: ["responsible_person_id"]
+            isOneToOne: false
+            referencedRelation: "people"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      resources: {
+        Row: {
+          archived_at: string | null
+          archived_by: string | null
+          campus_id: string | null
+          capacity: number | null
+          church_id: string
+          created_at: string
+          created_by: string | null
+          description: string | null
+          id: string
+          location_details: string | null
+          metadata: Json
+          name: string
+          requires_approval: boolean
+          reservable: boolean
+          responsible_person_id: string | null
+          status: Database["public"]["Enums"]["resource_status"]
+          type: Database["public"]["Enums"]["resource_type"]
+          updated_at: string
+        }
+        Insert: {
+          archived_at?: string | null
+          archived_by?: string | null
+          campus_id?: string | null
+          capacity?: number | null
+          church_id: string
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          id?: string
+          location_details?: string | null
+          metadata?: Json
+          name: string
+          requires_approval?: boolean
+          reservable?: boolean
+          responsible_person_id?: string | null
+          status?: Database["public"]["Enums"]["resource_status"]
+          type: Database["public"]["Enums"]["resource_type"]
+          updated_at?: string
+        }
+        Update: {
+          archived_at?: string | null
+          archived_by?: string | null
+          campus_id?: string | null
+          capacity?: number | null
+          church_id?: string
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          id?: string
+          location_details?: string | null
+          metadata?: Json
+          name?: string
+          requires_approval?: boolean
+          reservable?: boolean
+          responsible_person_id?: string | null
+          status?: Database["public"]["Enums"]["resource_status"]
+          type?: Database["public"]["Enums"]["resource_type"]
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "resources_archived_by_fkey"
+            columns: ["archived_by"]
+            isOneToOne: false
+            referencedRelation: "people"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "resources_campus_id_church_id_fkey"
+            columns: ["campus_id", "church_id"]
+            isOneToOne: false
+            referencedRelation: "campuses"
+            referencedColumns: ["id", "church_id"]
+          },
+          {
+            foreignKeyName: "resources_church_id_fkey"
+            columns: ["church_id"]
+            isOneToOne: false
+            referencedRelation: "churches"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "resources_church_id_responsible_person_id_fkey"
+            columns: ["church_id", "responsible_person_id"]
+            isOneToOne: false
+            referencedRelation: "church_people"
+            referencedColumns: ["church_id", "person_id"]
+          },
+          {
+            foreignKeyName: "resources_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "people"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "resources_responsible_person_id_fkey"
+            columns: ["responsible_person_id"]
+            isOneToOne: false
+            referencedRelation: "people"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       role_capabilities: {
         Row: {
@@ -6956,8 +7761,7 @@ export type Database = {
           id: string
           min_level: Database["public"]["Enums"]["qualification_level"] | null
           min_operational_level:
-            | Database["public"]["Enums"]["service_operational_level"]
-            | null
+            Database["public"]["Enums"]["service_operational_level"] | null
           origin: Database["public"]["Enums"]["activity_requirement_origin"]
           qualification_id: string | null
           requirement_type: Database["public"]["Enums"]["position_requirement_type"]
@@ -7046,6 +7850,15 @@ export type Database = {
         Args: { p_activity_id: string; p_scope: string }
         Returns: number
       }
+      approve_reservation: {
+        Args: { p_reservation_id: string }
+        Returns: undefined
+      }
+      archive_giving_fund: {
+        Args: { p_church_id: string; p_fund_id: string }
+        Returns: undefined
+      }
+      archive_resource: { Args: { p_resource_id: string }; Returns: undefined }
       assisted_provision_church: {
         Args: {
           p_country: string
@@ -7075,12 +7888,24 @@ export type Database = {
         Args: { p_communication_id: string }
         Returns: undefined
       }
+      cancel_giving_contribution: {
+        Args: {
+          p_church_id: string
+          p_contribution_id: string
+          p_reason?: string
+        }
+        Returns: undefined
+      }
       cancel_group_join_request: {
         Args: { p_request_id: string }
         Returns: undefined
       }
       cancel_group_meeting: {
         Args: { p_group_meeting_id: string; p_reason?: string }
+        Returns: undefined
+      }
+      cancel_maintenance: {
+        Args: { p_maintenance_id: string; p_reason?: string }
         Returns: undefined
       }
       cancel_registration_by_token: {
@@ -7090,6 +7915,10 @@ export type Database = {
           registration_id: string
           status: Database["public"]["Enums"]["registration_status"]
         }[]
+      }
+      cancel_reservation: {
+        Args: { p_reason?: string; p_reservation_id: string }
+        Returns: undefined
       }
       cancel_substitution_request: {
         Args: { p_request_id: string }
@@ -7141,6 +7970,10 @@ export type Database = {
         Args: { p_enrollment_id: string; p_note?: string }
         Returns: undefined
       }
+      complete_maintenance: {
+        Args: { p_maintenance_id: string; p_result_notes?: string }
+        Returns: undefined
+      }
       complete_notification_delivery: {
         Args: { p_delivery_id: string; p_error?: string; p_status: string }
         Returns: Json
@@ -7180,6 +8013,67 @@ export type Database = {
         }
         Returns: string
       }
+      create_giving_campaign: {
+        Args: {
+          p_church_id: string
+          p_currency?: string
+          p_description?: string
+          p_ends_at?: string
+          p_fund_id: string
+          p_name: string
+          p_starts_at?: string
+          p_target_amount_minor?: number
+        }
+        Returns: string
+      }
+      create_giving_contribution: {
+        Args: {
+          p_amount_minor: number
+          p_anonymous?: boolean
+          p_campaign_id?: string
+          p_church_id: string
+          p_contributed_at?: string
+          p_currency?: string
+          p_fund_id: string
+          p_method: Database["public"]["Enums"]["giving_contribution_method"]
+          p_notes?: string
+          p_person_id?: string
+          p_reference?: string
+          p_status?: Database["public"]["Enums"]["giving_contribution_status"]
+        }
+        Returns: string
+      }
+      create_giving_fund: {
+        Args: {
+          p_church_id: string
+          p_description?: string
+          p_is_default?: boolean
+          p_name: string
+        }
+        Returns: string
+      }
+      create_giving_recurring_plan: {
+        Args: {
+          p_amount_minor: number
+          p_campaign_id?: string
+          p_church_id: string
+          p_currency?: string
+          p_frequency: Database["public"]["Enums"]["giving_recurrence_frequency"]
+          p_fund_id: string
+          p_person_id?: string
+          p_starts_at?: string
+        }
+        Returns: string
+      }
+      create_giving_refund: {
+        Args: {
+          p_amount_minor: number
+          p_church_id: string
+          p_contribution_id: string
+          p_reason?: string
+        }
+        Returns: string
+      }
       create_group: {
         Args: { p_church_id: string; p_input: Json }
         Returns: string
@@ -7199,6 +8093,10 @@ export type Database = {
         }
         Returns: string
       }
+      create_reservation: {
+        Args: { p_church_id: string; p_input: Json }
+        Returns: string
+      }
       cron_materialize_communication: {
         Args: { p_communication_id: string }
         Returns: Json
@@ -7209,6 +8107,7 @@ export type Database = {
       }
       delete_my_unavailability_period: { Args: { p_id: string }; Returns: Json }
       delete_my_weekly_unavailability: { Args: { p_id: string }; Returns: Json }
+      delete_resource: { Args: { p_resource_id: string }; Returns: undefined }
       discipleship_metrics: { Args: { p_church_id: string }; Returns: Json }
       drop_cohort_enrollment: {
         Args: { p_enrollment_id: string; p_reason?: string }
@@ -7277,6 +8176,27 @@ export type Database = {
           out_match_type: string
           out_person_id: string
           out_phone: string
+        }[]
+      }
+      giving_summary: {
+        Args: { p_church_id: string; p_from?: string; p_to?: string }
+        Returns: Json
+      }
+      giving_summary_by_fund: {
+        Args: { p_church_id: string; p_from?: string; p_to?: string }
+        Returns: {
+          contributions_count: number
+          fund_id: string
+          fund_name: string
+          total_amount_minor: number
+        }[]
+      }
+      giving_summary_by_method: {
+        Args: { p_church_id: string; p_from?: string; p_to?: string }
+        Returns: {
+          contributions_count: number
+          method: Database["public"]["Enums"]["giving_contribution_method"]
+          total_amount_minor: number
         }[]
       }
       group_metrics: { Args: { p_church_id: string }; Returns: Json }
@@ -7434,9 +8354,24 @@ export type Database = {
           title: string
         }[]
       }
+      maintenance_internal_notes: {
+        Args: { p_maintenance_id: string }
+        Returns: {
+          cost_note: string
+          result_notes: string
+        }[]
+      }
       mark_all_notifications_read: {
         Args: { p_church_id: string }
         Returns: Json
+      }
+      mark_giving_contribution_exception: {
+        Args: {
+          p_church_id: string
+          p_contribution_id: string
+          p_notes?: string
+        }
+        Returns: undefined
       }
       mark_notification_read: {
         Args: { p_notification_id: string }
@@ -7612,6 +8547,15 @@ export type Database = {
           type: Database["public"]["Enums"]["form_field_type"]
         }[]
       }
+      reconcile_giving_contribution: {
+        Args: {
+          p_church_id: string
+          p_contribution_id: string
+          p_external_reference?: string
+          p_notes?: string
+        }
+        Returns: string
+      }
       record_assignment_response: {
         Args: {
           p_assignment_id: string
@@ -7649,6 +8593,10 @@ export type Database = {
           status: Database["public"]["Enums"]["registration_status"]
           waitlist_position: number
         }[]
+      }
+      reject_reservation: {
+        Args: { p_reason?: string; p_reservation_id: string }
+        Returns: undefined
       }
       remove_activity_area: {
         Args: { p_activity_service_area_id: string }
@@ -7706,6 +8654,15 @@ export type Database = {
         Args: { p_accept: boolean; p_note?: string; p_request_id: string }
         Returns: undefined
       }
+      resource_is_available: {
+        Args: {
+          p_ends_at: string
+          p_exclude_reservation_id?: string
+          p_resource_id: string
+          p_starts_at: string
+        }
+        Returns: boolean
+      }
       respond_activity_assignment: {
         Args: {
           p_assignment_id: string
@@ -7715,6 +8672,7 @@ export type Database = {
         }
         Returns: Json
       }
+      restore_resource: { Args: { p_resource_id: string }; Returns: undefined }
       save_activity_position_requirement: {
         Args: {
           p_activity_position_id: string
@@ -7747,8 +8705,16 @@ export type Database = {
         Args: { p_church_id: string; p_input: Json }
         Returns: string
       }
+      save_maintenance: {
+        Args: { p_church_id: string; p_input: Json }
+        Returns: string
+      }
       save_path_step: {
         Args: { p_input: Json; p_learning_path_id: string }
+        Returns: string
+      }
+      save_resource: {
+        Args: { p_church_id: string; p_input: Json }
         Returns: string
       }
       schedule_cohort_session: {
@@ -7793,6 +8759,18 @@ export type Database = {
       }
       set_course_archived: {
         Args: { p_archived: boolean; p_course_id: string }
+        Returns: undefined
+      }
+      set_giving_fund_default: {
+        Args: { p_church_id: string; p_fund_id: string }
+        Returns: undefined
+      }
+      set_giving_recurring_plan_status: {
+        Args: {
+          p_church_id: string
+          p_plan_id: string
+          p_status: Database["public"]["Enums"]["giving_recurring_plan_status"]
+        }
         Returns: undefined
       }
       set_group_archived: {
@@ -7860,7 +8838,14 @@ export type Database = {
         }
         Returns: Database["public"]["Enums"]["activity_status"]
       }
-      unaccent: { Args: { "": string }; Returns: string }
+      transition_giving_campaign_status: {
+        Args: {
+          p_campaign_id: string
+          p_church_id: string
+          p_status: Database["public"]["Enums"]["giving_campaign_status"]
+        }
+        Returns: undefined
+      }
       undo_checkin_attendee: {
         Args: { p_attendee_id: string }
         Returns: {
@@ -7869,6 +8854,7 @@ export type Database = {
         }[]
       }
       unsubscribe_by_token: { Args: { p_token: string }; Returns: Json }
+      unaccent: { Args: { "": string }; Returns: string }
       update_activity: {
         Args: { p_activity_id: string; p_input: Json }
         Returns: Json
@@ -7908,8 +8894,45 @@ export type Database = {
         }
         Returns: undefined
       }
+      update_giving_campaign: {
+        Args: {
+          p_campaign_id: string
+          p_church_id: string
+          p_description?: string
+          p_ends_at?: string
+          p_name: string
+          p_starts_at?: string
+          p_target_amount_minor?: number
+        }
+        Returns: undefined
+      }
+      update_giving_contribution: {
+        Args: {
+          p_campaign_id?: string
+          p_church_id: string
+          p_contributed_at?: string
+          p_contribution_id: string
+          p_fund_id: string
+          p_notes?: string
+          p_reference?: string
+        }
+        Returns: undefined
+      }
+      update_giving_fund: {
+        Args: {
+          p_church_id: string
+          p_description?: string
+          p_fund_id: string
+          p_name: string
+        }
+        Returns: undefined
+      }
       update_group: {
         Args: { p_group_id: string; p_input: Json }
+        Returns: undefined
+      }
+      update_reservation: {
+        Args: { p_input: Json; p_reservation_id: string }
         Returns: undefined
       }
       write_audit_log: {
@@ -7966,11 +8989,7 @@ export type Database = {
         | "shift"
       activity_visibility: "private" | "leaders" | "members" | "public_future"
       attendance_status:
-        | "registered"
-        | "checked_in"
-        | "attended"
-        | "no_show"
-        | "cancelled"
+        "registered" | "checked_in" | "attended" | "no_show" | "cancelled"
       attendee_type: "adult" | "minor"
       church_module_status: "enabled" | "disabled" | "trial" | "suspended"
       church_onboarding_step:
@@ -8009,12 +9028,7 @@ export type Database = {
         | "pastoral"
         | "system"
       communication_recipient_status:
-        | "pending"
-        | "queued"
-        | "sent"
-        | "failed"
-        | "suppressed"
-        | "excluded"
+        "pending" | "queued" | "sent" | "failed" | "suppressed" | "excluded"
       communication_status:
         | "draft"
         | "scheduled"
@@ -8025,46 +9039,22 @@ export type Database = {
         | "failed"
         | "cancelled"
       course_cohort_status:
-        | "planned"
-        | "open"
-        | "running"
-        | "finished"
-        | "cancelled"
+        "planned" | "open" | "running" | "finished" | "cancelled"
       course_enrollment_status:
-        | "requested"
-        | "enrolled"
-        | "completed"
-        | "dropped"
-        | "rejected"
+        "requested" | "enrolled" | "completed" | "dropped" | "rejected"
       course_status: "draft" | "active" | "archived"
       credential_status:
-        | "pending"
-        | "valid"
-        | "expired"
-        | "rejected"
-        | "revoked"
+        "pending" | "valid" | "expired" | "rejected" | "revoked"
       custom_field_type:
-        | "text"
-        | "number"
-        | "date"
-        | "boolean"
-        | "select"
-        | "multi_select"
+        "text" | "number" | "date" | "boolean" | "select" | "multi_select"
       eligibility_status: "eligible" | "eligible_with_warning" | "not_eligible"
       event_registration_source_hint: "public" | "authenticated" | "admin"
       event_registration_status:
-        | "disabled"
-        | "scheduled"
-        | "open"
-        | "full"
-        | "closed"
+        "disabled" | "scheduled" | "open" | "full" | "closed"
       event_registration_type: "individual" | "household" | "group"
       file_classification: "public" | "internal" | "personal" | "restricted"
       form_field_classification:
-        | "normal"
-        | "personal"
-        | "sensitive"
-        | "restricted"
+        "normal" | "personal" | "sensitive" | "restricted"
       form_field_type:
         | "text"
         | "textarea"
@@ -8077,13 +9067,20 @@ export type Database = {
         | "checkbox"
         | "boolean"
         | "address"
+      giving_campaign_status: "draft" | "active" | "closed" | "archived"
+      giving_contribution_method:
+        "cash" | "bank_transfer" | "card" | "direct_debit" | "other"
+      giving_contribution_status:
+        "pending" | "succeeded" | "failed" | "refunded" | "cancelled"
+      giving_entity_status: "active" | "archived"
+      giving_reconciliation_status: "unreconciled" | "reconciled" | "exception"
+      giving_recurrence_frequency: "weekly" | "monthly" | "yearly"
+      giving_recurring_plan_status: "active" | "paused" | "ended"
+      giving_refund_status: "pending" | "succeeded" | "failed"
       group_attendance_status: "present" | "absent" | "excused"
       group_join_policy: "open_request" | "invite_only"
       group_join_request_status:
-        | "pending"
-        | "accepted"
-        | "rejected"
-        | "cancelled"
+        "pending" | "accepted" | "rejected" | "cancelled"
       group_leader_role: "leader" | "coleader"
       group_member_status: "active" | "left" | "removed"
       group_status: "active" | "paused" | "closed"
@@ -8094,63 +9091,40 @@ export type Database = {
       kids_incident_severity: "low" | "medium" | "high"
       kids_incident_status: "open" | "resolved"
       kids_incident_type:
-        | "minor"
-        | "medical"
-        | "behavioral"
-        | "security"
-        | "pickup"
-        | "other"
+        "minor" | "medical" | "behavioral" | "security" | "pickup" | "other"
       kids_profile_status: "active" | "inactive" | "archived"
       kids_ratio_state: "safe" | "warning" | "blocked"
       kids_session_status: "scheduled" | "open" | "closed" | "cancelled"
       kids_staff_role: "lead" | "assistant" | "support"
       learning_path_status: "draft" | "active" | "archived"
+      maintenance_status:
+        "scheduled" | "in_progress" | "completed" | "cancelled"
       notification_channel: "inapp" | "email" | "push"
       notification_delivery_status: "queued" | "sent" | "failed" | "suppressed"
+      occupancy_source: "reservation" | "maintenance"
       path_progress_status: "pending" | "in_progress" | "completed" | "skipped"
       path_step_kind: "course" | "manual"
       person_source:
-        | "manual"
-        | "import"
-        | "registration"
-        | "invitation"
-        | "integration"
+        "manual" | "import" | "registration" | "invitation" | "integration"
       pickup_authorization_status:
-        | "active"
-        | "expired"
-        | "revoked"
-        | "used"
-        | "pending"
+        "active" | "expired" | "revoked" | "used" | "pending"
       pickup_authorization_type: "permanent" | "date_range" | "one_time"
       position_requirement_strictness: "required" | "recommended"
       position_requirement_type:
-        | "qualification"
-        | "credential"
-        | "minimum_level"
+        "qualification" | "credential" | "minimum_level"
       qualification_level: "basic" | "intermediate" | "advanced" | "expert"
       registration_source: "public" | "authenticated" | "admin"
       registration_status:
-        | "pending"
-        | "confirmed"
-        | "waitlisted"
-        | "cancelled"
-        | "declined"
+        "pending" | "confirmed" | "waitlisted" | "cancelled" | "declined"
+      reservation_status: "pending" | "confirmed" | "cancelled" | "rejected"
+      resource_status: "active" | "unavailable" | "maintenance" | "archived"
+      resource_type: "room" | "equipment" | "vehicle" | "other"
       service_area_member_status:
-        | "active"
-        | "training"
-        | "inactive"
-        | "suspended"
+        "active" | "training" | "inactive" | "suspended"
       service_operational_level:
-        | "trainee"
-        | "assisted"
-        | "autonomous"
-        | "leader"
+        "trainee" | "assisted" | "autonomous" | "leader"
       subscription_status:
-        | "trial"
-        | "active"
-        | "past_due"
-        | "suspended"
-        | "cancelled"
+        "trial" | "active" | "past_due" | "suspended" | "cancelled"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -8193,9 +9167,14 @@ export type Tables<
 
 export type TablesInsert<
   DefaultSchemaTableNameOrOptions extends
+<<<<<<< HEAD
     | keyof DefaultSchema["Tables"]
     | { schema: keyof DatabaseWithoutInternals },
   TableName extends DefaultSchemaTableNameOrOptions extends {
+=======
+    keyof DefaultSchema["Tables"] | { schema: keyof DatabaseWithoutInternals },
+  TableName extends (DefaultSchemaTableNameOrOptions extends {
+>>>>>>> origin/main
     schema: keyof DatabaseWithoutInternals
   }
     ? keyof DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"]
@@ -8218,9 +9197,14 @@ export type TablesInsert<
 
 export type TablesUpdate<
   DefaultSchemaTableNameOrOptions extends
+<<<<<<< HEAD
     | keyof DefaultSchema["Tables"]
     | { schema: keyof DatabaseWithoutInternals },
   TableName extends DefaultSchemaTableNameOrOptions extends {
+=======
+    keyof DefaultSchema["Tables"] | { schema: keyof DatabaseWithoutInternals },
+  TableName extends (DefaultSchemaTableNameOrOptions extends {
+>>>>>>> origin/main
     schema: keyof DatabaseWithoutInternals
   }
     ? keyof DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"]
@@ -8243,9 +9227,14 @@ export type TablesUpdate<
 
 export type Enums<
   DefaultSchemaEnumNameOrOptions extends
+<<<<<<< HEAD
     | keyof DefaultSchema["Enums"]
     | { schema: keyof DatabaseWithoutInternals },
   EnumName extends DefaultSchemaEnumNameOrOptions extends {
+=======
+    keyof DefaultSchema["Enums"] | { schema: keyof DatabaseWithoutInternals },
+  EnumName extends (DefaultSchemaEnumNameOrOptions extends {
+>>>>>>> origin/main
     schema: keyof DatabaseWithoutInternals
   }
     ? keyof DatabaseWithoutInternals[DefaultSchemaEnumNameOrOptions["schema"]]["Enums"]
@@ -8445,6 +9434,26 @@ export const Constants = {
         "boolean",
         "address",
       ],
+      giving_campaign_status: ["draft", "active", "closed", "archived"],
+      giving_contribution_method: [
+        "cash",
+        "bank_transfer",
+        "card",
+        "direct_debit",
+        "other",
+      ],
+      giving_contribution_status: [
+        "pending",
+        "succeeded",
+        "failed",
+        "refunded",
+        "cancelled",
+      ],
+      giving_entity_status: ["active", "archived"],
+      giving_reconciliation_status: ["unreconciled", "reconciled", "exception"],
+      giving_recurrence_frequency: ["weekly", "monthly", "yearly"],
+      giving_recurring_plan_status: ["active", "paused", "ended"],
+      giving_refund_status: ["pending", "succeeded", "failed"],
       group_attendance_status: ["present", "absent", "excused"],
       group_join_policy: ["open_request", "invite_only"],
       group_join_request_status: [
@@ -8475,8 +9484,15 @@ export const Constants = {
       kids_session_status: ["scheduled", "open", "closed", "cancelled"],
       kids_staff_role: ["lead", "assistant", "support"],
       learning_path_status: ["draft", "active", "archived"],
+      maintenance_status: [
+        "scheduled",
+        "in_progress",
+        "completed",
+        "cancelled",
+      ],
       notification_channel: ["inapp", "email", "push"],
       notification_delivery_status: ["queued", "sent", "failed", "suppressed"],
+      occupancy_source: ["reservation", "maintenance"],
       path_progress_status: ["pending", "in_progress", "completed", "skipped"],
       path_step_kind: ["course", "manual"],
       person_source: [
@@ -8509,6 +9525,9 @@ export const Constants = {
         "cancelled",
         "declined",
       ],
+      reservation_status: ["pending", "confirmed", "cancelled", "rejected"],
+      resource_status: ["active", "unavailable", "maintenance", "archived"],
+      resource_type: ["room", "equipment", "vehicle", "other"],
       service_area_member_status: [
         "active",
         "training",
@@ -8531,4 +9550,3 @@ export const Constants = {
     },
   },
 } as const
-

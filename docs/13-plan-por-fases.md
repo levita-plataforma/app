@@ -406,6 +406,31 @@ que permite decir «producción» y no solo «integrada».
 
 Una actividad reserva recursos sin dobles reservas y deja trazabilidad.
 
+### Estado — 20 de septiembre de 2026
+
+**Implementada; pendiente de validación de Carlos.** No integrada ni aplicada en producción.
+
+Rama `feature/carlos-fase-10-recursos-instalaciones`, diez migraciones
+(`20261004000400`–`20261004000409`). El detalle está en
+[FASE-10-RECURSOS-INSTALACIONES.md](FASE-10-RECURSOS-INSTALACIONES.md) y lo acordado en
+[CONTRATO-FASE-10.md](CONTRATO-FASE-10.md).
+
+Lo que la sostiene es `resource_occupancy`, una capa única de ocupación con restricción de
+exclusión: **la primera del proyecto**. Registra tanto las reservas confirmadas como los
+mantenimientos que bloquean, de modo que una reserva y un mantenimiento no pueden cruzarse
+—dos restricciones separadas no se ven entre sí—. Comprobado con transacciones realmente
+simultáneas: la segunda espera a la primera y recibe 23P01, que es la diferencia entre
+proteger y avisar.
+
+Decisiones que conviene conocer sin leer el contrato entero: una reserva pendiente de
+aprobación **no ocupa** el recurso y el conflicto se decide al confirmar; mover una actividad
+a una hora en la que su sala está cogida **falla entera**, en vez de moverla y dejar la sala
+atrás; y archivar un recurso con reservas futuras se bloquea.
+
+**Límites conocidos:** sin recurrencia propia de reservas ni de mantenimiento, sin
+cantidades (cada unidad física es un recurso), sin buffers de montaje y sin calendario
+visual. Están escritos en el documento de la fase, no descubiertos más tarde.
+
 ---
 
 ## Fase 11 · Integración final de Alabanza
@@ -467,19 +492,31 @@ Alabanza funciona dentro de la misma iglesia y experiencia, sin doble programaci
 
 Estas capacidades no bloquean el MVP.
 
-### Estado — 20 de septiembre de 2026 (Analítica, Diogo)
+### Estado — 20 de septiembre de 2026
 
-**FASE 12 — ANALÍTICA: IMPLEMENTADA.** Construida en
-`feature/diogo-fase-12-analitica`, desde `main` en `04276be` (sin depender de
-Recursos F10, Alabanza F11 ni Giving F12, ninguna integrada en main en el
-momento de esta implementación — se entregan por separado, ver
-[REPARTO-CARLOS-DIOGO.md](REPARTO-CARLOS-DIOGO.md)). Dashboard agregado
-(`/app/informes`) sobre los módulos realmente integrados: Personas, Servicio,
-Eventos, Grupos, Discipulado, Niños y Comunicación. Detalle completo en
-[FASE-12-ANALITICA.md](FASE-12-ANALITICA.md).
+**Giving (parte de Diogo): IMPLEMENTADA**, integrada en `main`. Cubre fondos, campañas, aportaciones
+(dinero en `amount_minor` bigint, nunca float), donante opcional/anónimo, recurrencia modelada sin
+cobro automático, refunds con tope validado server-side, conciliación simple, exportación CSV con
+mitigación de inyección de fórmula, resumen agregado separado del detalle (`giving.read_summary` ≠
+`giving.read_contributions`), y `church_owner`/`church_admin` **sin** acceso automático al detalle
+financiero (deny-by-default, D10). Implementado directamente sin contrato documental separado
+(instrucción explícita del encargo). Ver [FASE-12-GIVING.md](FASE-12-GIVING.md). Migraciones
+`20261003000100` a `20261003001200`. Batería completa del repositorio: 1423 aserciones en verde, sin
+drift de esquema.
 
-Pastoral y Giving de esta misma Fase 12 permanecen sin estado propio: no se
-declara "FASE 12 COMPLETA" hasta que los tres tengan el suyo.
+Sin proveedor de pago real conectado: cobro online, webhooks y reconciliación bancaria automática
+quedan preparados arquitectónicamente (contrato `GivingPaymentProvider`, columnas
+`provider`/`provider_payment_ref`) pero no implementados — no hay proveedor que los dispare (mismo
+criterio que A14 en Fase 9). Registro manual (efectivo/transferencia), fondos, campañas, recurrencia
+modelada, conciliación y reporting son completamente operativos.
+
+**Analítica (parte de Diogo): IMPLEMENTADA**, integrada en `main`. Dashboard agregado (`/app/informes`)
+sobre los módulos realmente integrados en el momento de su construcción: Personas, Servicio, Eventos,
+Grupos, Discipulado, Niños y Comunicación. `analytics.read` nunca sustituye la capability real de
+lectura del módulo de origen. Ver [FASE-12-ANALITICA.md](FASE-12-ANALITICA.md).
+
+**Pastoral no iniciada.** F12 no se declara completa: es una entrega separada según
+`docs/REPARTO-CARLOS-DIOGO.md` §4.
 
 ---
 

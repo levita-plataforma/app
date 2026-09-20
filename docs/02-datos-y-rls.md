@@ -114,6 +114,16 @@ Casos pastorales requieren ACL/capacidad específica. La política puede restrin
 
 Datos financieros requieren roles específicos. Un owner puede gestionar facturación de LEVITA sin que eso implique leer donaciones de personas.
 
+**Implementado (Fase 12, Diogo).** La separación se aplica en dos capas: la capability
+`giving.read_summary` (resumen agregado, sin fila individual) frente a `giving.read_contributions`
+(detalle, incluida la persona). `giving_contributions` no tiene política de `SELECT` que la primera
+satisfaga — quien solo tiene `giving.read_summary` no puede leer ni una fila directamente, solo
+agregados vía RPC (`app.giving_summary`). `church_owner`/`church_admin` reciben `giving.read_summary`
+y las capabilities administrativas (fondos, campañas, ajustes), **nunca** `giving.read_contributions`,
+`giving.refund`, `giving.reconcile` ni `giving.export` por defecto — el rol `finance_manager` (ya
+existía en el catálogo desde la Fase 0, sin capabilities hasta ahora) es quien las recibe todas. Ver
+[FASE-12-GIVING.md](FASE-12-GIVING.md).
+
 ## 11. Kids
 
 El acceso se basa en:
