@@ -1,7 +1,8 @@
 # Fase 10 · Recursos, instalaciones y mantenimiento
 
-Rama `feature/carlos-fase-10-recursos-instalaciones`, sobre `origin/main` = `04276be`.
-Estado: **pendiente de validación de Carlos**. No integrada ni aplicada en producción.
+Estado: **integrada en `main` (`fa6704c`) y migraciones aplicadas en producción**, el 20 de
+septiembre de 2026. **Sin comprobar en pantalla todavía**: que el esquema esté aplicado y la
+batería en verde dice que la base está bien, no que el módulo funcione.
 
 Qué se acordó está en [CONTRATO-FASE-10.md](CONTRATO-FASE-10.md) (decisiones P-1 a P-21).
 Este documento cuenta qué se ha construido, cómo se usa y qué límites tiene.
