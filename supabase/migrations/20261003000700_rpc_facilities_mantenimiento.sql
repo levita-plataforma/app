@@ -49,6 +49,10 @@ begin
     raise exception 'No tienes permiso para gestionar el mantenimiento de este recurso.' using errcode = '42501';
   end if;
 
+  -- La ventana puede llegar como instante o como hora local más zona, igual
+  -- que en las reservas (20261003000900).
+  select * into v_starts, v_ends from app.maintenance_window(p_church_id, p_input, v_starts, v_ends);
+
   if v_starts is null or v_ends is null then
     raise exception 'El mantenimiento necesita ventana de inicio y fin.' using errcode = '22023';
   end if;
