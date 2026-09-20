@@ -185,7 +185,17 @@ Definir estrategia exacta de migración/vinculación, ventana de corte, rollback
 Modelo de retención, visibilidad y requisitos legales/organizativos.
 
 ### A17 · Giving
-Proveedor, recibos, tratamiento fiscal, conciliación y exportación contable.
+**Parcialmente resuelto (20 de septiembre de 2026).** Conciliación y exportación contable: resueltas —
+modelo simple (`giving_reconciliations`, estados `unreconciled`/`reconciled`/`exception`) y exportación
+CSV con capability propia (`giving.export`) y mitigación de inyección de fórmula. **Proveedor de pago,
+recibos y tratamiento fiscal: siguen sin resolver**, deliberadamente — no hay proveedor real
+seleccionado, así que no se implementa cobro online, webhooks ni recibos/certificados fiscales
+automáticos (Stripe/Adyen/Redsys u otro es una decisión de producto futura, no tomada
+unilateralmente). Se preparó únicamente el contrato de abstracción (`GivingPaymentProvider`: crear/
+consultar/reembolsar pago, verificar webhook, normalizar evento) y las columnas de referencia externa
+(`provider`, `provider_payment_ref`, `provider_customer_ref`) en `giving_contributions`/
+`giving_recurring_plans`, sin ningún secreto ni integración real. Ver
+[FASE-12-GIVING.md](FASE-12-GIVING.md).
 
 ## Regla
 

@@ -461,6 +461,27 @@ Alabanza funciona dentro de la misma iglesia y experiencia, sin doble programaci
 
 Estas capacidades no bloquean el MVP.
 
+### Estado — 20 de septiembre de 2026
+
+**Giving (parte de Diogo): IMPLEMENTADA** en `feature/diogo-fase-12-giving`, pendiente de validación
+de Carlos e integración en `main`. Cubre fondos, campañas, aportaciones (dinero en `amount_minor`
+bigint, nunca float), donante opcional/anónimo, recurrencia modelada sin cobro automático, refunds con
+tope validado server-side, conciliación simple, exportación CSV con mitigación de inyección de fórmula,
+resumen agregado separado del detalle (`giving.read_summary` ≠ `giving.read_contributions`), y
+`church_owner`/`church_admin` **sin** acceso automático al detalle financiero (deny-by-default, D10).
+Implementado directamente sin contrato documental separado (instrucción explícita del encargo). Ver
+[FASE-12-GIVING.md](FASE-12-GIVING.md). Migraciones `20261003000100` a `20261003001200`. Batería
+completa del repositorio: 1423 aserciones en verde, sin drift de esquema.
+
+Sin proveedor de pago real conectado: cobro online, webhooks y reconciliación bancaria automática
+quedan preparados arquitectónicamente (contrato `GivingPaymentProvider`, columnas
+`provider`/`provider_payment_ref`) pero no implementados — no hay proveedor que los dispare (mismo
+criterio que A14 en Fase 9). Registro manual (efectivo/transferencia), fondos, campañas, recurrencia
+modelada, conciliación y reporting son completamente operativos.
+
+**Pastoral y Analítica avanzada no iniciadas.** F12 no se declara completa: son entregas separadas
+según `docs/REPARTO-CARLOS-DIOGO.md` §4.
+
 ---
 
 ## Fase 13 · Hardening, piloto ampliado y escala
