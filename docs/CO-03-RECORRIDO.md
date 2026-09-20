@@ -112,6 +112,24 @@ me dices y la disparo yo con su secreto.
 
 ---
 
+## Parte F · De paso, lo que cambió el 20 de septiembre
+
+No es de la Fase 5, pero se toca en el mismo recorrido y conviene verlo con los
+mismos ojos.
+
+| # | Paso | Qué tiene que pasar |
+|---|---|---|
+| F1 | `/app/personas`, abre una ficha con tu cuenta | Ves el correo y el teléfono con normalidad: tienes `people.read` |
+| F2 | Con una cuenta sin esa capacidad, abre la misma ficha | Donde iba el correo pone **«No tienes permiso para verlo»**, no un guion. Y los campos del formulario salen deshabilitados |
+| F3 | Con esa segunda cuenta, si puede editar, guarda un cambio de nombre | Al volver, el correo y el teléfono **siguen ahí**: no se han borrado al guardar |
+| F4 | `/app/kids`, listado de perfiles | Las edades siguen calculándose |
+| F5 | Abre un evento y su inscripción pública | Sigue funcionando: los límites subieron a 200 por evento cada 10 minutos |
+
+El paso F3 es el que más me importa: es el fallo que habría borrado datos de
+contacto sin avisar, y quiero verlo confirmado en pantalla y no solo en pruebas.
+
+---
+
 ## Señales de alarma
 
 Si ves cualquiera de estas, anótala y dímela; no sigas como si nada:
@@ -140,6 +158,7 @@ Parte B (disponibilidad): correcta / con fallos
 Parte C (asignaciones):   correcta / con fallos
 Parte D (avisos):         correcta / con fallos
 Parte E (tarea diaria):   correcta / con fallos / pendiente
+Parte F (cambios del 20):  correcta / con fallos
 
 Fallos encontrados:
 
