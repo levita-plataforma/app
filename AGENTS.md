@@ -13,7 +13,11 @@ This block is written and re-added by `next dev` — verify at `node_modules/nex
 Leer [FUNCIONAMIENTO.md](FUNCIONAMIENTO.md) antes de modificar este repositorio.
 Cada tarea se realiza en una rama identificable: `hotfix/` para arreglos y
 `feature/` para nuevas funcionalidades; consultar la guía para otros tipos y
-el prefijo opcional `codex/`. No desarrollar ni hacer commits directamente en
+el prefijo opcional `codex/`. **Las migraciones se nombran con la fecha y hora
+UTC de su creación (`date -u +%Y%m%d%H%M%S`), nunca con un número escogido a
+mano: la CLI de Supabase indexa por ese número y una colisión hace que la
+migración no se ejecute, sin error.** Cada responsable valida e integra sus
+propias fases, por separado. No desarrollar ni hacer commits directamente en
 `main`. Ningún cambio puede integrarse en `main` sin la validación expresa,
 sobre la versión concreta revisada, de quien responde de esa fase: cada
 responsable valida las suyas (Carlos las suyas y Diogo las suyas). Lo
