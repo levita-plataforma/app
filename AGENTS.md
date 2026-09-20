@@ -14,8 +14,12 @@ Leer [FUNCIONAMIENTO.md](FUNCIONAMIENTO.md) antes de modificar este repositorio.
 Cada tarea se realiza en una rama identificable: `hotfix/` para arreglos y
 `feature/` para nuevas funcionalidades; consultar la guía para otros tipos y
 el prefijo opcional `codex/`. No desarrollar ni hacer commits directamente en
-`main`. Ningún cambio puede integrarse en `main` sin la validación expresa del
-propietario sobre la versión concreta revisada. CI en verde o la aprobación de
-otro colaborador no sustituyen esa validación. Si cambia la propuesta, se
-requiere una nueva validación. Respetar el trabajo de la otra persona y usar
-clones o worktrees separados para tareas simultáneas.
+`main`. Ningún cambio puede integrarse en `main` sin la validación expresa,
+sobre la versión concreta revisada, de quien responde de esa fase: cada
+responsable valida las suyas (Carlos las suyas y Diogo las suyas). Lo
+compartido, lo transversal y estos documentos de normas los valida Carlos, que
+es el propietario. El CI en verde no sustituye esa validación. Si cambia la
+propuesta, se requiere una nueva. Quien valida lo deja escrito en la PR, porque
+las cuentas son compartidas y el registro automático no identifica al autor.
+Respetar el trabajo de la otra persona y usar clones o worktrees separados para
+tareas simultáneas.
