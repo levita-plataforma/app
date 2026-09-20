@@ -331,7 +331,7 @@ Un menor entra y sale con trazabilidad y autorización correcta, sin exponer dat
 
 Nota sobre «grupos»: la segmentación por grupo queda reservada en el modelo —el campo `group` está en la lista de reglas permitidas— pero **rechazada explícitamente en tiempo de ejecución**, no fingida.
 
-Cuando se escribió esta fase la Fase 7 no existía. Ya existe, y aun así sigue rechazada a propósito: no es cuestión de esquema, que no habría que tocar, sino de permisos. Escribir a los participantes de un grupo privado exige permiso **sobre ese grupo**, como quedó resuelto en la Fase 7 con `app.notify_group_members`; habilitarlo desde comunicaciones con solo la capacidad de comunicación abriría por detrás lo que aquella cerró por delante. Queda como decisión de producto pendiente: qué permiso manda al escribir a un grupo, el del grupo o el de comunicaciones.
+Cuando se escribió esta fase la Fase 7 no existía. Ya existe, y aun así sigue rechazada a propósito: no es cuestión de esquema, que no habría que tocar, sino de permisos. Escribir a los participantes de un grupo privado exige permiso **sobre ese grupo**, como quedó resuelto en la Fase 7 con `app.notify_group_members`; habilitarlo desde comunicaciones con solo la capacidad de comunicación abriría por detrás lo que aquella cerró por delante. La pregunta —qué permiso manda al escribir a un grupo, el del grupo o el de comunicaciones— la respondió Carlos el 20 de septiembre de 2026: manda el del grupo, y por eso la segmentación por grupo se queda rechazada.
 
 ### Criterio de salida
 
@@ -372,8 +372,14 @@ Los arreglos van en `20261001001200`, aparte de las once migraciones de la fase
 Batería completa con las cinco fases conviviendo: 1360 aserciones en 26 suites,
 sin fallos.
 
-**Pendiente de decisión:** la segmentación por grupo, explicada en la nota de
-arriba.
+**Decidido el 20 de septiembre de 2026 (Carlos):** la segmentación por grupo
+**se queda rechazada**. No es una limitación técnica pendiente de resolver, es
+la respuesta: habilitarla con solo la capacidad de comunicación permitiría
+escribir a los miembros de un grupo privado a quien no tiene acceso a ese grupo,
+abriendo por detrás lo que la Fase 7 cerró por delante. Si algún día se pide de
+verdad, el camino es exigir permiso sobre el grupo concreto cruzando
+`app.group_cap`, como hace `app.notify_group_members`; mientras nadie lo pida,
+no se construye.
 
 **Comprobado en pantalla** por Carlos el 20 de septiembre de 2026, que es lo
 que permite decir «producción» y no solo «integrada».

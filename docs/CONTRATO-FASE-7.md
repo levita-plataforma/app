@@ -186,7 +186,9 @@ no dirá en ningún momento que se ha enviado un correo.
   iglesia. La Fase 7 aplica la regla P-5 en su propia superficie: expone el contacto solo a
   través de RPC que comprueban permiso o consentimiento, y no amplía nada. Cumplir P-5 de
   extremo a extremo exige estrechar esa política de la Fase 0, lo que afecta a F2, F5 y F6.
-  **Queda fuera de esta fase y se propone como trabajo transversal aparte.**
+  **RESUELTO el 20 de septiembre de 2026**, en el hotfix transversal que se propuso aquí:
+  `authenticated` pierde el `select` sobre las columnas de contacto y estas se sirven por
+  RPC que aplican `app.can_read_person_contact`. Migración `20261002000100`.
 - **R-02.** `app.notification_text` no tiene ramas para los tipos `event.*` y `registration.*`
   de la Fase 6: esos avisos llegan con el título genérico «Aviso». No es un defecto
   introducido por F7; se anota para que se corrija como hotfix de F6.
