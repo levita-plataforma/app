@@ -64,7 +64,8 @@ export type Database = {
           starts_at: string | null
           status: Database["public"]["Enums"]["activity_status"]
           status_before_archive:
-            Database["public"]["Enums"]["activity_status"] | null
+            | Database["public"]["Enums"]["activity_status"]
+            | null
           template_id: string | null
           timezone: string
           title: string
@@ -101,7 +102,8 @@ export type Database = {
           starts_at?: string | null
           status?: Database["public"]["Enums"]["activity_status"]
           status_before_archive?:
-            Database["public"]["Enums"]["activity_status"] | null
+            | Database["public"]["Enums"]["activity_status"]
+            | null
           template_id?: string | null
           timezone: string
           title: string
@@ -138,7 +140,8 @@ export type Database = {
           starts_at?: string | null
           status?: Database["public"]["Enums"]["activity_status"]
           status_before_archive?:
-            Database["public"]["Enums"]["activity_status"] | null
+            | Database["public"]["Enums"]["activity_status"]
+            | null
           template_id?: string | null
           timezone?: string
           title?: string
@@ -517,7 +520,8 @@ export type Database = {
           id: string
           min_level: Database["public"]["Enums"]["qualification_level"] | null
           min_operational_level:
-            Database["public"]["Enums"]["service_operational_level"] | null
+            | Database["public"]["Enums"]["service_operational_level"]
+            | null
           origin: Database["public"]["Enums"]["activity_requirement_origin"]
           qualification_id: string | null
           requirement_type: Database["public"]["Enums"]["position_requirement_type"]
@@ -538,7 +542,8 @@ export type Database = {
           id?: string
           min_level?: Database["public"]["Enums"]["qualification_level"] | null
           min_operational_level?:
-            Database["public"]["Enums"]["service_operational_level"] | null
+            | Database["public"]["Enums"]["service_operational_level"]
+            | null
           origin: Database["public"]["Enums"]["activity_requirement_origin"]
           qualification_id?: string | null
           requirement_type: Database["public"]["Enums"]["position_requirement_type"]
@@ -559,7 +564,8 @@ export type Database = {
           id?: string
           min_level?: Database["public"]["Enums"]["qualification_level"] | null
           min_operational_level?:
-            Database["public"]["Enums"]["service_operational_level"] | null
+            | Database["public"]["Enums"]["service_operational_level"]
+            | null
           origin?: Database["public"]["Enums"]["activity_requirement_origin"]
           qualification_id?: string | null
           requirement_type?: Database["public"]["Enums"]["position_requirement_type"]
@@ -724,7 +730,8 @@ export type Database = {
           month_day_fallback: string
           month_weekday: number | null
           monthly_mode:
-            Database["public"]["Enums"]["activity_monthly_mode"] | null
+            | Database["public"]["Enums"]["activity_monthly_mode"]
+            | null
           occurrence_count: number | null
           rrule: string | null
           split_from_series_id: string | null
@@ -752,7 +759,8 @@ export type Database = {
           month_day_fallback?: string
           month_weekday?: number | null
           monthly_mode?:
-            Database["public"]["Enums"]["activity_monthly_mode"] | null
+            | Database["public"]["Enums"]["activity_monthly_mode"]
+            | null
           occurrence_count?: number | null
           rrule?: string | null
           split_from_series_id?: string | null
@@ -780,7 +788,8 @@ export type Database = {
           month_day_fallback?: string
           month_weekday?: number | null
           monthly_mode?:
-            Database["public"]["Enums"]["activity_monthly_mode"] | null
+            | Database["public"]["Enums"]["activity_monthly_mode"]
+            | null
           occurrence_count?: number | null
           rrule?: string | null
           split_from_series_id?: string | null
@@ -1738,6 +1747,316 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "subscriptions"
             referencedColumns: ["id"]
+          },
+        ]
+      }
+      communication_category_preferences: {
+        Row: {
+          category: Database["public"]["Enums"]["communication_purpose"]
+          church_id: string
+          opted_out: boolean
+          person_id: string
+          updated_at: string
+        }
+        Insert: {
+          category: Database["public"]["Enums"]["communication_purpose"]
+          church_id: string
+          opted_out?: boolean
+          person_id: string
+          updated_at?: string
+        }
+        Update: {
+          category?: Database["public"]["Enums"]["communication_purpose"]
+          church_id?: string
+          opted_out?: boolean
+          person_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "communication_category_preferences_church_id_fkey"
+            columns: ["church_id"]
+            isOneToOne: false
+            referencedRelation: "churches"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "communication_category_preferences_church_id_person_id_fkey"
+            columns: ["church_id", "person_id"]
+            isOneToOne: false
+            referencedRelation: "church_people"
+            referencedColumns: ["church_id", "person_id"]
+          },
+          {
+            foreignKeyName: "communication_category_preferences_person_id_fkey"
+            columns: ["person_id"]
+            isOneToOne: false
+            referencedRelation: "people"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      communication_recipients: {
+        Row: {
+          attempt_count: number
+          channel: Database["public"]["Enums"]["notification_channel"]
+          church_id: string
+          communication_id: string
+          created_at: string
+          excluded_reason: string | null
+          failed_at: string | null
+          failure_code: string | null
+          failure_kind:
+            | Database["public"]["Enums"]["communication_failure_kind"]
+            | null
+          id: string
+          person_id: string
+          sent_at: string | null
+          status: Database["public"]["Enums"]["communication_recipient_status"]
+          unsubscribe_token: string | null
+          updated_at: string
+        }
+        Insert: {
+          attempt_count?: number
+          channel: Database["public"]["Enums"]["notification_channel"]
+          church_id: string
+          communication_id: string
+          created_at?: string
+          excluded_reason?: string | null
+          failed_at?: string | null
+          failure_code?: string | null
+          failure_kind?:
+            | Database["public"]["Enums"]["communication_failure_kind"]
+            | null
+          id?: string
+          person_id: string
+          sent_at?: string | null
+          status?: Database["public"]["Enums"]["communication_recipient_status"]
+          unsubscribe_token?: string | null
+          updated_at?: string
+        }
+        Update: {
+          attempt_count?: number
+          channel?: Database["public"]["Enums"]["notification_channel"]
+          church_id?: string
+          communication_id?: string
+          created_at?: string
+          excluded_reason?: string | null
+          failed_at?: string | null
+          failure_code?: string | null
+          failure_kind?:
+            | Database["public"]["Enums"]["communication_failure_kind"]
+            | null
+          id?: string
+          person_id?: string
+          sent_at?: string | null
+          status?: Database["public"]["Enums"]["communication_recipient_status"]
+          unsubscribe_token?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "communication_recipients_church_id_fkey"
+            columns: ["church_id"]
+            isOneToOne: false
+            referencedRelation: "churches"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "communication_recipients_church_id_person_id_fkey"
+            columns: ["church_id", "person_id"]
+            isOneToOne: false
+            referencedRelation: "church_people"
+            referencedColumns: ["church_id", "person_id"]
+          },
+          {
+            foreignKeyName: "communication_recipients_communication_id_church_id_fkey"
+            columns: ["communication_id", "church_id"]
+            isOneToOne: false
+            referencedRelation: "communications"
+            referencedColumns: ["id", "church_id"]
+          },
+        ]
+      }
+      communication_segments: {
+        Row: {
+          archived_at: string | null
+          church_id: string
+          created_at: string
+          created_by_person_id: string | null
+          description: string | null
+          id: string
+          name: string
+          rules: Json
+          updated_at: string
+        }
+        Insert: {
+          archived_at?: string | null
+          church_id: string
+          created_at?: string
+          created_by_person_id?: string | null
+          description?: string | null
+          id?: string
+          name: string
+          rules: Json
+          updated_at?: string
+        }
+        Update: {
+          archived_at?: string | null
+          church_id?: string
+          created_at?: string
+          created_by_person_id?: string | null
+          description?: string | null
+          id?: string
+          name?: string
+          rules?: Json
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "communication_segments_church_id_fkey"
+            columns: ["church_id"]
+            isOneToOne: false
+            referencedRelation: "churches"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      communication_templates: {
+        Row: {
+          archived_at: string | null
+          body: string
+          category: string | null
+          church_id: string
+          created_at: string
+          created_by_person_id: string | null
+          id: string
+          name: string
+          placeholders_allowed: string[]
+          subject: string | null
+          updated_at: string
+        }
+        Insert: {
+          archived_at?: string | null
+          body: string
+          category?: string | null
+          church_id: string
+          created_at?: string
+          created_by_person_id?: string | null
+          id?: string
+          name: string
+          placeholders_allowed?: string[]
+          subject?: string | null
+          updated_at?: string
+        }
+        Update: {
+          archived_at?: string | null
+          body?: string
+          category?: string | null
+          church_id?: string
+          created_at?: string
+          created_by_person_id?: string | null
+          id?: string
+          name?: string
+          placeholders_allowed?: string[]
+          subject?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "communication_templates_church_id_fkey"
+            columns: ["church_id"]
+            isOneToOne: false
+            referencedRelation: "churches"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      communications: {
+        Row: {
+          archived_at: string | null
+          body_template: string
+          channels: Database["public"]["Enums"]["notification_channel"][]
+          church_id: string
+          created_at: string
+          created_by_person_id: string | null
+          id: string
+          materialized_at: string | null
+          purpose: Database["public"]["Enums"]["communication_purpose"]
+          scheduled_at: string | null
+          segment_id: string | null
+          segment_rules_snapshot: Json | null
+          sent_at: string | null
+          status: Database["public"]["Enums"]["communication_status"]
+          subject: string | null
+          template_id: string | null
+          title: string
+          updated_at: string
+          updated_by_person_id: string | null
+        }
+        Insert: {
+          archived_at?: string | null
+          body_template: string
+          channels: Database["public"]["Enums"]["notification_channel"][]
+          church_id: string
+          created_at?: string
+          created_by_person_id?: string | null
+          id?: string
+          materialized_at?: string | null
+          purpose?: Database["public"]["Enums"]["communication_purpose"]
+          scheduled_at?: string | null
+          segment_id?: string | null
+          segment_rules_snapshot?: Json | null
+          sent_at?: string | null
+          status?: Database["public"]["Enums"]["communication_status"]
+          subject?: string | null
+          template_id?: string | null
+          title: string
+          updated_at?: string
+          updated_by_person_id?: string | null
+        }
+        Update: {
+          archived_at?: string | null
+          body_template?: string
+          channels?: Database["public"]["Enums"]["notification_channel"][]
+          church_id?: string
+          created_at?: string
+          created_by_person_id?: string | null
+          id?: string
+          materialized_at?: string | null
+          purpose?: Database["public"]["Enums"]["communication_purpose"]
+          scheduled_at?: string | null
+          segment_id?: string | null
+          segment_rules_snapshot?: Json | null
+          sent_at?: string | null
+          status?: Database["public"]["Enums"]["communication_status"]
+          subject?: string | null
+          template_id?: string | null
+          title?: string
+          updated_at?: string
+          updated_by_person_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "communications_church_id_fkey"
+            columns: ["church_id"]
+            isOneToOne: false
+            referencedRelation: "churches"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "communications_segment_id_fkey"
+            columns: ["segment_id", "church_id"]
+            isOneToOne: false
+            referencedRelation: "communication_segments"
+            referencedColumns: ["id", "church_id"]
+          },
+          {
+            foreignKeyName: "communications_template_id_fkey"
+            columns: ["template_id", "church_id"]
+            isOneToOne: false
+            referencedRelation: "communication_templates"
+            referencedColumns: ["id", "church_id"]
           },
         ]
       }
@@ -5537,7 +5856,8 @@ export type Database = {
           id: string
           min_level: Database["public"]["Enums"]["qualification_level"] | null
           min_operational_level:
-            Database["public"]["Enums"]["service_operational_level"] | null
+            | Database["public"]["Enums"]["service_operational_level"]
+            | null
           qualification_id: string | null
           requirement_type: Database["public"]["Enums"]["position_requirement_type"]
           requires_current_validity: boolean
@@ -5551,7 +5871,8 @@ export type Database = {
           id?: string
           min_level?: Database["public"]["Enums"]["qualification_level"] | null
           min_operational_level?:
-            Database["public"]["Enums"]["service_operational_level"] | null
+            | Database["public"]["Enums"]["service_operational_level"]
+            | null
           qualification_id?: string | null
           requirement_type: Database["public"]["Enums"]["position_requirement_type"]
           requires_current_validity?: boolean
@@ -5565,7 +5886,8 @@ export type Database = {
           id?: string
           min_level?: Database["public"]["Enums"]["qualification_level"] | null
           min_operational_level?:
-            Database["public"]["Enums"]["service_operational_level"] | null
+            | Database["public"]["Enums"]["service_operational_level"]
+            | null
           qualification_id?: string | null
           requirement_type?: Database["public"]["Enums"]["position_requirement_type"]
           requires_current_validity?: boolean
@@ -5729,6 +6051,8 @@ export type Database = {
           attendees_count: number
           cancel_reason: string | null
           cancel_token: string | null
+          cancel_token_expires_at: string | null
+          cancel_token_hash: string | null
           cancelled_at: string | null
           church_id: string
           confirmed_at: string | null
@@ -5753,6 +6077,8 @@ export type Database = {
           attendees_count?: number
           cancel_reason?: string | null
           cancel_token?: string | null
+          cancel_token_expires_at?: string | null
+          cancel_token_hash?: string | null
           cancelled_at?: string | null
           church_id: string
           confirmed_at?: string | null
@@ -5777,6 +6103,8 @@ export type Database = {
           attendees_count?: number
           cancel_reason?: string | null
           cancel_token?: string | null
+          cancel_token_expires_at?: string | null
+          cancel_token_hash?: string | null
           cancelled_at?: string | null
           church_id?: string
           confirmed_at?: string | null
@@ -6628,7 +6956,8 @@ export type Database = {
           id: string
           min_level: Database["public"]["Enums"]["qualification_level"] | null
           min_operational_level:
-            Database["public"]["Enums"]["service_operational_level"] | null
+            | Database["public"]["Enums"]["service_operational_level"]
+            | null
           origin: Database["public"]["Enums"]["activity_requirement_origin"]
           qualification_id: string | null
           requirement_type: Database["public"]["Enums"]["position_requirement_type"]
@@ -6732,6 +7061,10 @@ export type Database = {
         Args: { p_reason?: string; p_session_id: string }
         Returns: undefined
       }
+      cancel_communication: {
+        Args: { p_communication_id: string }
+        Returns: undefined
+      }
       cancel_group_join_request: {
         Args: { p_request_id: string }
         Returns: undefined
@@ -6790,6 +7123,10 @@ export type Database = {
         }[]
       }
       cohort_notes: { Args: { p_cohort_id: string }; Returns: string }
+      communication_metrics: {
+        Args: { p_communication_id: string }
+        Returns: Json
+      }
       complete_cohort_enrollment: {
         Args: { p_enrollment_id: string; p_note?: string }
         Returns: undefined
@@ -6818,6 +7155,21 @@ export type Database = {
         Args: { p_course_id: string; p_input: Json }
         Returns: string
       }
+      create_communication: {
+        Args: {
+          p_body_template: string
+          p_channels: Database["public"]["Enums"]["notification_channel"][]
+          p_church_id: string
+          p_purpose: Database["public"]["Enums"]["communication_purpose"]
+          p_rules: Json
+          p_segment_id?: string
+          p_service_area_id?: string
+          p_subject: string
+          p_template_id?: string
+          p_title: string
+        }
+        Returns: string
+      }
       create_group: {
         Args: { p_church_id: string; p_input: Json }
         Returns: string
@@ -6837,12 +7189,26 @@ export type Database = {
         }
         Returns: string
       }
+      cron_materialize_communication: {
+        Args: { p_communication_id: string }
+        Returns: Json
+      }
+      cron_send_communication: {
+        Args: { p_batch_limit?: number; p_communication_id: string }
+        Returns: Json
+      }
       delete_my_unavailability_period: { Args: { p_id: string }; Returns: Json }
       delete_my_weekly_unavailability: { Args: { p_id: string }; Returns: Json }
       discipleship_metrics: { Args: { p_church_id: string }; Returns: Json }
       drop_cohort_enrollment: {
         Args: { p_enrollment_id: string; p_reason?: string }
         Returns: undefined
+      }
+      due_scheduled_communications: {
+        Args: { p_limit?: number }
+        Returns: {
+          id: string
+        }[]
       }
       duplicate_activity: {
         Args: { p_activity_id: string; p_input?: Json }
@@ -7037,6 +7403,13 @@ export type Database = {
           title: string
         }[]
       }
+      list_my_communication_category_preferences: {
+        Args: { p_church_id: string }
+        Returns: {
+          category: Database["public"]["Enums"]["communication_purpose"]
+          opted_out: boolean
+        }[]
+      }
       list_my_notifications: {
         Args: { p_church_id: string; p_limit?: number; p_only_unread?: boolean }
         Returns: {
@@ -7057,6 +7430,10 @@ export type Database = {
       }
       mark_notification_read: {
         Args: { p_notification_id: string }
+        Returns: Json
+      }
+      materialize_communication: {
+        Args: { p_communication_id: string }
         Returns: Json
       }
       module_enabled: {
@@ -7085,6 +7462,12 @@ export type Database = {
         }
         Returns: number
       }
+      pending_send_communications: {
+        Args: { p_limit?: number }
+        Returns: {
+          id: string
+        }[]
+      }
       person_path_progress_view: {
         Args: { p_learning_path_id: string; p_person_id: string }
         Returns: {
@@ -7112,6 +7495,14 @@ export type Database = {
           blocking: string[]
           warnings: string[]
         }[]
+      }
+      preview_communication_segment: {
+        Args: {
+          p_channels: Database["public"]["Enums"]["notification_channel"][]
+          p_church_id: string
+          p_rules: Json
+        }
+        Returns: Json
       }
       process_notification_events: { Args: { p_limit?: number }; Returns: Json }
       promote_waitlist: { Args: { p_event_id: string }; Returns: number }
@@ -7308,6 +7699,14 @@ export type Database = {
         Args: { p_church_id: string; p_input: Json; p_template_id: string }
         Returns: string
       }
+      save_communication_segment: {
+        Args: { p_church_id: string; p_input: Json }
+        Returns: string
+      }
+      save_communication_template: {
+        Args: { p_church_id: string; p_input: Json }
+        Returns: string
+      }
       save_course: {
         Args: { p_church_id: string; p_input: Json }
         Returns: string
@@ -7328,6 +7727,10 @@ export type Database = {
         Args: { p_cohort_id: string; p_input: Json }
         Returns: Json
       }
+      schedule_communication: {
+        Args: { p_communication_id: string; p_scheduled_at: string }
+        Returns: undefined
+      }
       schedule_group_meeting: {
         Args: { p_group_id: string; p_input: Json }
         Returns: Json
@@ -7336,7 +7739,27 @@ export type Database = {
         Args: { p_activity_id: string; p_assignment_ids?: string[] }
         Returns: Json
       }
+      send_communication: {
+        Args: { p_batch_limit?: number; p_communication_id: string }
+        Returns: Json
+      }
       set_activity_template_archived: {
+        Args: { p_archived: boolean; p_template_id: string }
+        Returns: undefined
+      }
+      set_communication_category_preference: {
+        Args: {
+          p_category: Database["public"]["Enums"]["communication_purpose"]
+          p_church_id: string
+          p_opted_out: boolean
+        }
+        Returns: undefined
+      }
+      set_communication_segment_archived: {
+        Args: { p_archived: boolean; p_segment_id: string }
+        Returns: undefined
+      }
+      set_communication_template_archived: {
         Args: { p_archived: boolean; p_template_id: string }
         Returns: undefined
       }
@@ -7409,6 +7832,7 @@ export type Database = {
         }
         Returns: Database["public"]["Enums"]["activity_status"]
       }
+      unaccent: { Args: { "": string }; Returns: string }
       undo_checkin_attendee: {
         Args: { p_attendee_id: string }
         Returns: {
@@ -7416,7 +7840,7 @@ export type Database = {
           attendee_id: string
         }[]
       }
-      unaccent: { Args: { "": string }; Returns: string }
+      unsubscribe_by_token: { Args: { p_token: string }; Returns: Json }
       update_activity: {
         Args: { p_activity_id: string; p_input: Json }
         Returns: Json
@@ -7443,6 +7867,17 @@ export type Database = {
       }
       update_cohort: {
         Args: { p_cohort_id: string; p_input: Json }
+        Returns: undefined
+      }
+      update_communication: {
+        Args: {
+          p_body_template?: string
+          p_channels?: Database["public"]["Enums"]["notification_channel"][]
+          p_communication_id: string
+          p_purpose?: Database["public"]["Enums"]["communication_purpose"]
+          p_subject?: string
+          p_title?: string
+        }
         Returns: undefined
       }
       update_group: {
@@ -7503,7 +7938,11 @@ export type Database = {
         | "shift"
       activity_visibility: "private" | "leaders" | "members" | "public_future"
       attendance_status:
-        "registered" | "checked_in" | "attended" | "no_show" | "cancelled"
+        | "registered"
+        | "checked_in"
+        | "attended"
+        | "no_show"
+        | "cancelled"
       attendee_type: "adult" | "minor"
       church_module_status: "enabled" | "disabled" | "trial" | "suspended"
       church_onboarding_step:
@@ -7530,23 +7969,74 @@ export type Database = {
         | "suspended"
         | "cancelling"
         | "archived"
+      communication_failure_kind: "temporary" | "permanent"
+      communication_purpose:
+        | "institutional"
+        | "operational"
+        | "services"
+        | "groups"
+        | "events"
+        | "discipleship"
+        | "kids"
+        | "pastoral"
+        | "system"
+      communication_recipient_status:
+        | "pending"
+        | "queued"
+        | "sent"
+        | "failed"
+        | "suppressed"
+        | "excluded"
+      communication_status:
+        | "draft"
+        | "scheduled"
+        | "processing"
+        | "queued"
+        | "sent"
+        | "partially_sent"
+        | "failed"
+        | "cancelled"
       course_cohort_status:
-        "planned" | "open" | "running" | "finished" | "cancelled"
+        | "planned"
+        | "open"
+        | "running"
+        | "finished"
+        | "cancelled"
       course_enrollment_status:
-        "requested" | "enrolled" | "completed" | "dropped" | "rejected"
+        | "requested"
+        | "enrolled"
+        | "completed"
+        | "dropped"
+        | "rejected"
       course_status: "draft" | "active" | "archived"
       credential_status:
-        "pending" | "valid" | "expired" | "rejected" | "revoked"
+        | "pending"
+        | "valid"
+        | "expired"
+        | "rejected"
+        | "revoked"
       custom_field_type:
-        "text" | "number" | "date" | "boolean" | "select" | "multi_select"
+        | "text"
+        | "number"
+        | "date"
+        | "boolean"
+        | "select"
+        | "multi_select"
       eligibility_status: "eligible" | "eligible_with_warning" | "not_eligible"
       event_registration_source_hint: "public" | "authenticated" | "admin"
       event_registration_status:
-        "disabled" | "scheduled" | "open" | "full" | "closed"
+        | "disabled"
+        | "scheduled"
+        | "open"
+        | "full"
+        | "closed"
       event_registration_type: "individual" | "household" | "group"
       file_classification: "public" | "internal" | "personal" | "restricted"
       form_field_classification:
-        "normal" | "personal" | "sensitive" | "restricted"
+        | "normal"
+        | "personal"
+        | "sensitive"
+        | "restricted"
       form_field_type:
         | "text"
         | "textarea"
@@ -7562,7 +8052,10 @@ export type Database = {
       group_attendance_status: "present" | "absent" | "excused"
       group_join_policy: "open_request" | "invite_only"
       group_join_request_status:
-        "pending" | "accepted" | "rejected" | "cancelled"
+        | "pending"
+        | "accepted"
+        | "rejected"
+        | "cancelled"
       group_leader_role: "leader" | "coleader"
       group_member_status: "active" | "left" | "removed"
       group_status: "active" | "paused" | "closed"
@@ -7573,7 +8066,12 @@ export type Database = {
       kids_incident_severity: "low" | "medium" | "high"
       kids_incident_status: "open" | "resolved"
       kids_incident_type:
-        "minor" | "medical" | "behavioral" | "security" | "pickup" | "other"
+        | "minor"
+        | "medical"
+        | "behavioral"
+        | "security"
+        | "pickup"
+        | "other"
       kids_profile_status: "active" | "inactive" | "archived"
       kids_ratio_state: "safe" | "warning" | "blocked"
       kids_session_status: "scheduled" | "open" | "closed" | "cancelled"
@@ -7584,23 +8082,47 @@ export type Database = {
       path_progress_status: "pending" | "in_progress" | "completed" | "skipped"
       path_step_kind: "course" | "manual"
       person_source:
-        "manual" | "import" | "registration" | "invitation" | "integration"
+        | "manual"
+        | "import"
+        | "registration"
+        | "invitation"
+        | "integration"
       pickup_authorization_status:
-        "active" | "expired" | "revoked" | "used" | "pending"
+        | "active"
+        | "expired"
+        | "revoked"
+        | "used"
+        | "pending"
       pickup_authorization_type: "permanent" | "date_range" | "one_time"
       position_requirement_strictness: "required" | "recommended"
       position_requirement_type:
-        "qualification" | "credential" | "minimum_level"
+        | "qualification"
+        | "credential"
+        | "minimum_level"
       qualification_level: "basic" | "intermediate" | "advanced" | "expert"
       registration_source: "public" | "authenticated" | "admin"
       registration_status:
-        "pending" | "confirmed" | "waitlisted" | "cancelled" | "declined"
+        | "pending"
+        | "confirmed"
+        | "waitlisted"
+        | "cancelled"
+        | "declined"
       service_area_member_status:
-        "active" | "training" | "inactive" | "suspended"
+        | "active"
+        | "training"
+        | "inactive"
+        | "suspended"
       service_operational_level:
-        "trainee" | "assisted" | "autonomous" | "leader"
+        | "trainee"
+        | "assisted"
+        | "autonomous"
+        | "leader"
       subscription_status:
-        "trial" | "active" | "past_due" | "suspended" | "cancelled"
+        | "trial"
+        | "active"
+        | "past_due"
+        | "suspended"
+        | "cancelled"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -7643,7 +8165,8 @@ export type Tables<
 
 export type TablesInsert<
   DefaultSchemaTableNameOrOptions extends
-    keyof DefaultSchema["Tables"] | { schema: keyof DatabaseWithoutInternals },
+    | keyof DefaultSchema["Tables"]
+    | { schema: keyof DatabaseWithoutInternals },
   TableName extends (DefaultSchemaTableNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
@@ -7667,7 +8190,8 @@ export type TablesInsert<
 
 export type TablesUpdate<
   DefaultSchemaTableNameOrOptions extends
-    keyof DefaultSchema["Tables"] | { schema: keyof DatabaseWithoutInternals },
+    | keyof DefaultSchema["Tables"]
+    | { schema: keyof DatabaseWithoutInternals },
   TableName extends (DefaultSchemaTableNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
@@ -7691,7 +8215,8 @@ export type TablesUpdate<
 
 export type Enums<
   DefaultSchemaEnumNameOrOptions extends
-    keyof DefaultSchema["Enums"] | { schema: keyof DatabaseWithoutInternals },
+    | keyof DefaultSchema["Enums"]
+    | { schema: keyof DatabaseWithoutInternals },
   EnumName extends (DefaultSchemaEnumNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
@@ -7807,6 +8332,36 @@ export const Constants = {
         "suspended",
         "cancelling",
         "archived",
+      ],
+      communication_failure_kind: ["temporary", "permanent"],
+      communication_purpose: [
+        "institutional",
+        "operational",
+        "services",
+        "groups",
+        "events",
+        "discipleship",
+        "kids",
+        "pastoral",
+        "system",
+      ],
+      communication_recipient_status: [
+        "pending",
+        "queued",
+        "sent",
+        "failed",
+        "suppressed",
+        "excluded",
+      ],
+      communication_status: [
+        "draft",
+        "scheduled",
+        "processing",
+        "queued",
+        "sent",
+        "partially_sent",
+        "failed",
+        "cancelled",
       ],
       course_cohort_status: [
         "planned",
@@ -7948,3 +8503,4 @@ export const Constants = {
     },
   },
 } as const
+

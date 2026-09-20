@@ -327,9 +327,48 @@ Un menor entra y sale con trazabilidad y autorización correcta, sin exponer dat
 - preferencias/opt-out según canal y finalidad;
 - límites y prevención de abuso.
 
+Nota sobre «grupos»: la segmentación por grupo queda reservada en el modelo —el campo `group` está en la lista de reglas permitidas— pero **rechazada explícitamente en tiempo de ejecución**, no fingida.
+
+Cuando se escribió esta fase la Fase 7 no existía. Ya existe, y aun así sigue rechazada a propósito: no es cuestión de esquema, que no habría que tocar, sino de permisos. Escribir a los participantes de un grupo privado exige permiso **sobre ese grupo**, como quedó resuelto en la Fase 7 con `app.notify_group_members`; habilitarlo desde comunicaciones con solo la capacidad de comunicación abriría por detrás lo que aquella cerró por delante. Queda como decisión de producto pendiente: qué permiso manda al escribir a un grupo, el del grupo o el de comunicaciones.
+
 ### Criterio de salida
 
 Un administrador autorizado envía una comunicación a un segmento definido sin exportar manualmente listas.
+
+### Estado — 19 de septiembre de 2026
+
+**Implementada y revisada; pendiente de validación e integración.**
+
+Construida por Diogo en `feature/diogo-fase-9-comunicacion`, reconciliada por él
+con la Fase 7 y con Kids, e iterada después con categorías opcionales,
+segmentación con OR, preferencias por categoría y baja por enlace. Revisada en
+`hotfix/fase-9-comunicacion`, que corrige seis cosas:
+
+- Crear o archivar una plantilla o un segmento **fallaba siempre**: la escritura
+  directa estaba revocada y las RPC que el código daba por hechas no existían.
+- Una comunicación solo por correo se marcaba **«Enviada»** aunque no saliera
+  nada. Se añade el estado `queued`, que la interfaz muestra como «En cola, sin
+  enviar»: el transporte externo sigue desactivado (D20 y D21) y decir lo
+  contrario engaña a quien la manda.
+- El canal de la aplicación **ignoraba las preferencias** de la persona, que sí
+  se respetaban para el correo.
+- `app.resolve_segment_recipients`, que es interna, estaba concedida a
+  `authenticated`.
+- El **enlace de baja no funcionaba con sesión abierta**: la función estaba
+  concedida solo a `anon`, pero la página pública usa el cliente del usuario, así
+  que un enlace válido respondía que no lo era.
+- Diez wrappers de `public` **no tenían el `revoke` explícito**, así que `anon`
+  los alcanzaba. No era explotable —son security invoker y la función de `app`
+  que llaman sí está cerrada, de modo que una sesión anónima recibe 42501 al
+  llegar abajo—, pero el proyecto revoca siempre en las dos capas.
+
+Los arreglos van en `20261001001200`, aparte de las once migraciones de la fase
+(`20261001000100`–`20261001001100`), para no pisar el trabajo en curso.
+**Nada de esto está aplicado en producción.** Batería completa con las cinco
+fases conviviendo: 1356 aserciones en 25 suites, sin fallos.
+
+**Pendiente de decisión:** la segmentación por grupo, explicada en la nota de
+arriba.
 
 ---
 
