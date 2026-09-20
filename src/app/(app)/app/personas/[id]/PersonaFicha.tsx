@@ -24,6 +24,9 @@ type Person = {
   email: string | null;
   phone: string | null;
   birthDate: string | null;
+  // Falso cuando no hay derecho a ver el contacto: entonces email, phone y
+  // birthDate llegan en nulo aunque la persona los tenga (R-01).
+  canReadContact: boolean;
   hasAccount: boolean;
   source: string;
   createdAt: string;
@@ -214,8 +217,8 @@ function ResumenTab({ person, membership }: { person: Person; membership: Member
     <div className="shell-card" style={{ padding: 20, display: "flex", flexDirection: "column", gap: 10 }}>
       <SummaryRow label="Estado" value={membership.relationship} />
       <SummaryRow label="Sede" value={membership.campusName ?? "—"} />
-      <SummaryRow label="Correo" value={person.email ?? "—"} />
-      <SummaryRow label="Teléfono" value={person.phone ?? "—"} />
+      <SummaryRow label="Correo" value={person.canReadContact ? person.email ?? "—" : "No tienes permiso para verlo"} />
+      <SummaryRow label="Teléfono" value={person.canReadContact ? person.phone ?? "—" : "No tienes permiso para verlo"} />
       <SummaryRow label="Tiene cuenta" value={person.hasAccount ? "Sí" : "No"} />
       <SummaryRow label="Fecha de alta" value={new Date(membership.joinedAt).toLocaleDateString("es-ES")} />
       <SummaryRow label="Origen" value={{ manual: "Manual", import: "Importación", registration: "Registro", invitation: "Invitación", integration: "Integración" }[person.source] ?? person.source} />
@@ -280,17 +283,37 @@ function DatosPersonalesTab({
       <div style={rowStyle}>
         <div>
           <label style={authLabelStyle}>Correo</label>
-          <input name="email" type="email" defaultValue={person.email ?? ""} disabled={!canManage} style={authInputStyle} />
+          <input
+            name="email"
+            type="email"
+            defaultValue={person.email ?? ""}
+            disabled={!canManage || !person.canReadContact}
+            placeholder={person.canReadContact ? undefined : "No tienes permiso para verlo"}
+            style={authInputStyle}
+          />
         </div>
         <div>
           <label style={authLabelStyle}>Teléfono</label>
-          <input name="phone" type="tel" defaultValue={person.phone ?? ""} disabled={!canManage} style={authInputStyle} />
+          <input
+            name="phone"
+            type="tel"
+            defaultValue={person.phone ?? ""}
+            disabled={!canManage || !person.canReadContact}
+            placeholder={person.canReadContact ? undefined : "No tienes permiso para verlo"}
+            style={authInputStyle}
+          />
         </div>
       </div>
       <div style={rowStyle}>
         <div>
           <label style={authLabelStyle}>Fecha de nacimiento</label>
-          <input name="birthDate" type="date" defaultValue={person.birthDate ?? ""} disabled={!canManage} style={authInputStyle} />
+          <input
+            name="birthDate"
+            type="date"
+            defaultValue={person.birthDate ?? ""}
+            disabled={!canManage || !person.canReadContact}
+            style={authInputStyle}
+          />
         </div>
         <div>
           <label style={authLabelStyle}>Sede</label>

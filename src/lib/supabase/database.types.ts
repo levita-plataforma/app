@@ -7481,6 +7481,24 @@ export type Database = {
           title: string
         }[]
       }
+      people_birth_dates: {
+        Args: { p_church_id: string; p_person_ids: string[] }
+        Returns: {
+          birth_date: string
+          person_id: string
+        }[]
+      }
+      person_contact: {
+        Args: { p_church_id: string; p_person_id: string }
+        Returns: {
+          birth_date: string
+          can_read_contact: boolean
+          email: string
+          notes: string
+          person_id: string
+          phone: string
+        }[]
+      }
       preview_activity_recurrence: {
         Args: { p_church_id: string; p_input: Json }
         Returns: {
