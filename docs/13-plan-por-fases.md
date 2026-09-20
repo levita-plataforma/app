@@ -339,8 +339,9 @@ Un administrador autorizado envía una comunicación a un segmento definido sin 
 
 ### Estado — 20 de septiembre de 2026
 
-**INTEGRADA EN MAIN Y APLICADA EN PRODUCCIÓN** (merge `37945fa`, migraciones
-aplicadas el 19 de septiembre). El envío externo sigue desactivado: las
+**FASE 9: PRODUCCIÓN.** Integrada en main (merge `37945fa`), migraciones
+aplicadas el 19 de septiembre y pantallas comprobadas por Carlos en producción
+el 20 de septiembre de 2026. El envío externo sigue desactivado: las
 comunicaciones por correo se quedan en cola y no sale nada hacia nadie.
 
 Construida por Diogo en `feature/diogo-fase-9-comunicacion`, reconciliada por él
@@ -374,9 +375,8 @@ sin fallos.
 **Pendiente de decisión:** la segmentación por grupo, explicada en la nota de
 arriba.
 
-**Pendiente de comprobación en pantalla:** la integración se hizo con las
-migraciones ya aplicadas y la batería en verde, pero nadie ha recorrido todavía
-las pantallas de comunicación en producción.
+**Comprobado en pantalla** por Carlos el 20 de septiembre de 2026, que es lo
+que permite decir «producción» y no solo «integrada».
 
 ---
 
