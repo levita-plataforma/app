@@ -6224,6 +6224,95 @@ export type Database = {
         }
         Relationships: []
       }
+      platform_audit_logs: {
+        Row: {
+          action: string
+          actor_user_id: string | null
+          church_id: string | null
+          created_at: string
+          id: string
+          metadata: Json
+        }
+        Insert: {
+          action: string
+          actor_user_id?: string | null
+          church_id?: string | null
+          created_at?: string
+          id?: string
+          metadata?: Json
+        }
+        Update: {
+          action?: string
+          actor_user_id?: string | null
+          church_id?: string | null
+          created_at?: string
+          id?: string
+          metadata?: Json
+        }
+        Relationships: [
+          {
+            foreignKeyName: "platform_audit_logs_church_id_fkey"
+            columns: ["church_id"]
+            isOneToOne: false
+            referencedRelation: "churches"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      platform_capabilities: {
+        Row: {
+          created_at: string
+          description: string
+          key: string
+        }
+        Insert: {
+          created_at?: string
+          description: string
+          key: string
+        }
+        Update: {
+          created_at?: string
+          description?: string
+          key?: string
+        }
+        Relationships: []
+      }
+      platform_operator_capabilities: {
+        Row: {
+          capability_key: string
+          created_at: string
+          granted_by: string | null
+          user_id: string
+        }
+        Insert: {
+          capability_key: string
+          created_at?: string
+          granted_by?: string | null
+          user_id: string
+        }
+        Update: {
+          capability_key?: string
+          created_at?: string
+          granted_by?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "platform_operator_capabilities_capability_key_fkey"
+            columns: ["capability_key"]
+            isOneToOne: false
+            referencedRelation: "platform_capabilities"
+            referencedColumns: ["key"]
+          },
+          {
+            foreignKeyName: "platform_operator_capabilities_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "platform_operators"
+            referencedColumns: ["user_id"]
+          },
+        ]
+      }
       platform_operators: {
         Row: {
           created_at: string
@@ -8433,6 +8522,91 @@ export type Database = {
           step_order: number
           title: string
         }[]
+      }
+      platform_church_contacts: {
+        Args: { p_church_id: string }
+        Returns: {
+          email: string
+          name: string
+          person_id: string
+          role_key: string
+        }[]
+      }
+      platform_church_detail: { Args: { p_church_id: string }; Returns: Json }
+      platform_churches: {
+        Args: {
+          p_created_from?: string
+          p_limit?: number
+          p_module?: string
+          p_offset?: number
+          p_plan?: string
+          p_search?: string
+          p_status?: string
+        }
+        Returns: {
+          archived_at: string
+          campuses_count: number
+          created_at: string
+          has_owner: boolean
+          id: string
+          modules_enabled: number
+          name: string
+          onboarding_completed: boolean
+          people_count: number
+          plan_key: string
+          slug: string
+          status: string
+          subscription_status: string
+          total_count: number
+        }[]
+      }
+      platform_create_church: {
+        Args: {
+          p_country: string
+          p_currency: string
+          p_locale: string
+          p_module_keys?: string[]
+          p_name: string
+          p_owner_email: string
+          p_slug: string
+          p_timezone: string
+        }
+        Returns: {
+          out_church_id: string
+          out_invitation_id: string
+        }[]
+      }
+      platform_invite_admin: {
+        Args: { p_church_id: string; p_email: string; p_role_key?: string }
+        Returns: string
+      }
+      platform_overview: {
+        Args: never
+        Returns: {
+          altas_incompletas: number
+          iglesias_activas: number
+          iglesias_archivadas: number
+          iglesias_sin_propietario: number
+          invitaciones_caducadas: number
+          invitaciones_pendientes: number
+        }[]
+      }
+      platform_remove_admin: {
+        Args: { p_church_id: string; p_motivo?: string; p_person_id: string }
+        Returns: undefined
+      }
+      platform_revoke_invitation: {
+        Args: { p_invitation_id: string; p_motivo?: string }
+        Returns: undefined
+      }
+      platform_set_module: {
+        Args: {
+          p_church_id: string
+          p_enabled: boolean
+          p_module_key: string
+          p_motivo?: string
+        }
+        Returns: undefined
       }
       preview_activity_recurrence: {
         Args: { p_church_id: string; p_input: Json }
