@@ -188,6 +188,17 @@ Para obtener el prefijo:
 date -u +%Y%m%d%H%M%S
 ```
 
+**Con una salvedad mientras dure:** el repositorio arrastra prefijos con fechas por delante del calendario, porque se numeraron a mano y algunos apuntan a octubre. Hasta que el reloj los alcance, si la hora de ahora queda por detrás del último prefijo que ya existe, se usa el **segundo siguiente a ese último**. Una migración con número anterior al último aplicado obliga a `db push --include-all` y deja el orden de aplicación en el aire.
+
+Hay un script que hace esa cuenta y renumera una rama entera conservando su orden:
+
+```bash
+node scripts/renumerar-migraciones.mjs            # enseña qué haría
+node scripts/renumerar-migraciones.mjs --aplicar  # lo hace
+```
+
+Solo toca las migraciones de tu rama que no están en `main`: las ya integradas no se renombran nunca.
+
 **Por qué una colisión es grave y no molesta.** La CLI de Supabase indexa las migraciones por ese número, no por el nombre del fichero. Si el número ya consta como aplicado en el historial remoto, `db push` da la migración por hecha y **no ejecuta su SQL, sin dar ningún error**. El resultado es una fase a medias en producción que nadie descubre hasta que alguien abre la pantalla que falla.
 
 Las migraciones que ya existen con el formato antiguo se quedan como están: renombrar una migración aplicada rompería el historial. La regla vale para las nuevas.
