@@ -28,6 +28,7 @@ export function toDomainError(error: PostgrestLikeError, fallback: string): Doma
     case "23505":
       return new DomainError("CONFLICT", message ?? "Ya existe un elemento con esos datos.");
     case "PT409":
+    case "55P03":
       return new DomainError("CONFLICT", message ?? "Los datos han cambiado. Recarga e inténtalo de nuevo.");
     case "22023":
     case "23514":
