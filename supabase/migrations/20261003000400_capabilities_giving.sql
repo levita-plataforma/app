@@ -8,7 +8,7 @@
 -- capabilities que existían entonces — cada fase posterior concede
 -- explícitamente lo suyo a los roles que corresponda (confirmado
 -- inspeccionando 20261001000400_capabilities_comunicaciones.sql y
--- 20261002000200_capabilities_alabanza.sql: ninguna repite ese `select *
+-- 20261002000102_capabilities_alabanza.sql: ninguna repite ese `select *
 -- from capabilities`). Aquí se aplica ese mismo criterio de forma
 -- deliberadamente MÁS estricta: ni siquiera church_owner recibe las
 -- capabilities de detalle financiero por defecto.

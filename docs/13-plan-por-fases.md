@@ -459,6 +459,22 @@ visual. Están escritos en el documento de la fase, no descubiertos más tarde.
 
 Alabanza funciona dentro de la misma iglesia y experiencia, sin doble programación ni pérdida de datos acordados.
 
+### Estado — 20 de septiembre de 2026
+
+**Parte de Diogo: IMPLEMENTADA** en `feature/diogo-fase-11-alabanza-contenido`, pendiente de validación
+de Carlos e integración en `main`. Cubre contenido nativo — canciones, tonalidades, repertorios, atril
+y archivos (vía `files` del núcleo) — sin ninguna dependencia de Calserv como fuente de datos o schema:
+corrección de alcance confirmada el 20 de septiembre de 2026, ver
+[CONTRATO-FASE-11-DIOGO.md](CONTRATO-FASE-11-DIOGO.md) y
+[FASE-11-ALABANZA-DIOGO.md](FASE-11-ALABANZA-DIOGO.md). Migraciones `20261002000101` a
+`20261002000106` (renumeradas tras integrar F9/R-01 en `main`, que ya ocupaban `20261002000100`).
+Batería completa del repositorio: 1408 aserciones en verde, sin drift de esquema.
+
+**Parte de Carlos** (identidad, actividades, programación, permisos finales, coordinación con
+Sonido/Multimedia, migración/compatibilidad, rollback de corte) **no iniciada**. La Fase 11 requiere
+cierre conjunto (`docs/REPARTO-CARLOS-DIOGO.md` §3/§4) — no se declara completada por el trabajo de una
+sola parte.
+
 ---
 
 ## Fase 12 · Pastoral, Giving y módulos avanzados
