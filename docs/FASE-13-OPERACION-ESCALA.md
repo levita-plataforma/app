@@ -88,6 +88,29 @@ distingue lo reintentable —bloqueos, interbloqueos— de lo que no se va a arr
 forma de devolver la comunicación a borrador para corregirla. No se descarta nada en
 silencio.
 
+**La primera versión de este arreglo estaba a medias, y la encontré al escribir el
+runbook.** Iba a documentar «ejecuta `app.reset_failed_communication` desde el panel de
+Supabase» y fui a comprobarlo antes de escribirlo: la función resuelve la iglesia por la
+sesión y exige `communications.schedule`, así que sin sesión responde «La comunicación no
+existe». Y no había ninguna interfaz que la llamara. Es decir: había construido el estado
+nuevo y la función de recuperación, pero una comunicación marcada se quedaba ahí para
+siempre.
+
+Peor: `COMMUNICATION_STATUSES` está escrita a mano en el servicio, así que añadir el valor
+al enum de la base no rompió la compilación. La ficha habría pintado `undefined` como
+etiqueta de estado, y el listado también.
+
+Cerrado del todo:
+
+- El estado está en el tipo, con su etiqueta en la ficha y en el listado.
+- El listado pasa de `Record<string, string>` a `Record<CommunicationStatus, string>`, para
+  que el próximo estado nuevo rompa la compilación en vez de pintar `undefined`.
+- La ficha muestra el motivo del fallo y un botón para devolverla a borrador.
+- Los tipos de la base estaban sin regenerar desde `20261004000412`; regenerados.
+- `npm run test:jobs` §5 comprueba que quien tiene permiso la recupera, que vuelve a
+  `draft` con el motivo limpio, y que **sin sesión no se puede**: eso último es lo que
+  impide saltarse el permiso y la auditoría tocando la base a mano.
+
 ### 2.5 Ocho índices duplicaban exactamente a otro
 
 Una restricción `unique` crea su propio índice. En ocho sitios se había declarado
@@ -204,10 +227,13 @@ acordarse (§8).
 
 ## 5. Lo que queda ejecutable
 
+Además, [RUNBOOK-OPERACION.md](RUNBOOK-OPERACION.md) recoge qué hacer cuando algo falla en
+producción, con los procedimientos comprobados contra el código real.
+
 | Comando | Qué comprueba |
 |---|---|
 | `supabase test db` | Toda la batería, con `invariantes_aislamiento_test.sql` dentro |
-| `npm run test:jobs` | Idempotencia, concurrencia, caída del proceso y cola atascada |
+| `npm run test:jobs` | Idempotencia, concurrencia, caída del proceso, cola atascada y recuperación |
 | `npm run test:tokens` | Ciclo de vida de las invitaciones |
 | `npm run test:concurrencia` | Doble reserva de recursos (Fase 10) |
 | `npm run test:rendimiento` | Que ningún recorrido del directorio recorra las tablas enteras |

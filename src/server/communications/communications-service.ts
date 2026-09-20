@@ -62,6 +62,9 @@ export const COMMUNICATION_STATUSES = [
   "sent",
   "partially_sent",
   "failed",
+  // Fase 13: no se pudieron calcular los destinatarios. La comunicación sale
+  // de la cola en vez de detenerla, y se recupera con resetFailedCommunication.
+  "failed_to_process",
   "cancelled",
 ] as const;
 export type CommunicationStatus = (typeof COMMUNICATION_STATUSES)[number];
@@ -439,6 +442,8 @@ export type CommunicationDetail = {
   scheduledAt: string | null;
   materializedAt: string | null;
   sentAt: string | null;
+  /** Por qué no se pudieron calcular los destinatarios. Solo con estado failed_to_process. */
+  processingError: string | null;
   createdByPersonId: string | null;
   createdAt: string;
 };
@@ -457,6 +462,7 @@ type CommunicationDetailRow = {
   scheduled_at: string | null;
   materialized_at: string | null;
   sent_at: string | null;
+  processing_error: string | null;
   created_by_person_id: string | null;
   created_at: string;
 };
@@ -476,6 +482,7 @@ function mapCommunicationDetail(row: CommunicationDetailRow): CommunicationDetai
     scheduledAt: row.scheduled_at,
     materializedAt: row.materialized_at,
     sentAt: row.sent_at,
+    processingError: row.processing_error,
     createdByPersonId: row.created_by_person_id,
     createdAt: row.created_at,
   };
@@ -487,7 +494,7 @@ export async function getCommunication(churchId: string, communicationId: string
   const { data, error } = await supabase
     .from("communications")
     .select(
-      "id, church_id, title, purpose, status, subject, body_template, channels, segment_id, segment_rules_snapshot, scheduled_at, materialized_at, sent_at, created_by_person_id, created_at",
+      "id, church_id, title, purpose, status, subject, body_template, channels, segment_id, segment_rules_snapshot, scheduled_at, materialized_at, sent_at, processing_error, created_by_person_id, created_at",
     )
     .eq("church_id", churchId)
     .eq("id", communicationId)
@@ -564,6 +571,20 @@ export async function cancelCommunication(communicationId: string): Promise<void
   const supabase = await createSupabaseServerClient();
   const { error } = await supabase.rpc("cancel_communication", { p_communication_id: communicationId });
   if (error) throw toDomainError(error, "No se pudo cancelar la comunicación.");
+}
+
+/**
+ * Devuelve a borrador una comunicación que quedó en failed_to_process
+ * (app.reset_failed_communication, requiere communications.schedule).
+ *
+ * El motivo del fallo está en `processingError`: casi siempre una regla de
+ * segmentación que apunta a un campo que ya no existe. Volver a programarla sin
+ * corregir la segmentación la devuelve al mismo estado.
+ */
+export async function resetFailedCommunication(communicationId: string): Promise<void> {
+  const supabase = await createSupabaseServerClient();
+  const { error } = await supabase.rpc("reset_failed_communication", { p_communication_id: communicationId });
+  if (error) throw toDomainError(error, "No se pudo devolver la comunicación a borrador.");
 }
 
 export type UpdateCommunicationInput = {

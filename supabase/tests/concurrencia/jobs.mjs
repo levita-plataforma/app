@@ -169,6 +169,41 @@ comprobar(Boolean(motivo[0].processing_error), "y guarda por qué no se pudo pre
 const { rows: siguen } = await c.query(`select id from app.due_scheduled_communications(10)`);
 comprobar(siguen.length === 0, `la cola queda limpia (${siguen.length} pendientes)`);
 
+console.log("\n--- 5. La comunicación marcada se puede recuperar ---");
+// Marcarla sin poder recuperarla dejaría un callejón sin salida. La función
+// exige sesión y capacidad a propósito —es una acción del tenant, con su
+// registro en auditoría—, así que aquí se prueba como la llama la aplicación.
+await c.query(
+  `select set_config('request.jwt.claims', json_build_object('sub',$1::text,'role','authenticated')::text, false),
+          set_config('role','authenticated', false)`,
+  [owner],
+);
+let recuperada = false;
+let errorRecuperar = null;
+try {
+  await c.query(`select app.reset_failed_communication($1)`, [rota]);
+  recuperada = true;
+} catch (e) {
+  errorRecuperar = `${e.code}: ${e.message.slice(0, 60)}`;
+}
+await c.query("reset role");
+
+comprobar(recuperada, `quien puede programar la devuelve a borrador${errorRecuperar ? ` (${errorRecuperar})` : ""}`);
+comprobar((await estado(rota)) === "draft", `vuelve a draft (${await estado(rota)})`);
+const { rows: limpio } = await c.query(`select processing_error from communications where id=$1`, [rota]);
+comprobar(limpio[0].processing_error === null, "y se limpia el motivo del fallo");
+
+// Sin sesión no se puede: es lo que impide «arreglarlo» desde el panel de la
+// base saltándose la comprobación de permiso y el registro de auditoría.
+let sinSesion = false;
+try {
+  await c.query(`select app.reset_failed_communication($1)`, [buena]);
+  sinSesion = true;
+} catch {
+  // Se espera que falle.
+}
+comprobar(!sinSesion, "sin sesión de usuario no se puede recuperar nada");
+
 await c.end();
 console.log(fallos === 0
   ? "\nLos procesos periódicos aguantan repetición, concurrencia, caída y datos corruptos."
