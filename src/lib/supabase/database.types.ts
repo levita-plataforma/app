@@ -7697,6 +7697,224 @@ export type Database = {
           },
         ]
       }
+      worship_repertoire_songs: {
+        Row: {
+          church_id: string
+          created_at: string
+          id: string
+          position: number
+          repertoire_id: string
+          selected_key_mode:
+            | Database["public"]["Enums"]["worship_key_mode"]
+            | null
+          selected_key_root:
+            | Database["public"]["Enums"]["worship_key_root"]
+            | null
+          song_id: string
+        }
+        Insert: {
+          church_id: string
+          created_at?: string
+          id?: string
+          position: number
+          repertoire_id: string
+          selected_key_mode?:
+            | Database["public"]["Enums"]["worship_key_mode"]
+            | null
+          selected_key_root?:
+            | Database["public"]["Enums"]["worship_key_root"]
+            | null
+          song_id: string
+        }
+        Update: {
+          church_id?: string
+          created_at?: string
+          id?: string
+          position?: number
+          repertoire_id?: string
+          selected_key_mode?:
+            | Database["public"]["Enums"]["worship_key_mode"]
+            | null
+          selected_key_root?:
+            | Database["public"]["Enums"]["worship_key_root"]
+            | null
+          song_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "worship_repertoire_songs_church_id_fkey"
+            columns: ["church_id"]
+            isOneToOne: false
+            referencedRelation: "churches"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "worship_repertoire_songs_repertoire_id_church_id_fkey"
+            columns: ["repertoire_id", "church_id"]
+            isOneToOne: false
+            referencedRelation: "worship_repertoires"
+            referencedColumns: ["id", "church_id"]
+          },
+          {
+            foreignKeyName: "worship_repertoire_songs_song_id_church_id_fkey"
+            columns: ["song_id", "church_id"]
+            isOneToOne: false
+            referencedRelation: "worship_songs"
+            referencedColumns: ["id", "church_id"]
+          },
+        ]
+      }
+      worship_repertoires: {
+        Row: {
+          archived_at: string | null
+          church_id: string
+          created_at: string
+          created_by_person_id: string | null
+          description: string | null
+          id: string
+          name: string
+          status: Database["public"]["Enums"]["worship_song_status"]
+          updated_at: string
+          updated_by_person_id: string | null
+        }
+        Insert: {
+          archived_at?: string | null
+          church_id: string
+          created_at?: string
+          created_by_person_id?: string | null
+          description?: string | null
+          id?: string
+          name: string
+          status?: Database["public"]["Enums"]["worship_song_status"]
+          updated_at?: string
+          updated_by_person_id?: string | null
+        }
+        Update: {
+          archived_at?: string | null
+          church_id?: string
+          created_at?: string
+          created_by_person_id?: string | null
+          description?: string | null
+          id?: string
+          name?: string
+          status?: Database["public"]["Enums"]["worship_song_status"]
+          updated_at?: string
+          updated_by_person_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "worship_repertoires_church_id_fkey"
+            columns: ["church_id"]
+            isOneToOne: false
+            referencedRelation: "churches"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      worship_songs: {
+        Row: {
+          archived_at: string | null
+          author: string | null
+          bpm: number | null
+          chords: string | null
+          church_id: string
+          created_at: string
+          created_by_person_id: string | null
+          default_key_mode:
+            | Database["public"]["Enums"]["worship_key_mode"]
+            | null
+          default_key_root:
+            | Database["public"]["Enums"]["worship_key_root"]
+            | null
+          id: string
+          language: string | null
+          lyrics: string | null
+          notes: string | null
+          original_key_mode:
+            | Database["public"]["Enums"]["worship_key_mode"]
+            | null
+          original_key_root:
+            | Database["public"]["Enums"]["worship_key_root"]
+            | null
+          status: Database["public"]["Enums"]["worship_song_status"]
+          subtitle: string | null
+          time_signature: string | null
+          title: string
+          updated_at: string
+          updated_by_person_id: string | null
+        }
+        Insert: {
+          archived_at?: string | null
+          author?: string | null
+          bpm?: number | null
+          chords?: string | null
+          church_id: string
+          created_at?: string
+          created_by_person_id?: string | null
+          default_key_mode?:
+            | Database["public"]["Enums"]["worship_key_mode"]
+            | null
+          default_key_root?:
+            | Database["public"]["Enums"]["worship_key_root"]
+            | null
+          id?: string
+          language?: string | null
+          lyrics?: string | null
+          notes?: string | null
+          original_key_mode?:
+            | Database["public"]["Enums"]["worship_key_mode"]
+            | null
+          original_key_root?:
+            | Database["public"]["Enums"]["worship_key_root"]
+            | null
+          status?: Database["public"]["Enums"]["worship_song_status"]
+          subtitle?: string | null
+          time_signature?: string | null
+          title: string
+          updated_at?: string
+          updated_by_person_id?: string | null
+        }
+        Update: {
+          archived_at?: string | null
+          author?: string | null
+          bpm?: number | null
+          chords?: string | null
+          church_id?: string
+          created_at?: string
+          created_by_person_id?: string | null
+          default_key_mode?:
+            | Database["public"]["Enums"]["worship_key_mode"]
+            | null
+          default_key_root?:
+            | Database["public"]["Enums"]["worship_key_root"]
+            | null
+          id?: string
+          language?: string | null
+          lyrics?: string | null
+          notes?: string | null
+          original_key_mode?:
+            | Database["public"]["Enums"]["worship_key_mode"]
+            | null
+          original_key_root?:
+            | Database["public"]["Enums"]["worship_key_root"]
+            | null
+          status?: Database["public"]["Enums"]["worship_song_status"]
+          subtitle?: string | null
+          time_signature?: string | null
+          title?: string
+          updated_at?: string
+          updated_by_person_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "worship_songs_church_id_fkey"
+            columns: ["church_id"]
+            isOneToOne: false
+            referencedRelation: "churches"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       [_ in never]: never
@@ -7844,6 +8062,16 @@ export type Database = {
         Args: { p_group_id: string; p_input?: Json; p_person_id: string }
         Returns: string
       }
+      add_worship_repertoire_song: {
+        Args: {
+          p_church_id: string
+          p_repertoire_id: string
+          p_selected_key_mode?: Database["public"]["Enums"]["worship_key_mode"]
+          p_selected_key_root?: Database["public"]["Enums"]["worship_key_root"]
+          p_song_id: string
+        }
+        Returns: string
+      }
       admin_cancel_registration: {
         Args: { p_reason?: string; p_registration_id: string }
         Returns: {
@@ -7875,6 +8103,14 @@ export type Database = {
         Returns: undefined
       }
       archive_resource: { Args: { p_resource_id: string }; Returns: undefined }
+      archive_worship_repertoire: {
+        Args: { p_church_id: string; p_repertoire_id: string }
+        Returns: undefined
+      }
+      archive_worship_song: {
+        Args: { p_church_id: string; p_song_id: string }
+        Returns: undefined
+      }
       assisted_provision_church: {
         Args: {
           p_country: string
@@ -7891,6 +8127,18 @@ export type Database = {
           invitation_id: string
           invitation_token: string
         }[]
+      }
+      attach_worship_song_file: {
+        Args: {
+          p_bucket: string
+          p_checksum?: string
+          p_church_id: string
+          p_mime_type?: string
+          p_object_path: string
+          p_size_bytes?: number
+          p_song_id: string
+        }
+        Returns: string
       }
       cancel_activity_assignment: {
         Args: { p_assignment_id: string; p_expected_version?: number }
@@ -8113,6 +8361,29 @@ export type Database = {
         Args: { p_church_id: string; p_input: Json }
         Returns: string
       }
+      create_worship_repertoire: {
+        Args: { p_church_id: string; p_description?: string; p_name: string }
+        Returns: string
+      }
+      create_worship_song: {
+        Args: {
+          p_author?: string
+          p_bpm?: number
+          p_chords?: string
+          p_church_id: string
+          p_default_key_mode?: Database["public"]["Enums"]["worship_key_mode"]
+          p_default_key_root?: Database["public"]["Enums"]["worship_key_root"]
+          p_language?: string
+          p_lyrics?: string
+          p_notes?: string
+          p_original_key_mode?: Database["public"]["Enums"]["worship_key_mode"]
+          p_original_key_root?: Database["public"]["Enums"]["worship_key_root"]
+          p_subtitle?: string
+          p_time_signature?: string
+          p_title: string
+        }
+        Returns: string
+      }
       cron_materialize_communication: {
         Args: { p_communication_id: string }
         Returns: Json
@@ -8124,6 +8395,10 @@ export type Database = {
       delete_my_unavailability_period: { Args: { p_id: string }; Returns: Json }
       delete_my_weekly_unavailability: { Args: { p_id: string }; Returns: Json }
       delete_resource: { Args: { p_resource_id: string }; Returns: undefined }
+      detach_worship_song_file: {
+        Args: { p_church_id: string; p_file_id: string }
+        Returns: undefined
+      }
       discipleship_metrics: { Args: { p_church_id: string }; Returns: Json }
       drop_cohort_enrollment: {
         Args: { p_enrollment_id: string; p_reason?: string }
@@ -8634,6 +8909,10 @@ export type Database = {
         Args: { p_group_id: string; p_input?: Json; p_person_id: string }
         Returns: undefined
       }
+      remove_worship_repertoire_song: {
+        Args: { p_church_id: string; p_repertoire_song_id: string }
+        Returns: undefined
+      }
       reorder_activity_plan_items: {
         Args: { p_activity_id: string; p_item_ids: string[] }
         Returns: undefined
@@ -8641,6 +8920,14 @@ export type Database = {
       reorder_path_steps: {
         Args: { p_learning_path_id: string; p_step_ids: string[] }
         Returns: number
+      }
+      reorder_worship_repertoire_songs: {
+        Args: {
+          p_church_id: string
+          p_ordered_ids: string[]
+          p_repertoire_id: string
+        }
+        Returns: undefined
       }
       request_assignment_substitution: {
         Args: { p_assignment_id: string }
@@ -8831,6 +9118,15 @@ export type Database = {
         }
         Returns: string
       }
+      set_worship_repertoire_song_key: {
+        Args: {
+          p_church_id: string
+          p_repertoire_song_id: string
+          p_selected_key_mode: Database["public"]["Enums"]["worship_key_mode"]
+          p_selected_key_root: Database["public"]["Enums"]["worship_key_root"]
+        }
+        Returns: undefined
+      }
       show_limit: { Args: never; Returns: number }
       show_trgm: { Args: { "": string }; Returns: string[] }
       slug_available: { Args: { p_slug: string }; Returns: boolean }
@@ -8949,6 +9245,35 @@ export type Database = {
       }
       update_reservation: {
         Args: { p_input: Json; p_reservation_id: string }
+        Returns: undefined
+      }
+      update_worship_repertoire: {
+        Args: {
+          p_church_id: string
+          p_description?: string
+          p_name: string
+          p_repertoire_id: string
+        }
+        Returns: undefined
+      }
+      update_worship_song: {
+        Args: {
+          p_author?: string
+          p_bpm?: number
+          p_chords?: string
+          p_church_id: string
+          p_default_key_mode?: Database["public"]["Enums"]["worship_key_mode"]
+          p_default_key_root?: Database["public"]["Enums"]["worship_key_root"]
+          p_language?: string
+          p_lyrics?: string
+          p_notes?: string
+          p_original_key_mode?: Database["public"]["Enums"]["worship_key_mode"]
+          p_original_key_root?: Database["public"]["Enums"]["worship_key_root"]
+          p_song_id: string
+          p_subtitle?: string
+          p_time_signature?: string
+          p_title: string
+        }
         Returns: undefined
       }
       write_audit_log: {
@@ -9217,6 +9542,21 @@ export type Database = {
         | "past_due"
         | "suspended"
         | "cancelled"
+      worship_key_mode: "major" | "minor"
+      worship_key_root:
+        | "C"
+        | "C#"
+        | "D"
+        | "Eb"
+        | "E"
+        | "F"
+        | "F#"
+        | "G"
+        | "Ab"
+        | "A"
+        | "Bb"
+        | "B"
+      worship_song_status: "active" | "archived"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -9624,6 +9964,22 @@ export const Constants = {
         "suspended",
         "cancelled",
       ],
+      worship_key_mode: ["major", "minor"],
+      worship_key_root: [
+        "C",
+        "C#",
+        "D",
+        "Eb",
+        "E",
+        "F",
+        "F#",
+        "G",
+        "Ab",
+        "A",
+        "Bb",
+        "B",
+      ],
+      worship_song_status: ["active", "archived"],
     },
   },
 } as const

@@ -408,10 +408,12 @@ Una actividad reserva recursos sin dobles reservas y deja trazabilidad.
 
 ### Estado — 20 de septiembre de 2026
 
-**Implementada; pendiente de validación de Carlos.** No integrada ni aplicada en producción.
+**Integrada y aplicada en producción** (merge `fa6704c`), pendiente de comprobar en
+pantalla.
 
-Rama `feature/carlos-fase-10-recursos-instalaciones`, diez migraciones
-(`20261004000400`–`20261004000409`). El detalle está en
+Diez migraciones (`20261004000400`–`20261004000409`). Nacieron con prefijo `20261003*` y se
+renumeraron al integrarse la Fase 12 de donaciones, que ocupaba esos mismos números: el
+caso real que motivó la regla nueva de numeración (FUNCIONAMIENTO.md §8). El detalle está en
 [FASE-10-RECURSOS-INSTALACIONES.md](FASE-10-RECURSOS-INSTALACIONES.md) y lo acordado en
 [CONTRATO-FASE-10.md](CONTRATO-FASE-10.md).
 
@@ -456,6 +458,22 @@ visual. Están escritos en el documento de la fase, no descubiertos más tarde.
 ### Criterio de salida
 
 Alabanza funciona dentro de la misma iglesia y experiencia, sin doble programación ni pérdida de datos acordados.
+
+### Estado — 20 de septiembre de 2026
+
+**Parte de Diogo: IMPLEMENTADA** en `feature/diogo-fase-11-alabanza-contenido`, pendiente de validación
+de Carlos e integración en `main`. Cubre contenido nativo — canciones, tonalidades, repertorios, atril
+y archivos (vía `files` del núcleo) — sin ninguna dependencia de Calserv como fuente de datos o schema:
+corrección de alcance confirmada el 20 de septiembre de 2026, ver
+[CONTRATO-FASE-11-DIOGO.md](CONTRATO-FASE-11-DIOGO.md) y
+[FASE-11-ALABANZA-DIOGO.md](FASE-11-ALABANZA-DIOGO.md). Migraciones `20261002000101` a
+`20261002000106` (renumeradas tras integrar F9/R-01 en `main`, que ya ocupaban `20261002000100`).
+Batería completa del repositorio: 1408 aserciones en verde, sin drift de esquema.
+
+**Parte de Carlos** (identidad, actividades, programación, permisos finales, coordinación con
+Sonido/Multimedia, migración/compatibilidad, rollback de corte) **no iniciada**. La Fase 11 requiere
+cierre conjunto (`docs/REPARTO-CARLOS-DIOGO.md` §3/§4) — no se declara completada por el trabajo de una
+sola parte.
 
 ---
 

@@ -1,12 +1,12 @@
 # Contrato de la Fase 11 (parte de Diogo) · Alabanza: contenido nativo en LEVITA
 
-Estado: **propuesta para revisión — no implementada**. Ningún código, migración, tabla, componente,
-ruta, RPC o cambio de permisos de esta fase existe todavía. Sigue el mismo criterio que
+Estado: **IMPLEMENTADA en `feature/diogo-fase-11-alabanza-contenido`, pendiente de validación de
+Carlos y de integración en `main`.** Ver [FASE-11-ALABANZA-DIOGO.md](FASE-11-ALABANZA-DIOGO.md) para
+el detalle de implementación real frente a este contrato. Sigue el mismo criterio que
 [CONTRATO-FASE-7.md](CONTRATO-FASE-7.md) y [CONTRATO-FASE-10.md](CONTRATO-FASE-10.md): lo que no está
 aquí, o sobra o falta el acuerdo.
 
-Punto de partida real: `main` en `d498adc`. Ninguna migración de Fase 11 existe todavía; el próximo
-prefijo libre es posterior a `20261001001200`.
+Punto de partida real: `main` en `d498adc`. Migraciones `20261002000100` a `20261002000106`.
 
 ## Corrección de alcance (20 de septiembre de 2026)
 

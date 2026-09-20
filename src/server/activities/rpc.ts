@@ -34,6 +34,7 @@ export function toDomainError(error: PostgrestLikeError, fallback: string): Doma
       // sustituida por un texto genérico y un registro de error inesperado.
       return new DomainError("CONFLICT", message ?? "Ese horario ya está ocupado.");
     case "PT409":
+    case "55P03":
       return new DomainError("CONFLICT", message ?? "Los datos han cambiado. Recarga e inténtalo de nuevo.");
     case "22023":
     case "23514":
