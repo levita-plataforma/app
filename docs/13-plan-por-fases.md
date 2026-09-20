@@ -254,6 +254,8 @@ El coordinador asigna personas a una actividad publicada con varias áreas y el 
 
 Nota (16 de septiembre de 2026): el calendario operativo de actividades de la Fase 4 no cubre formularios públicos, inscripciones, aforo ni entradas; la visibilidad `public_future` no concede acceso anónimo. Todo ello sigue en esta fase.
 
+Nota (20 de septiembre de 2026): los límites de la inscripción pública suben a **200 altas por evento cada 10 minutos** y **10 por correo y hora** (`20260930000400`). Los anteriores —50 y 5— rechazaban a gente real en una apertura de inscripciones anunciada a la vez, que es justo cuando todo el mundo entra de golpe, y no añadían protección: la defensa la sostiene el límite por correo, porque agotar el de evento exige 200 buzones válidos en diez minutos.
+
 ### Criterio de salida
 
 La iglesia publica un evento, recibe inscripciones mediante formulario y gestiona asistentes dentro del mismo tenant.
@@ -335,9 +337,11 @@ Cuando se escribió esta fase la Fase 7 no existía. Ya existe, y aun así sigue
 
 Un administrador autorizado envía una comunicación a un segmento definido sin exportar manualmente listas.
 
-### Estado — 19 de septiembre de 2026
+### Estado — 20 de septiembre de 2026
 
-**Implementada y revisada; pendiente de validación e integración.**
+**INTEGRADA EN MAIN Y APLICADA EN PRODUCCIÓN** (merge `37945fa`, migraciones
+aplicadas el 19 de septiembre). El envío externo sigue desactivado: las
+comunicaciones por correo se quedan en cola y no sale nada hacia nadie.
 
 Construida por Diogo en `feature/diogo-fase-9-comunicacion`, reconciliada por él
 con la Fase 7 y con Kids, e iterada después con categorías opcionales,
@@ -364,11 +368,15 @@ segmentación con OR, preferencias por categoría y baja por enlace. Revisada en
 
 Los arreglos van en `20261001001200`, aparte de las once migraciones de la fase
 (`20261001000100`–`20261001001100`), para no pisar el trabajo en curso.
-**Nada de esto está aplicado en producción.** Batería completa con las cinco
-fases conviviendo: 1356 aserciones en 25 suites, sin fallos.
+Batería completa con las cinco fases conviviendo: 1360 aserciones en 26 suites,
+sin fallos.
 
 **Pendiente de decisión:** la segmentación por grupo, explicada en la nota de
 arriba.
+
+**Pendiente de comprobación en pantalla:** la integración se hizo con las
+migraciones ya aplicadas y la batería en verde, pero nadie ha recorrido todavía
+las pantallas de comunicación en producción.
 
 ---
 
