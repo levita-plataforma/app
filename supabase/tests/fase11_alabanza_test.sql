@@ -379,8 +379,12 @@ reset role;
 -- 12. Capability ausente: persona sin worship.song.manage
 -- ============================================================
 insert into auth.users (id, email) values ('b1100000-0000-0000-0000-000000000003', 'miembro.a.f11@example.test');
-select test_set_auth_uid('b1100000-0000-0000-0000-000000000001');
 
+-- El montaje va sin rol de usuario: crear una persona con el user_id de otra
+-- cuenta dejó de estar permitido en 20261004000410. Antes se podía porque la
+-- política de alta no comprobaba nada, y esta suite lo usaba como atajo; no era
+-- un caso de uso del producto, era preparar datos. Se prepara como tal.
+reset role;
 select t_set('person_member', gen_random_uuid()::text);
 insert into people (id, first_name, last_name, user_id) values (t_id('person_member'), 'Miembro', 'Sin permiso', 'b1100000-0000-0000-0000-000000000003');
 insert into church_people (church_id, person_id, relationship) values (t_id('church_a'), t_id('person_member'), 'member');
