@@ -36,6 +36,7 @@ documentación, y cada comprobación es repetible.
 | Backups y restauración | Sin verificar | §7 | **Bloqueado** |
 | Alertas | Sin proveedor | §7 | **Bloqueado** |
 | Piloto con dos iglesias | Sin autorización | §7 | **Bloqueado** |
+| Índices duplicados | Ocho, en siete fases distintas | Corregido en `20261004000414`; invariantes §10 | **Corregido** |
 | Rendimiento con volumen | Cinco recorridos del directorio entre 96 y 179 ms | Corregido en `20261004000413`; `npm run test:rendimiento`; §4 | **Medido** |
 
 ---
@@ -86,6 +87,27 @@ Corregido con tres piezas: un estado `failed_to_process` con su motivo, una func
 distingue lo reintentable —bloqueos, interbloqueos— de lo que no se va a arreglar solo, y una
 forma de devolver la comunicación a borrador para corregirla. No se descarta nada en
 silencio.
+
+### 2.5 Ocho índices duplicaban exactamente a otro
+
+Una restricción `unique` crea su propio índice. En ocho sitios se había declarado
+además un índice normal sobre las mismas columnas, así que quedaban dos estructuras
+idénticas: las dos se mantienen en cada escritura, las dos ocupan espacio y el
+planificador solo puede usar una.
+
+Estaban repartidos por siete fases sin relación entre ellas —`churches`, `people`,
+`subscriptions`, `church_onboarding`, `events`, `registrations`, `kids_profiles` y
+`worship_repertoire_songs`—, lo que dice que es un descuido fácil de cometer: quien
+escribe el índice piensa en la consulta y quien escribe la restricción piensa en la
+integridad, y nadie ve que la segunda ya trae el primero.
+
+**Uno era mío**: en `20261004000411` añadí `support_sessions_id_church_unique` sin ver
+que `support_sessions_id_unique` ya cubría `(id, church_id)` desde la Fase 1 —el nombre
+no lo deja ver—. Retirado de esa migración.
+
+Retirados en `20261004000414`, con un invariante nuevo para que la novena vez falle en
+CI. Comprobé que el invariante detecta un duplicado real y que no marca un índice
+parcial sobre la misma columna, que no es lo mismo y sí tiene sentido.
 
 ---
 
@@ -190,7 +212,7 @@ acordarse (§8).
 | `npm run test:concurrencia` | Doble reserva de recursos (Fase 10) |
 | `npm run test:rendimiento` | Que ningún recorrido del directorio recorra las tablas enteras |
 
-`invariantes_aislamiento_test.sql` es lo que convierte esta auditoría en algo que no caduca:
+`invariantes_aislamiento_test.sql` (10 aserciones) es lo que convierte esta auditoría en algo que no caduca:
 si alguien añade una tabla sin RLS, una función definer sin `search_path` o una política
 `with check (true)`, falla en CI en vez de esperar a la siguiente revisión.
 

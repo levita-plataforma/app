@@ -69,8 +69,10 @@ alter default privileges in schema public revoke insert, update, delete, truncat
 alter table position_requirements
   add constraint position_requirements_id_church_unique unique (id, church_id);
 
-alter table support_sessions
-  add constraint support_sessions_id_church_unique unique (id, church_id);
+-- support_sessions no lo necesita: ya tiene support_sessions_id_unique sobre
+-- (id, church_id) desde 20260916001000. El nombre no lo deja ver —suena a que
+-- fuera solo sobre id— pero es la restricción compuesta que hace falta, y
+-- añadir otra igual dejaría dos índices idénticos que mantener.
 
 alter table activity_position_requirements
   drop constraint activity_position_requirements_source_requirement_id_fkey;

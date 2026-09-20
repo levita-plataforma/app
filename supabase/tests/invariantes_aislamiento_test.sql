@@ -13,7 +13,7 @@
 -- que aparece en ellas es una decisión que alguien tuvo que justificar.
 
 begin;
-select plan(9);
+select plan(10);
 
 -- 1. Toda tabla con church_id tiene RLS habilitada Y forzada ------------------
 -- Sin FORCE, el propietario de la tabla se salta las políticas, y en Supabase
@@ -175,6 +175,43 @@ select is(
      and g.table_name not like '\_\_%'),
   array[]::text[],
   'Una sesión anónima no puede escribir en ninguna tabla del proyecto'
+);
+
+-- 10. Ningún índice duplica a otro idéntico ------------------------------------
+--
+-- Una restricción unique crea su propio índice. Declarar además uno normal
+-- sobre las mismas columnas deja dos estructuras iguales que se mantienen en
+-- cada escritura y de las que el planificador solo puede usar una.
+--
+-- Había ocho, repartidos por siete fases sin relación entre ellas (retirados en
+-- 20261004000414). Que ocurriera tantas veces es lo que justifica vigilarlo:
+-- quien escribe el índice piensa en la consulta y quien escribe la restricción
+-- piensa en la integridad, y nadie ve que la segunda ya trae el primero.
+--
+-- Se agrupa por tabla, columnas, expresión, predicado y familia de operadores:
+-- dos índices caen en el mismo grupo solo si son intercambiables de verdad. Un
+-- índice parcial y uno completo sobre la misma columna no lo son, y no se
+-- señalan.
+
+select is(
+  (select coalesce(array_agg(d.descripcion order by d.descripcion), array[]::text[])
+   from (
+     select t.relname || ': ' || string_agg(c.relname, ' + ' order by c.relname) as descripcion
+     from pg_index i
+     join pg_class c on c.oid = i.indexrelid
+     join pg_class t on t.oid = i.indrelid
+     join pg_namespace n on n.oid = t.relnamespace and n.nspname = 'public'
+     where t.relname not like 'tap%' and t.relname not like '\_\_%'
+     group by t.relname,
+              i.indrelid,
+              i.indkey::text,
+              pg_get_expr(i.indexprs, i.indrelid),
+              pg_get_expr(i.indpred, i.indrelid),
+              i.indclass::text
+     having count(*) > 1
+   ) d),
+  array[]::text[],
+  'Ningún índice duplica exactamente a otro'
 );
 
 select * from finish();
