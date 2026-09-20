@@ -57,5 +57,6 @@ Comprobado: las pantallas de comunicación de la Fase 9, por Carlos, en
 producción. Batería completa en verde con todo integrado: 1371 aserciones en 27
 suites.
 
-Sin comprobar todavía: el recorrido CO-03, que cierra la Fase 5, y la ficha de
-persona con el cambio de R-01 —parte F del guión—.
+El recorrido CO-03 se hizo el mismo día, sin fallos en ninguna de sus seis
+partes, incluida la ficha de persona con el cambio de R-01. Con eso quedó
+cerrada la Fase 5, que estaba parcial desde el 18 de septiembre.
