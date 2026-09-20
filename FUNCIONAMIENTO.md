@@ -3,22 +3,19 @@
 Fecha de revisión: 19 de septiembre de 2026. Código de referencia: `3c724d4`.
 Repositorio: https://github.com/levita-plataforma/app
 
-## 1. Regla principal: validación por fase
+## 1. Regla principal: cada responsable integra sus fases
 
-**Todo trabajo se realiza en una rama identificable. Ningún cambio puede entrar en `main` sin la validación expresa de quien responde de esa fase, sobre la versión concreta revisada.** Desde el 18 de septiembre de 2026, **cada responsable valida sus propias fases**: Carlos las suyas y Diogo las suyas. Carlos sigue siendo el propietario del proyecto: decide en lo compartido, en lo transversal y ante cualquier duda sobre a quién corresponde una fase. La norma afecta a ambos y a cualquier asistente automatizado.
+**Todo trabajo se realiza en una rama identificable, y cada responsable integra sus propias fases sin depender de nadie más.** Desde el 20 de septiembre de 2026 no hace falta la validación de la otra persona para llevar una fase a `main`: quien la construye responde de ella y decide cuándo está lista. Esto vale igual para las personas y para cualquier asistente automatizado que trabaje en nombre de una de ellas.
 
 - No desarrollar ni hacer commits directamente en `main`.
-- Los commits de trabajo se realizan en la rama de la tarea. No equivalen a autorización para integrarlos en `main`.
 - La integración se propone mediante una pull request (PR) con destino `main`.
-- El CI en verde no sustituye la validación: es un requisito más, no la aprobación.
-- La validación debe identificar la PR y la versión revisada (último commit). Si se añaden cambios después, hay que volver a validarlos antes de integrar.
-- Quien valida lo deja escrito en la PR (sección «Validación del propietario»), con su nombre y el commit. Las cuentas de GitHub y Vercel son compartidas, así que el registro automático **no** identifica al autor: hay que escribirlo.
-- Lo que toca otra fase, el núcleo compartido (tenant, permisos, RLS, navegación, tipos generados) o estos documentos de normas lo valida Carlos, aunque lo proponga otra persona.
-- No activar auto-merge ni hacer push directo o forzado a `main` para saltarse esta revisión.
-- Un arreglo urgente también requiere validación. No hay excepción automática para hotfixes.
-- **Cada fase se valida y se integra por separado, no en tandas.** No se espera a otra fase para integrar la propia, ni se juntan dos en un mismo merge: si una falla en producción, hay que poder revertir esa y solo esa. Cuanto más tiempo pasan dos fases sin integrar, más se pisan sus migraciones.
+- **El CI en verde es requisito para integrar.** Al no haber validación previa, es la única comprobación obligatoria que queda: lo que el CI no cubra no lo cubre nada, y responde de ello quien integra.
+- Quien integra deja escrito en la PR qué comprobó y qué no. Las cuentas de GitHub y Vercel son compartidas, así que el registro automático **no** identifica al autor: hay que escribirlo.
+- **Avisar antes de integrar algo que toque el núcleo compartido** —tenant, permisos, RLS, navegación, tipos generados— o la fase de la otra persona. No hace falta su permiso, sí que se entere: un cambio de permisos o de RLS puede romper una fase ajena sin que su responsable sepa por qué.
+- **Cada fase se integra por separado, no en tandas.** Si una falla en producción hay que poder revertir esa y solo esa. Cuanto más tiempo pasan dos fases sin integrar, más se pisan sus migraciones.
+- No hacer push forzado a `main`: reescribir el historial compartido afecta a todo el mundo.
 
-Estas son normas de trabajo. Este documento no configura protecciones de GitHub ni acredita que estén activas. Conviene proteger `main` con PR obligatoria, comprobaciones requeridas y descarte de aprobaciones obsoletas; además debe mantenerse la validación específica del responsable de la fase. Mientras las cuentas de GitHub y Vercel sean compartidas, ningún cambio tiene autor identificable: conviene que cada persona use la suya y que la compartida quede solo como propietaria.
+Estas son normas de trabajo. Este documento no configura protecciones de GitHub ni acredita que estén activas. Mientras las cuentas de GitHub y Vercel sean compartidas, ningún cambio tiene autor identificable: conviene que cada persona use la suya y que la compartida quede solo como propietaria.
 
 ## 2. Qué es y cómo funciona el producto
 
@@ -130,8 +127,8 @@ Los mensajes de commit y títulos de PR usan el tipo correspondiente: `hotfix(ac
 6. Implementar y validar el alcance. Actualizar la documentación responsable cuando cambie una regla.
 7. Crear commits en la rama de tarea y abrir PR hacia `main` cuando se vaya a compartir el resultado. Puede estar en borrador si aún no está listo.
 8. Incorporar los cambios recientes de `origin/main` a la rama de tarea antes de la revisión final. Resolver los conflictos en esa rama y repetir las comprobaciones afectadas. No forzar el historial de una rama compartida.
-9. Presentar a quien valida esa fase el resultado concreto, cómo probarlo, las comprobaciones y sus limitaciones. Esperar su validación expresa de esa versión.
-10. Integrar únicamente la versión validada, con el CI requerido en verde y sin conflictos. Si `main` cambia y hay que modificar la propuesta, volver a comprobarla y pedir nueva validación del resultado actualizado.
+9. Dejar en la PR el resultado concreto, cómo probarlo, las comprobaciones ejecutadas y sus limitaciones. Es lo que permitirá a la otra persona entender el cambio el día que le afecte.
+10. Integrar con el CI en verde y sin conflictos. Si `main` cambia y hay que modificar la propuesta, volver a comprobarla antes de integrar.
 11. Comunicar la integración al otro colaborador para que sincronice su trabajo. Eliminar la rama solo cuando esté integrada y nadie dependa de ella.
 
 Ejemplo de inicio, con el árbol de trabajo limpio:
@@ -205,7 +202,7 @@ Las migraciones que ya existen con el formato antiguo se quedan como están: ren
 
 No reescribir migraciones ya aplicadas o compartidas. Antes de integrar, probar el orden combinado de las ramas vivas de ambas personas, no solo el de la propia.
 
-**Cada responsable integra sus fases por separado**, igual que valida las suyas (§1). No se espera a juntar dos fases en una misma tanda: cuanto más tiempo pasan dos conjuntos de migraciones sin integrar, más se pisan. Si una fase depende de otra, se dice en la PR y se integra en orden, no a la vez.
+**Cada responsable integra sus fases por separado** (§1). No se espera a juntar dos fases en una misma tanda: cuanto más tiempo pasan dos conjuntos de migraciones sin integrar, más se pisan. Si una fase depende de otra, se dice en la PR y se integra en orden, no a la vez.
 
 Mantener `church_id`, RLS y relaciones seguras entre tenants donde corresponda. Los cambios de permisos deben incluir pruebas de denegación. Revertir Git no revierte una migración aplicada.
 
@@ -229,14 +226,14 @@ Comprobaciones pendientes:
 Permisos, datos, migraciones o configuración afectados:
 Limitaciones y recuperación, si aplica:
 
-## Validación
-Responsable de la fase que valida:
-Estado: pendiente / validado
-Commit revisado:
-Referencia a la aprobación expresa:
+## Integración
+Quién integra:
+Commit integrado:
+CI en verde: sí / no
+Avisada la otra persona (si toca el núcleo o su fase): sí / no aplica
 ```
 
-El autor no marca «validado» en nombre de otra persona sin una aprobación real y trazable. Como las cuentas son compartidas, hay que escribir quién valida: el registro de GitHub no lo distingue.
+Como las cuentas son compartidas, hay que escribir quién integra: el registro de GitHub no lo distingue.
 
 ## 10. Fuentes y mantenimiento de esta guía
 
