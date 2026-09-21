@@ -1,9 +1,10 @@
 import Link from "next/link";
-import { Building2, MapPinned } from "lucide-react";
+import { Building2, MapPinned, LayoutGrid } from "lucide-react";
 
 const SECTIONS = [
   { href: "/app/configuracion/iglesia", icon: Building2, title: "Datos de la iglesia", description: "Nombre, contacto, dirección y personalización visual." },
   { href: "/app/configuracion/sedes", icon: MapPinned, title: "Sedes", description: "Gestiona la sede principal y añade nuevas sedes." },
+  { href: "/app/configuracion/modulos", icon: LayoutGrid, title: "Módulos", description: "Activa módulos adicionales que no elegiste en el alta." },
 ];
 
 export default function ConfiguracionPage() {
