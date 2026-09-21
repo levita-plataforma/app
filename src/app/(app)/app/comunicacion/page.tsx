@@ -3,11 +3,18 @@ import { Send, Clock3, FileText, AlertTriangle, Plus, LayoutTemplate, Users2, Sl
 import StatCard from "@/components/shell/StatCard";
 import { requireTenantContext } from "@/server/tenant/tenant-context";
 import { hasCapability } from "@/server/tenant/authorize";
-import { getCommunicationsKpis, listCommunications } from "@/server/communications/communications-service";
+import {
+  getCommunicationsKpis,
+  listCommunications,
+  type CommunicationStatus,
+} from "@/server/communications/communications-service";
 import { ensureCommunicationsModule } from "./module-gate";
 import { primaryButtonStyle, secondaryButtonStyle, formatDateTime } from "./ui";
 
-const STATUS_LABELS: Record<string, string> = {
+// Tipado sobre CommunicationStatus, no sobre string: cuando se añada un estado
+// nuevo al enum, esto deja de compilar en vez de pintar «undefined». Pasó al
+// añadir failed_to_process en la Fase 13.
+const STATUS_LABELS: Record<CommunicationStatus, string> = {
   draft: "Borrador",
   scheduled: "Programada",
   processing: "Procesando",
@@ -15,6 +22,7 @@ const STATUS_LABELS: Record<string, string> = {
   sent: "Enviada",
   partially_sent: "Enviada parcialmente",
   failed: "Fallida",
+  failed_to_process: "No se pudo preparar",
   cancelled: "Cancelada",
 };
 

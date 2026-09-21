@@ -2,7 +2,7 @@
 
 import { useState, useTransition } from "react";
 import { secondaryButtonStyle } from "../ui";
-import { cancelarComunicacionAction } from "./actions";
+import { cancelarComunicacionAction, recuperarComunicacionAction } from "./actions";
 import type {
   CommunicationDetail,
   CommunicationMetrics,
@@ -31,6 +31,7 @@ const STATUS_LABELS: Record<CommunicationStatus, string> = {
   sent: "Enviada",
   partially_sent: "Enviada parcialmente",
   failed: "Fallida",
+  failed_to_process: "No se pudo preparar",
   cancelled: "Cancelada",
 };
 
@@ -44,6 +45,7 @@ const STATUS_CHIP_CLASS: Record<CommunicationStatus, string> = {
   sent: "is-success",
   partially_sent: "is-partial",
   failed: "is-danger",
+  failed_to_process: "is-danger",
   cancelled: "is-muted",
 };
 
@@ -71,6 +73,7 @@ const AUDIT_ACTION_LABELS: Record<string, string> = {
   "communication.sent": "Comunicación enviada",
   "communication.scheduled": "Comunicación programada",
   "communication.cancelled": "Comunicación cancelada",
+  "communication.reset": "Devuelta a borrador para corregirla",
 };
 
 function formatDateTime(value: string | null): string {
@@ -135,14 +138,25 @@ export default function EstadoComunicacion({
 }) {
   const [cancelPending, startCancel] = useTransition();
   const [cancelError, setCancelError] = useState<string | null>(null);
+  const [resetPending, startReset] = useTransition();
+  const [resetError, setResetError] = useState<string | null>(null);
 
   const canCancel = canSchedule && (communication.status === "draft" || communication.status === "scheduled");
+  const canReset = canSchedule && communication.status === "failed_to_process";
 
   function handleCancel() {
     setCancelError(null);
     startCancel(async () => {
       const result = await cancelarComunicacionAction(communication.id);
       if (result.error) setCancelError(result.error);
+    });
+  }
+
+  function handleReset() {
+    setResetError(null);
+    startReset(async () => {
+      const result = await recuperarComunicacionAction(communication.id);
+      if (result.error) setResetError(result.error);
     });
   }
 
@@ -169,6 +183,44 @@ export default function EstadoComunicacion({
         <p role="alert" style={{ fontSize: 12.5, color: "var(--shell-danger)" }}>
           {cancelError}
         </p>
+      ) : null}
+
+      {/*
+        Una comunicación que no se pudo preparar no llegó a nadie y ya no está en
+        la cola, así que no bloquea a las demás. Lo que hace falta es que quien la
+        escribió vea por qué y pueda corregirla: sin esto, el estado sería un
+        callejón sin salida.
+      */}
+      {communication.status === "failed_to_process" ? (
+        <section className="shell-card" style={{ padding: 20, display: "flex", flexDirection: "column", gap: 10 }}>
+          <p style={{ fontSize: 13, fontWeight: 600, color: "var(--shell-danger)" }}>
+            No se pudieron calcular los destinatarios
+          </p>
+          <p style={{ fontSize: 12.5, color: "var(--shell-text-muted)" }}>
+            No se ha enviado a nadie y no ha bloqueado al resto de comunicaciones. Casi siempre es una condición de
+            audiencia que apunta a un campo que ya no existe.
+          </p>
+          {communication.processingError ? (
+            <p style={{ fontSize: 12, fontFamily: "monospace", whiteSpace: "pre-wrap" }}>
+              {communication.processingError}
+            </p>
+          ) : null}
+          {canReset ? (
+            <div>
+              <button type="button" onClick={handleReset} disabled={resetPending} style={secondaryButtonStyle(resetPending)}>
+                {resetPending ? "Devolviendo a borrador…" : "Devolver a borrador para corregirla"}
+              </button>
+              <p style={{ fontSize: 11.5, color: "var(--shell-text-muted)", marginTop: 6 }}>
+                Corrige la audiencia antes de volver a programarla: si no, acabará igual.
+              </p>
+            </div>
+          ) : null}
+          {resetError ? (
+            <p role="alert" style={{ fontSize: 12.5, color: "var(--shell-danger)" }}>
+              {resetError}
+            </p>
+          ) : null}
+        </section>
       ) : null}
 
       <section className="shell-card" style={{ padding: 20, display: "flex", flexDirection: "column", gap: 12 }}>

@@ -101,3 +101,46 @@ jobs:
             echo "$diff_output"
             exit 1
           fi
+
+      # Las cuatro suites siguientes no caben en pgTAP: necesitan varias
+      # sesiones a la vez, una conexión que se corte a media transacción o
+      # volumen suficiente para que el planificador decida algo. Hasta la Fase
+      # 13 solo se ejecutaban si alguien se acordaba, que es la misma forma de
+      # morir que ya vigila el paso «suite pgTAP muerta» de más arriba.
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: "npm"
+
+      - name: Instalar dependencias
+        run: npm ci
+
+      - name: Procesos periódicos, tokens y concurrencia
+        env:
+          PGHOST: 127.0.0.1
+          PGPORT: 54322
+          PGUSER: postgres
+          PGPASSWORD: postgres
+          LEVITA_TEST_DB: postgres
+        run: |
+          npm run test:jobs
+          npm run test:tokens
+          npm run test:concurrencia
+
+      # Va al final porque siembra decenas de miles de filas y dejaría la base
+      # cargada para los demás.
+      #
+      # 5.000 personas por iglesia no es un objetivo de producto: es el volumen
+      # por debajo del cual la prueba deja de decir nada. Medido: con 2.000, el
+      # planificador elige recorrer la tabla entera —y hace bien, porque a ese
+      # tamaño sale más barato—, así que la prueba fallaría sin que hubiera
+      # ningún problema. Con 5.000 los planes ya son los de una base grande.
+      - name: Planes de ejecución del directorio con volumen
+        env:
+          PGHOST: 127.0.0.1
+          PGPORT: 54322
+          PGUSER: postgres
+          PGPASSWORD: postgres
+          LEVITA_TEST_DB: postgres
+          PERSONAS: "5000"
+        run: npm run test:rendimiento

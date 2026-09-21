@@ -8,7 +8,10 @@
     "start": "next start",
     "lint": "eslint . --max-warnings=0",
     "typecheck": "tsc --noEmit",
-    "test:concurrencia": "node supabase/tests/concurrencia/reservas.mjs"
+    "test:jobs": "node supabase/tests/concurrencia/jobs.mjs",
+    "test:tokens": "node supabase/tests/seguridad/tokens.mjs",
+    "test:concurrencia": "node supabase/tests/concurrencia/reservas.mjs",
+    "test:rendimiento": "node supabase/tests/rendimiento/directorio.mjs"
   },
   "engines": {
     "node": ">=22.0.0"
