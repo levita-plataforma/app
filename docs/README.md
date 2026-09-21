@@ -148,3 +148,4 @@ No marcar una fase como completada solo por tener documentación o diseño.
 - [Encargo para Claude — Fase 10](PROMPT-CLAUDE-FASE-10.md): Carlos, recursos, reservas sin solapes y mantenimiento integrado con Activity.
 - [Contrato de la Fase 10](CONTRATO-FASE-10.md): entidades, estados, permisos y la capa de ocupación que impide la doble reserva.
 - [Fase 10 — Recursos e instalaciones](FASE-10-RECURSOS-INSTALACIONES.md): qué se construyó, cómo se usa y qué límites tiene.
+- [Fase 14 — Panel de administración de plataforma](FASE-14-ADMINISTRACION-PLATAFORMA.md): capacidades de operación, qué ve el equipo de LEVITA y qué no.
