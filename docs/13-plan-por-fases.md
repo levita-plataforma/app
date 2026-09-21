@@ -536,6 +536,24 @@ lectura del módulo de origen. Ver [FASE-12-ANALITICA.md](FASE-12-ANALITICA.md).
 **Pastoral no iniciada.** F12 no se declara completa: es una entrega separada según
 `docs/REPARTO-CARLOS-DIOGO.md` §4.
 
+### Hotfix — 21 de septiembre de 2026: módulos disponibles en onboarding
+
+El paso "Elige tus módulos" del onboarding (`PasoModulos.tsx`) seguía mostrando Alabanza y Ofrendas en
+"Próximamente" pese a que la Fase 11 (Alabanza, parte de Diogo) y la Fase 12 (Giving) ya estaban
+integradas en `main`: la lista era un array estático desconectado del catálogo real, no un bug de
+`church_modules` ni de RLS. Corregido en `hotfix/onboarding-modulos-disponibles`: Alabanza y Ofrendas
+pasan a "Disponibles"; Acompañamiento pastoral e Integraciones se quedan en "Próximamente" porque,
+verificado directamente contra el código, no tienen ninguna tabla, RPC, capability ni ruta funcional
+real — solo `ModulePlaceholder`. De paso se cerró un hueco real de seguridad menor: `guardarModulosAction`
+aceptaba cualquier `module_key` que llegara en el formulario sin comprobarlo contra una lista permitida,
+porque `church_modules` solo valida la FK contra el catálogo completo de 13 módulos (que incluye los
+cuatro aún sin construir). Ahora filtra contra una allowlist explícita antes de escribir.
+
+No existe todavía una pantalla de gestión de módulos posterior al onboarding: una iglesia ya creada no
+tiene dónde activar Alabanza/Ofrendas si no las eligió al principio. Gap documentado, no resuelto en
+este hotfix (fuera de alcance: solo corrige el desajuste onboarding/catálogo, no construye una pantalla
+nueva).
+
 ---
 
 ## Fase 13 · Hardening, piloto ampliado y escala
