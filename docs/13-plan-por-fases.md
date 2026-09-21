@@ -590,6 +590,46 @@ producto aparte (qué pasa con los datos ya creados bajo ese módulo) que no se 
 
 No quedan fallos críticos de aislamiento, pérdida de datos, permisos, cobro o recuperación; la operación puede diagnosticar y asistir sin acceso indiscriminado.
 
+### Auditoría de migraciones de producción — 21 de septiembre de 2026
+
+Se recibió un aviso de que 13 migraciones (Alabanza F11, Analítica F12, cinco hotfixes de F13)
+estaban en `main` pero no aplicadas en producción, con tablas de Alabanza/Analítica supuestamente
+ausentes y pantallas rotas. Auditado directamente contra el proyecto de producción real
+(`rdwwaeppjtljnesaktak`, confirmado por el propietario), sin confiar en el aviso ni en documentación
+previa:
+
+- `supabase migration list --linked`: **138 migraciones locales, 138 registradas en producción**,
+  coincidencia exacta versión a versión. Última migración en ambos lados: `20261004001002`.
+- Tablas `worship_songs`, `worship_repertoires`, `worship_repertoire_songs`, `giving_funds`,
+  `giving_campaigns`, `giving_contributions`, `giving_refunds`, `giving_recurring_plans`,
+  `giving_reconciliations`, `resources`, `resource_reservations`, `resource_maintenance`,
+  `resource_occupancy`: **todas presentes**, consultables sin error (vacías, consistente con una
+  base sin datos reales todavía).
+- RPCs `app.analytics_dashboard`/`app.analytics_period_bounds`/`app.analytics_trend` +
+  `public.analytics_dashboard`: **presentes**.
+- Capabilities `worship.*` (5), `giving.*` (9), `analytics.*` (2), `facilities.*` (6): **todas
+  presentes** en el catálogo real.
+- RLS `enable`+`force` confirmado en `worship_songs`, `worship_repertoires`,
+  `giving_contributions`, `resources`.
+- Los tres hotfixes de seguridad de F13 verificados en el objeto real, no solo en el historial: la
+  política `people_insert` en producción ya tiene el `with check` corregido
+  (`(user_id IS NULL) OR (user_id = auth.uid())`), y los índices de
+  `20261004000413_indices_directorio_volumen.sql` existen.
+- Conteo real de tablas `public`: **122**, no 116.
+
+**Conclusión: el aviso no correspondía al estado real de producción.** La hipótesis más probable,
+no confirmada pero coherente con los datos: la iglesia de prueba usada para el aviso no tenía
+`worship`/`giving` habilitados en `church_modules` (confirmado: esa iglesia solo tiene 9 módulos
+activos, sin `worship` ni `giving`), así que esas rutas mostraban el estado "módulo no activo" —
+comportamiento correcto de module gating, no un fallo de esquema. Desde el hotfix del mismo día
+(`hotfix/onboarding-modulos-disponibles`), `/app/configuracion/modulos` permite activarlos sin pasar
+por el onboarding.
+
+No se aplicó ninguna migración porque no hacía falta — el esquema ya estaba correcto. Se añadió
+`scripts/check-prod-migrations.mjs` (`npm run check:prod-migrations`) como guardrail para que la
+próxima vez esta pregunta se responda con un comando, no con una inspección manual del Table Editor.
+Ver `docs/RUNBOOK-OPERACION.md` §6.1 para el checklist "merge ≠ producción" resultante.
+
 ---
 
 # Prioridad comercial recomendada
