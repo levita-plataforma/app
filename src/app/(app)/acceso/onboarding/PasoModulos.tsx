@@ -3,6 +3,8 @@
 import { useActionState } from "react";
 import { guardarModulosAction, type OnboardingState } from "./actions";
 import { authPrimaryButtonStyle } from "@/components/shell/AuthCard";
+import { ACTIVATABLE_MODULE_KEYS, ACTIVATABLE_MODULE_DESCRIPTIONS } from "@/server/church/modules-catalog";
+import { NAV_ITEMS } from "@/components/shell/nav-items";
 
 const initialState: OnboardingState = { error: null };
 
@@ -13,15 +15,13 @@ const CORE_MODULES = [
   { key: "communications", label: "Comunicación", description: "Mantén la cercanía.", core: true },
 ];
 
-const AVAILABLE_MODULES = [
-  { key: "groups", label: "Grupos", description: "Crea comunidad." },
-  { key: "discipleship", label: "Discipulado", description: "Forma y acompaña." },
-  { key: "kids", label: "Niños", description: "Check-in, salas y recogida segura." },
-  { key: "worship", label: "Alabanza", description: "Canciones, repertorios y atril." },
-  { key: "giving", label: "Ofrendas", description: "Fondos, campañas y aportaciones." },
-  { key: "facilities", label: "Instalaciones", description: "Espacios y recursos." },
-  { key: "analytics", label: "Informes", description: "Toma mejores decisiones." },
-];
+// Label reutilizado de NAV_ITEMS (fuente única del nombre visual por módulo,
+// ver src/components/shell/nav-items.ts) + descripción propia de onboarding.
+const AVAILABLE_MODULES = ACTIVATABLE_MODULE_KEYS.map((key) => ({
+  key,
+  label: NAV_ITEMS.find((item) => item.moduleKey === key)?.label ?? key,
+  description: ACTIVATABLE_MODULE_DESCRIPTIONS[key],
+}));
 
 const COMING_SOON_MODULES = [
   { key: "pastoral", label: "Acompañamiento pastoral" },

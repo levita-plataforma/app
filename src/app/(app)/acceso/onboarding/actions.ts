@@ -4,32 +4,13 @@ import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { createSupabaseServerClient } from "@/server/supabase/server-client";
 import { provisionChurch, checkSlugAvailable, slugify } from "@/server/church/provisioning-service";
+import { isActivatableModuleKey } from "@/server/church/modules-catalog";
 import { advanceOnboardingStep } from "@/server/onboarding/onboarding-service";
 import { requireCapability } from "@/server/tenant/authorize";
 import { requireTenantContext } from "@/server/tenant/tenant-context";
 import { auditLog } from "@/server/audit/audit-log";
 
 export type OnboardingState = { error: string | null; success?: boolean };
-
-/**
- * Módulos que el paso "modules" del onboarding puede activar, además del
- * núcleo fijo del provisioning (people/serving/events/communications). Debe
- * coincidir con AVAILABLE_MODULES de PasoModulos.tsx: un módulo sin ruta
- * funcional real detrás (placeholder, como pastoral/integrations) no debe
- * poder activarse desde aquí aunque el formulario llegue manipulado, porque
- * `church_modules` no lo valida por sí sola — solo comprueba la FK contra el
- * catálogo `modules`, que incluye los 13 módulos aunque cuatro sigan sin
- * construir.
- */
-const ONBOARDING_SELECTABLE_MODULES = new Set([
-  "groups",
-  "discipleship",
-  "kids",
-  "worship",
-  "giving",
-  "facilities",
-  "analytics",
-]);
 
 /**
  * Paso "church + campus + profile": el primer envío del wizard crea la
@@ -149,7 +130,7 @@ export async function guardarModulosAction(
   const selectedModules = formData
     .getAll("modules")
     .map(String)
-    .filter((key) => ONBOARDING_SELECTABLE_MODULES.has(key));
+    .filter(isActivatableModuleKey);
 
   const supabase = await createSupabaseServerClient();
   for (const moduleKey of selectedModules) {
