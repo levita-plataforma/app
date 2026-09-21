@@ -2,16 +2,33 @@
 
 import { useState, useTransition } from "react";
 import type { LucideIcon } from "lucide-react";
-import { Check } from "lucide-react";
+import { Check, UserRound, GraduationCap, Baby, Music4, Coins, Building2, BarChart3, LayoutGrid } from "lucide-react";
 import { activarModuloAction } from "./actions";
 
 export type ModuloRow = {
   key: string;
   label: string;
   description: string;
-  icon: LucideIcon;
   enabled: boolean;
 };
+
+// Un componente de icono (función) no se puede pasar de un Server Component
+// a un Client Component como prop — no es serializable a través del límite
+// RSC. Se pasa solo la clave (string) y se resuelve aquí, del lado cliente,
+// con el mismo icono que ya usa NAV_ITEMS para cada módulo.
+const MODULE_ICONS: Record<string, LucideIcon> = {
+  groups: UserRound,
+  discipleship: GraduationCap,
+  kids: Baby,
+  worship: Music4,
+  giving: Coins,
+  facilities: Building2,
+  analytics: BarChart3,
+};
+
+function iconFor(key: string): LucideIcon {
+  return MODULE_ICONS[key] ?? LayoutGrid;
+}
 
 export default function ModulosManager({ modules, canManage }: { modules: ModuloRow[]; canManage: boolean }) {
   const [error, setError] = useState<string | null>(null);
@@ -33,7 +50,9 @@ export default function ModulosManager({ modules, canManage }: { modules: Modulo
       {error ? <p role="alert" style={{ fontSize: 12.5, color: "var(--shell-danger)" }}>{error}</p> : null}
 
       <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-        {modules.map((m) => (
+        {modules.map((m) => {
+          const Icon = iconFor(m.key);
+          return (
           <div
             key={m.key}
             className="shell-card"
@@ -44,7 +63,7 @@ export default function ModulosManager({ modules, canManage }: { modules: Modulo
                 className="module-icon"
                 style={{ background: "var(--shell-active-bg)", color: "var(--shell-brand)" }}
               >
-                <m.icon aria-hidden="true" />
+                <Icon aria-hidden="true" />
               </span>
               <div>
                 <p style={{ fontSize: 14, fontWeight: 600 }}>{m.label}</p>
@@ -78,7 +97,8 @@ export default function ModulosManager({ modules, canManage }: { modules: Modulo
               <span style={{ fontSize: 11.5, color: "var(--shell-text-subtle)" }}>No activo</span>
             )}
           </div>
-        ))}
+          );
+        })}
       </div>
     </div>
   );

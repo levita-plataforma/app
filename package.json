@@ -12,7 +12,8 @@
     "test:tokens": "node supabase/tests/seguridad/tokens.mjs",
     "test:concurrencia": "node supabase/tests/concurrencia/reservas.mjs",
     "test:rendimiento": "node supabase/tests/rendimiento/directorio.mjs",
-    "test:retencion": "node supabase/tests/retencion/borrado.mjs"
+    "test:retencion": "node supabase/tests/retencion/borrado.mjs",
+    "check:prod-migrations": "node scripts/check-prod-migrations.mjs"
   },
   "engines": {
     "node": ">=22.0.0"

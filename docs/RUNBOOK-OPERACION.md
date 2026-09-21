@@ -260,6 +260,33 @@ Dos reglas que salieron de incidentes reales, no de la teoría:
    ejecute **sin dar ningún error**. `scripts/renumerar-migraciones.mjs` renumera una rama
    entera y CI comprueba que no haya repetidos, pero conviene mirarlo antes de subir.
 
+### 7.1 Merge en main no es lo mismo que migraciones aplicadas en producción
+
+Motivo de la auditoría del 21 de septiembre de 2026 (ver docs/13-plan-por-fases.md): un aviso de
+que 13 migraciones no estaban aplicadas en producción resultó, comprobado directamente contra el
+esquema real, ser falso — el historial y los objetos coincidían al cien por cien. La causa más
+probable no fue un fallo de despliegue: fue confundir "el módulo no está activado en
+`church_modules` para esa iglesia de prueba" (comportamiento correcto de module gating) con "el
+esquema no existe" (lo que habría sido un fallo real). Aun así, la posibilidad de un desajuste real
+es la que hay que descartar siempre con datos, nunca con "el merge ya pasó CI" — CI corre contra
+Supabase local, nunca toca producción.
+
+Antes de declarar una fase como **PRODUCCIÓN** (y no solo "integrada en main"):
+
+1. **Merge** en main confirmado (`git log origin/main`).
+2. **Migraciones aplicadas en producción** — `npm run check:prod-migrations` (requiere
+   `supabase link --project-ref <ref>` y una sesión autenticada) debe salir con "OK". Si sale con
+   migraciones locales sin registrar, aplicarlas por el mecanismo oficial (`supabase db push` o
+   equivalente) antes de seguir.
+3. **Migration history verificado** — `supabase migration list --linked` sin discrepancias.
+4. **Vercel Ready** — el deployment de Production del commit correspondiente en estado `success`.
+5. **Smoke real** — abrir la ruta funcional con una cuenta real, no solo comprobar que la página
+   carga: crear/leer un registro sintético y confirmarlo en base, no solo en pantalla.
+6. Solo entonces, actualizar el estado de la fase a **PRODUCCIÓN** en `docs/13-plan-por-fases.md`.
+
+Mientras falte cualquiera de los pasos 1-5, el estado correcto es **INTEGRADA — MIGRACIONES
+PENDIENTES EN PRODUCCIÓN** o el que corresponda, nunca PRODUCCIÓN.
+
 ---
 
 ## 8. Lo que este runbook no puede cubrir
