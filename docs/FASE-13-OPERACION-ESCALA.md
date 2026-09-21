@@ -232,6 +232,7 @@ producción, con los procedimientos comprobados contra el código real.
 
 | Comando | Qué comprueba |
 |---|---|
+| CI | Las cinco, en cada pull request |
 | `supabase test db` | Toda la batería, con `invariantes_aislamiento_test.sql` dentro |
 | `npm run test:jobs` | Idempotencia, concurrencia, caída del proceso, cola atascada y recuperación |
 | `npm run test:tokens` | Ciclo de vida de las invitaciones |
