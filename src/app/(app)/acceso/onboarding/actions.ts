@@ -4,6 +4,7 @@ import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { createSupabaseServerClient } from "@/server/supabase/server-client";
 import { provisionChurch, checkSlugAvailable, slugify } from "@/server/church/provisioning-service";
+import { isActivatableModuleKey } from "@/server/church/modules-catalog";
 import { advanceOnboardingStep } from "@/server/onboarding/onboarding-service";
 import { requireCapability } from "@/server/tenant/authorize";
 import { requireTenantContext } from "@/server/tenant/tenant-context";
@@ -126,7 +127,10 @@ export async function guardarModulosAction(
   const tenant = await requireTenantContext();
   await requireCapability(tenant.churchId, "modules.manage");
 
-  const selectedModules = formData.getAll("modules").map(String);
+  const selectedModules = formData
+    .getAll("modules")
+    .map(String)
+    .filter(isActivatableModuleKey);
 
   const supabase = await createSupabaseServerClient();
   for (const moduleKey of selectedModules) {
