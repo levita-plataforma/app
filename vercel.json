@@ -8,6 +8,10 @@
     {
       "path": "/api/tareas/comunicaciones",
       "schedule": "0 8 * * *"
+    },
+    {
+      "path": "/api/tareas/retencion",
+      "schedule": "0 3 * * *"
     }
   ]
 }

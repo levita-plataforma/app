@@ -102,7 +102,7 @@ jobs:
             exit 1
           fi
 
-      # Las cuatro suites siguientes no caben en pgTAP: necesitan varias
+      # Las cinco suites siguientes no caben en pgTAP: necesitan varias
       # sesiones a la vez, una conexión que se corte a media transacción o
       # volumen suficiente para que el planificador decida algo. Hasta la Fase
       # 13 solo se ejecutaban si alguien se acordaba, que es la misma forma de
@@ -115,7 +115,7 @@ jobs:
       - name: Instalar dependencias
         run: npm ci
 
-      - name: Procesos periódicos, tokens y concurrencia
+      - name: Procesos periódicos, tokens, concurrencia y borrado por retención
         env:
           PGHOST: 127.0.0.1
           PGPORT: 54322
@@ -126,6 +126,7 @@ jobs:
           npm run test:jobs
           npm run test:tokens
           npm run test:concurrencia
+          npm run test:retencion
 
       # Va al final porque siembra decenas de miles de filas y dejaría la base
       # cargada para los demás.

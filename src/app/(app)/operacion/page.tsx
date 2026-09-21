@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { AlertTriangle, Building2, MailWarning, UserX } from "lucide-react";
+import { AlertTriangle, Building2, MailWarning, ShieldAlert, UserX } from "lucide-react";
 import { getOverview, tiene } from "@/server/platform/platform-service";
 import { requireOperator } from "./guard";
 import "../app-shell.css";
@@ -68,8 +68,38 @@ export default async function OperacionPage() {
                 Alta de iglesia
               </Link>
             )}
+            <Link href="/operacion/seguridad" className="shell-card" style={enlaceStyle}>
+              Seguridad
+            </Link>
           </div>
         </header>
+
+        {/*
+          El segundo factor es recomendado, no obligatorio (decisión de Carlos,
+          21-sep-2026). Un ajuste opcional que no se ve no lo activa nadie, así
+          que el aviso va en la portada y desaparece solo al configurarlo.
+        */}
+        {!acceso.contexto.mfaEnabled && (
+          <Link
+            href="/operacion/seguridad"
+            className="shell-card"
+            style={{
+              padding: "14px 16px",
+              display: "flex",
+              alignItems: "center",
+              gap: 12,
+              textDecoration: "none",
+              color: "var(--shell-text)",
+              borderLeft: "3px solid var(--shell-danger)",
+            }}
+          >
+            <ShieldAlert size={18} aria-hidden="true" style={{ flexShrink: 0 }} />
+            <span style={{ fontSize: 12.5 }}>
+              <strong>Tu cuenta no tiene segundo factor.</strong> Desde aquí se ven y modifican datos de todas las
+              iglesias; con solo una contraseña, eso es lo que se lleva quien la consiga. Configúralo.
+            </span>
+          </Link>
+        )}
 
         <div style={{ display: "grid", gap: 12, gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))" }}>
           {tarjetas.map((t) => {

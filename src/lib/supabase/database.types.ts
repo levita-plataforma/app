@@ -7542,6 +7542,42 @@ export type Database = {
           },
         ]
       }
+      storage_deletion_queue: {
+        Row: {
+          attempts: number
+          bucket: string
+          deleted_at: string | null
+          id: string
+          last_error: string | null
+          object_path: string
+          queued_at: string
+          reason: string
+          source_church_id: string | null
+        }
+        Insert: {
+          attempts?: number
+          bucket: string
+          deleted_at?: string | null
+          id?: string
+          last_error?: string | null
+          object_path: string
+          queued_at?: string
+          reason?: string
+          source_church_id?: string | null
+        }
+        Update: {
+          attempts?: number
+          bucket?: string
+          deleted_at?: string | null
+          id?: string
+          last_error?: string | null
+          object_path?: string
+          queued_at?: string
+          reason?: string
+          source_church_id?: string | null
+        }
+        Relationships: []
+      }
       subscriptions: {
         Row: {
           billing_customer_external_id: string | null
@@ -8254,6 +8290,17 @@ export type Database = {
           checked_in_at: string
         }[]
       }
+      churches_due_for_purge: {
+        Args: { p_retention_days?: number }
+        Returns: {
+          archived_at: string
+          church_id: string
+          church_name: string
+          days_archived: number
+          files_count: number
+          people_count: number
+        }[]
+      }
       claim_notification_deliveries: {
         Args: { p_channel: string; p_limit?: number }
         Returns: {
@@ -8466,6 +8513,14 @@ export type Database = {
         Args: { p_limit?: number }
         Returns: {
           id: string
+        }[]
+      }
+      due_storage_deletions: {
+        Args: { p_limit?: number }
+        Returns: {
+          bucket: string
+          id: string
+          object_path: string
         }[]
       }
       duplicate_activity: {
@@ -8726,6 +8781,10 @@ export type Database = {
         Args: { p_notification_id: string }
         Returns: Json
       }
+      mark_storage_deletion: {
+        Args: { p_error?: string; p_id: string; p_ok: boolean }
+        Returns: undefined
+      }
       materialize_communication: {
         Args: { p_communication_id: string }
         Returns: Json
@@ -8980,6 +9039,10 @@ export type Database = {
           sort_order: number
           type: Database["public"]["Enums"]["form_field_type"]
         }[]
+      }
+      purge_archived_churches: {
+        Args: { p_limit?: number; p_retention_days?: number }
+        Returns: Json
       }
       reconcile_giving_contribution: {
         Args: {

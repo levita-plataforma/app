@@ -30,9 +30,16 @@ const cfg = {
 };
 const PERSONAS = Number(process.env.PERSONAS ?? 20000);
 
-// Umbral de aviso. No es un objetivo de producto acordado —eso sigue
-// pendiente— sino la frontera por encima de la cual un plan local ya ha
-// dejado de usar un índice y conviene mirarlo.
+// Objetivo acordado con Carlos el 21-sep-2026: el directorio y el calendario
+// por debajo de 300 ms de extremo a extremo, con 5.000 personas por iglesia.
+//
+// Este umbral NO es ese objetivo, y conviene no confundirlos. Aquí se mide solo
+// la base, que es una fracción del recorrido: falta la red hasta Supabase, la
+// sesión, el render y la vuelta. 30 ms deja el 90 % del presupuesto para todo
+// lo demás, y por encima de esa cifra un plan local ya ha dejado de usar un
+// índice, que es lo que esta prueba vigila.
+//
+// Medir los 300 ms de verdad exige un entorno desplegado. Sigue sin hacerse.
 const UMBRAL_MS = Number(process.env.UMBRAL_MS ?? 30);
 
 const c = new pg.Client(cfg);

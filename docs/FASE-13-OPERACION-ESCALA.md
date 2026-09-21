@@ -1,13 +1,20 @@
 # Fase 13 · Endurecimiento, operación y escala
 
-Rama `feature/diogo-fase-13-operacion-escala`, sobre `origin/main` = `612160c`.
+La primera parte se integró en `main` el 21 de septiembre de 2026 (PR #23). El cierre
+—las tres decisiones y lo que se construyó con ellas— va en
+`feature/carlos-fase-13-cierre`.
 
 ```
 FASE 13: PARCIAL
 ```
 
-No está cerrada, y el motivo no es deuda menor: tres criterios de cierre exigen un entorno
-al que no tengo acceso. Están en §7, con lo que haría falta para levantarlos.
+Sigue sin cerrarse, y el motivo ya no son las decisiones: esas están tomadas y construidas
+(§8). Son **tres criterios que exigen un entorno al que no tengo acceso** —restaurar un
+backup, ver llegar una alerta, un piloto con iglesias reales—, listados en §7 con lo que
+haría falta para levantarlos.
+
+Decirlo así y no «completada» es deliberado. Un backup que nunca se ha restaurado no
+acredita recuperabilidad, y una alerta que nadie ha visto llegar no es una alerta.
 
 Lo que sí se ha hecho está comprobado contra el esquema y el código reales, no contra la
 documentación, y cada comprobación es repetible.
@@ -38,6 +45,9 @@ documentación, y cada comprobación es repetible.
 | Piloto con dos iglesias | Sin autorización | §7 | **Bloqueado** |
 | Índices duplicados | Ocho, en siete fases distintas | Corregido en `20261004000414`; invariantes §10 | **Corregido** |
 | Rendimiento con volumen | Cinco recorridos del directorio entre 96 y 179 ms | Corregido en `20261004000413`; `npm run test:rendimiento`; §4 | **Medido** |
+| MFA de operadores | Sin definir | Recomendado y construido en /operacion/seguridad; §8.1 | **Decidido** |
+| Retención y borrado | Sin política | 30 días; `20261004001003` y `npm run test:retencion`; §8.3 | **Decidido** |
+| Borrado del almacenamiento | La cascada no lo alcanzaba | `storage_deletion_queue`; invariantes §11 | **Corregido** |
 
 ---
 
@@ -232,11 +242,12 @@ producción, con los procedimientos comprobados contra el código real.
 
 | Comando | Qué comprueba |
 |---|---|
-| CI | Las cinco, en cada pull request |
+| CI | Las seis, en cada pull request |
 | `supabase test db` | Toda la batería, con `invariantes_aislamiento_test.sql` dentro |
 | `npm run test:jobs` | Idempotencia, concurrencia, caída del proceso, cola atascada y recuperación |
 | `npm run test:tokens` | Ciclo de vida de las invitaciones |
 | `npm run test:concurrencia` | Doble reserva de recursos (Fase 10) |
+| `npm run test:retencion` | Que el borrado respete el plazo y no toque lo que no debe |
 | `npm run test:rendimiento` | Que ningún recorrido del directorio recorra las tablas enteras |
 
 `invariantes_aislamiento_test.sql` (10 aserciones) es lo que convierte esta auditoría en algo que no caduca:
@@ -308,13 +319,67 @@ base (red, render, sesión).
 
 ---
 
-## 8. Decisiones pendientes de Carlos
+## 8. Decisiones tomadas y qué se construyó con ellas
 
-1. **MFA para operadores de plataforma**: el encargo pide acordarlo si no está definido. Hoy
-   el panel protege con sesión más capacidad.
-2. **Objetivos de rendimiento**: §4 tiene la medición y §7 la propuesta concreta.
-3. **Política de retención y borrado** tras una baja: sin ella no se puede validar el
-   comportamiento de conservación y eliminación de datos.
+Las tres las resolvió Carlos el 21 de septiembre de 2026.
+
+### 8.1 MFA para operadores: recomendado, no obligatorio
+
+Construido en `/operacion/seguridad`: alta y baja de un segundo factor TOTP, con su código
+QR y la comprobación del primer código.
+
+Como es opcional, lo que decide si alguien lo activa no es que exista la pantalla sino que
+se vea. Por eso la portada del panel lleva un aviso mientras la cuenta no tenga un factor
+**verificado** —uno a medio dar de alta no protege nada, y contarlo haría desaparecer el
+aviso antes de tiempo—, y ese aviso desaparece solo al configurarlo.
+
+La clave secreta no pasa por nuestro servidor: Supabase se la entrega al navegador de la
+persona, que la guarda en su aplicación de autenticación.
+
+### 8.2 Rendimiento: por debajo de 300 ms con 5.000 personas
+
+De extremo a extremo, para el directorio y el calendario.
+
+**Todavía no se puede afirmar que se cumpla**, y conviene no dar a entender lo contrario:
+lo medido es solo la parte de base de datos, que con los índices de `20261004000413` está
+por debajo de 6 ms. Falta la red hasta Supabase, la sesión y el render, que es donde se irá
+el tiempo de verdad. Medirlo exige un entorno desplegado, y eso sigue sin estar disponible
+(§7).
+
+Lo que sí hace `npm run test:rendimiento` es avisar si un plan vuelve a recorrer una tabla
+entera, con un umbral de 30 ms que deja el 90 % del presupuesto para el resto del
+recorrido. El umbral no es el objetivo: son cosas distintas y el fichero lo dice.
+
+### 8.3 Retención: 30 días desde el archivado, y luego borrado
+
+Construido en `20261004001003`, con el proceso en `src/server/retention/runner.ts` y una
+tarea diaria a las 03:00.
+
+El borrado es real, no un marcado. Las 107 claves foráneas que apuntan a `churches` son
+`on delete cascade`, así que eliminar la iglesia arrastra todo lo suyo.
+`platform_audit_logs` es la excepción, con `on delete set null`: la traza de qué hizo un
+operador sobrevive sin los datos.
+
+**La parte que la cascada no puede hacer, que es donde estaba el riesgo real:** borrar las
+filas de `files` no borra los objetos del almacenamiento. Hacer solo eso dejaría fotos de
+menores y documentos pastorales vivos en el bucket, con el borrado aparentando haber
+funcionado. Por eso los objetos se encolan en `storage_deletion_queue` **antes** de borrar
+la iglesia, en una tabla sin clave foránea a `churches` para que la cascada no se la lleve
+justo cuando hace falta. El invariante 11 vigila que nadie se la añada: sería un fallo sin
+ningún síntoma.
+
+Tres salvaguardas, porque esto no se deshace:
+
+- Solo entra lo que está en estado `archived` con su fecha cumplida. Una iglesia activa, en
+  prueba o suspendida no se toca aunque se la pase por parámetro.
+- El plazo nunca baja de 7 días por mucho que se pida. Pedir 0 días devuelve 7.
+- Cada borrado queda en `platform_audit_logs` antes de ejecutarse, y el proceso registra
+  qué iba a borrar —cuántas personas, cuántos ficheros— antes de hacerlo.
+
+`npm run test:retencion` lo comprueba con 22 aserciones, casi todas sobre lo que **no** debe
+pasar: que no toque una iglesia activa, que no toque una archivada anteayer, que no se pueda
+forzar un plazo absurdo, que los ficheros queden encolados y que una sesión autenticada
+normal no pueda llamar a nada de esto.
 
 ---
 

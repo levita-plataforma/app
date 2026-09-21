@@ -30,6 +30,12 @@ export type PlatformCapability = (typeof PLATFORM_CAPABILITIES)[number];
 export type OperatorContext = {
   userId: string;
   capabilities: PlatformCapability[];
+  /**
+   * Si la cuenta tiene un segundo factor verificado. Decisión de Carlos
+   * (21-sep-2026): recomendado, no obligatorio. No bloquea el acceso; sirve
+   * para avisar a quien todavía no lo tiene.
+   */
+  mfaEnabled: boolean;
 };
 
 /**
@@ -58,6 +64,11 @@ export async function getOperatorContext(): Promise<OperatorContext | null> {
     .select("capability_key")
     .eq("user_id", user.id);
 
+  // Un factor solo cuenta si está verificado: uno a medio dar de alta no
+  // protege nada, y contarlo haría que el aviso desapareciera antes de tiempo.
+  const { data: factores } = await supabase.auth.mfa.listFactors();
+  const mfaEnabled = (factores?.all ?? []).some((f) => f.status === "verified");
+
   return {
     userId: user.id,
     capabilities: (capacidades ?? [])
@@ -65,6 +76,7 @@ export async function getOperatorContext(): Promise<OperatorContext | null> {
       .filter((k): k is PlatformCapability =>
         (PLATFORM_CAPABILITIES as readonly string[]).includes(k),
       ),
+    mfaEnabled,
   };
 }
 
