@@ -5,6 +5,10 @@ import { NAV_ITEMS } from "@/components/shell/nav-items";
 import { ACTIVATABLE_MODULE_KEYS, ACTIVATABLE_MODULE_DESCRIPTIONS } from "@/server/church/modules-catalog";
 import ModulosManager, { type ModuloRow } from "./ModulosManager";
 
+// NAV_ITEMS solo se usa aquí para el label (string, serializable); el icono
+// (componente/función) no puede pasarse a ModulosManager, que es Client
+// Component — lo resuelve él mismo por clave. Ver ModulosManager.tsx.
+
 export default async function ConfiguracionModulosPage() {
   const tenant = await requireTenantContext();
   const canManage = await hasCapability(tenant.churchId, "modules.manage");
@@ -25,7 +29,6 @@ export default async function ConfiguracionModulosPage() {
       key,
       label: navItem?.label ?? key,
       description: ACTIVATABLE_MODULE_DESCRIPTIONS[key],
-      icon: navItem!.icon,
       enabled: enabledKeys.has(key),
     };
   });
