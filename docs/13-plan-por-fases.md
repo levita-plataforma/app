@@ -547,12 +547,16 @@ verificado directamente contra el código, no tienen ninguna tabla, RPC, capabil
 real — solo `ModulePlaceholder`. De paso se cerró un hueco real de seguridad menor: `guardarModulosAction`
 aceptaba cualquier `module_key` que llegara en el formulario sin comprobarlo contra una lista permitida,
 porque `church_modules` solo valida la FK contra el catálogo completo de 13 módulos (que incluye los
-cuatro aún sin construir). Ahora filtra contra una allowlist explícita antes de escribir.
+cuatro aún sin construir). Ahora filtra contra una allowlist explícita antes de escribir. La allowlist
+vive en `src/server/church/modules-catalog.ts`, fuente única compartida entre el onboarding y la
+pantalla de gestión descrita abajo — antes de esto no había ningún sitio central: cada superficie
+llevaba su propia lista, con riesgo real de desincronizarse otra vez.
 
-No existe todavía una pantalla de gestión de módulos posterior al onboarding: una iglesia ya creada no
-tiene dónde activar Alabanza/Ofrendas si no las eligió al principio. Gap documentado, no resuelto en
-este hotfix (fuera de alcance: solo corrige el desajuste onboarding/catálogo, no construye una pantalla
-nueva).
+Ampliación el mismo día: se cierra el hueco de arriba con `/app/configuracion/modulos`, pantalla nueva
+que permite activar (nunca desactivar) los mismos módulos ya ofrecidos en el onboarding para una
+iglesia que no los eligió al principio. Usa la capability `modules.manage` que ya existía desde la Fase
+0 sin ninguna superficie que la ejerciera. Desactivar sigue sin tener pantalla: es una decisión de
+producto aparte (qué pasa con los datos ya creados bajo ese módulo) que no se toma en este hotfix.
 
 ---
 
