@@ -1,7 +1,11 @@
 # Fase 14 · Panel de administración de plataforma
 
 Rama `feature/carlos-fase-14-administracion-plataforma`, sobre `origin/main` = `d0e25e8`.
-Estado: **pendiente de validación de Carlos**. No integrada ni aplicada en producción.
+Estado (actualizado el 22 de septiembre de 2026): **IMPLEMENTADA e integrada en `main`** (PR #24,
+merge `feb45aa`). El párrafo original ("pendiente de validación... No integrada ni aplicada en
+producción") quedó desactualizado tras el merge y nunca se corrigió; se corrige ahora. Migraciones
+`20261004001000`–`20261004001002`. Ver estado consolidado en
+[13-plan-por-fases.md](13-plan-por-fases.md) §Fase 14.
 
 Este panel es la administración **del producto**, no la de una iglesia. La distinción no es
 formal: ser administrador de una iglesia no da acceso aquí, y estar aquí no da acceso a los
