@@ -30,6 +30,16 @@ const operador = "e3000000-0000-0000-0000-000000000001";
 await c.query(`insert into auth.users (id, email) values ($1,'tok.op@example.test') on conflict do nothing`, [operador]);
 await c.query(`insert into platform_operators (user_id) values ($1) on conflict do nothing`, [operador]);
 
+// Desde CA-0.2 el alta asistida exige la capacidad concreta, no solo pertenecer
+// al equipo. Esta suite usa el alta para montar su escenario, así que su
+// operador la necesita: sin ella el montaje falla con 42501 y la suite no llega
+// a probar nada de los tokens, que es lo suyo.
+await c.query(
+  `insert into platform_operator_capabilities (user_id, capability_key)
+   values ($1, 'platform.churches.create') on conflict do nothing`,
+  [operador],
+);
+
 async function como(uid, sql, args = []) {
   await c.query(
     `select set_config('request.jwt.claims', json_build_object('sub',$1::text,'role','authenticated')::text, false),
