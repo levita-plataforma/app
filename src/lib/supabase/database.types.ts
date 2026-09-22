@@ -1392,6 +1392,9 @@ export type Database = {
           id: string
           limit_value: number | null
           reason: string
+          revoked_at: string | null
+          revoked_by: string | null
+          starts_at: string
         }
         Insert: {
           capability: string
@@ -1402,6 +1405,9 @@ export type Database = {
           id?: string
           limit_value?: number | null
           reason: string
+          revoked_at?: string | null
+          revoked_by?: string | null
+          starts_at?: string
         }
         Update: {
           capability?: string
@@ -1412,6 +1418,9 @@ export type Database = {
           id?: string
           limit_value?: number | null
           reason?: string
+          revoked_at?: string | null
+          revoked_by?: string | null
+          starts_at?: string
         }
         Relationships: [
           {
@@ -1691,7 +1700,12 @@ export type Database = {
           currency: string
           id: string
           locale: string
+          maintenance_reason: string | null
+          maintenance_until: string | null
           name: string
+          security_block_reason: string | null
+          security_blocked_at: string | null
+          security_blocked_by: string | null
           settings: Json
           slug: string
           status: Database["public"]["Enums"]["church_status"]
@@ -1707,7 +1721,12 @@ export type Database = {
           currency?: string
           id?: string
           locale?: string
+          maintenance_reason?: string | null
+          maintenance_until?: string | null
           name: string
+          security_block_reason?: string | null
+          security_blocked_at?: string | null
+          security_blocked_by?: string | null
           settings?: Json
           slug: string
           status?: Database["public"]["Enums"]["church_status"]
@@ -1723,7 +1742,12 @@ export type Database = {
           currency?: string
           id?: string
           locale?: string
+          maintenance_reason?: string | null
+          maintenance_until?: string | null
           name?: string
+          security_block_reason?: string | null
+          security_blocked_at?: string | null
+          security_blocked_by?: string | null
           settings?: Json
           slug?: string
           status?: Database["public"]["Enums"]["church_status"]
@@ -6227,6 +6251,118 @@ export type Database = {
         }
         Relationships: []
       }
+      plan_version_entitlements: {
+        Row: {
+          capability: string
+          created_at: string
+          id: string
+          limit_value: number | null
+          plan_version_id: string
+        }
+        Insert: {
+          capability: string
+          created_at?: string
+          id?: string
+          limit_value?: number | null
+          plan_version_id: string
+        }
+        Update: {
+          capability?: string
+          created_at?: string
+          id?: string
+          limit_value?: number | null
+          plan_version_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "plan_version_entitlements_plan_version_id_fkey"
+            columns: ["plan_version_id"]
+            isOneToOne: false
+            referencedRelation: "plan_versions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      plan_versions: {
+        Row: {
+          billing_period: string
+          created_at: string
+          created_by: string | null
+          currency: string
+          effective_from: string
+          effective_until: string | null
+          id: string
+          notes: string | null
+          plan_key: string
+          price_cents: number | null
+          trial_days: number | null
+          version: number
+        }
+        Insert: {
+          billing_period?: string
+          created_at?: string
+          created_by?: string | null
+          currency?: string
+          effective_from?: string
+          effective_until?: string | null
+          id?: string
+          notes?: string | null
+          plan_key: string
+          price_cents?: number | null
+          trial_days?: number | null
+          version: number
+        }
+        Update: {
+          billing_period?: string
+          created_at?: string
+          created_by?: string | null
+          currency?: string
+          effective_from?: string
+          effective_until?: string | null
+          id?: string
+          notes?: string | null
+          plan_key?: string
+          price_cents?: number | null
+          trial_days?: number | null
+          version?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "plan_versions_plan_key_fkey"
+            columns: ["plan_key"]
+            isOneToOne: false
+            referencedRelation: "plans"
+            referencedColumns: ["key"]
+          },
+        ]
+      }
+      plans: {
+        Row: {
+          available_for_signup: boolean
+          created_at: string
+          description: string | null
+          key: string
+          name: string
+          sort_order: number
+        }
+        Insert: {
+          available_for_signup?: boolean
+          created_at?: string
+          description?: string | null
+          key: string
+          name: string
+          sort_order?: number
+        }
+        Update: {
+          available_for_signup?: boolean
+          created_at?: string
+          description?: string | null
+          key?: string
+          name?: string
+          sort_order?: number
+        }
+        Relationships: []
+      }
       platform_audit_logs: {
         Row: {
           action: string
@@ -7578,18 +7714,90 @@ export type Database = {
         }
         Relationships: []
       }
+      subscription_history: {
+        Row: {
+          actor_user_id: string | null
+          church_id: string
+          event: string
+          from_plan_version_id: string | null
+          from_status: Database["public"]["Enums"]["subscription_status"] | null
+          id: string
+          metadata: Json
+          occurred_at: string
+          reason: string | null
+          to_plan_version_id: string | null
+          to_status: Database["public"]["Enums"]["subscription_status"] | null
+        }
+        Insert: {
+          actor_user_id?: string | null
+          church_id: string
+          event: string
+          from_plan_version_id?: string | null
+          from_status?:
+            Database["public"]["Enums"]["subscription_status"] | null
+          id?: string
+          metadata?: Json
+          occurred_at?: string
+          reason?: string | null
+          to_plan_version_id?: string | null
+          to_status?: Database["public"]["Enums"]["subscription_status"] | null
+        }
+        Update: {
+          actor_user_id?: string | null
+          church_id?: string
+          event?: string
+          from_plan_version_id?: string | null
+          from_status?:
+            Database["public"]["Enums"]["subscription_status"] | null
+          id?: string
+          metadata?: Json
+          occurred_at?: string
+          reason?: string | null
+          to_plan_version_id?: string | null
+          to_status?: Database["public"]["Enums"]["subscription_status"] | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "subscription_history_church_id_fkey"
+            columns: ["church_id"]
+            isOneToOne: false
+            referencedRelation: "churches"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "subscription_history_from_plan_version_id_fkey"
+            columns: ["from_plan_version_id"]
+            isOneToOne: false
+            referencedRelation: "plan_versions"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "subscription_history_to_plan_version_id_fkey"
+            columns: ["to_plan_version_id"]
+            isOneToOne: false
+            referencedRelation: "plan_versions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       subscriptions: {
         Row: {
           billing_customer_external_id: string | null
           billing_provider: string | null
           cancel_at: string | null
+          cancel_at_period_end: boolean
           cancelled_at: string | null
           church_id: string
           created_at: string
+          current_period_end: string | null
+          current_period_start: string | null
           id: string
           metadata: Json
           plan_key: string
+          plan_version_id: string | null
           renews_at: string | null
+          scheduled_change_at: string | null
+          scheduled_plan_version_id: string | null
           started_at: string
           status: Database["public"]["Enums"]["subscription_status"]
           trial_ends_at: string | null
@@ -7599,13 +7807,19 @@ export type Database = {
           billing_customer_external_id?: string | null
           billing_provider?: string | null
           cancel_at?: string | null
+          cancel_at_period_end?: boolean
           cancelled_at?: string | null
           church_id: string
           created_at?: string
+          current_period_end?: string | null
+          current_period_start?: string | null
           id?: string
           metadata?: Json
           plan_key?: string
+          plan_version_id?: string | null
           renews_at?: string | null
+          scheduled_change_at?: string | null
+          scheduled_plan_version_id?: string | null
           started_at?: string
           status?: Database["public"]["Enums"]["subscription_status"]
           trial_ends_at?: string | null
@@ -7615,13 +7829,19 @@ export type Database = {
           billing_customer_external_id?: string | null
           billing_provider?: string | null
           cancel_at?: string | null
+          cancel_at_period_end?: boolean
           cancelled_at?: string | null
           church_id?: string
           created_at?: string
+          current_period_end?: string | null
+          current_period_start?: string | null
           id?: string
           metadata?: Json
           plan_key?: string
+          plan_version_id?: string | null
           renews_at?: string | null
+          scheduled_change_at?: string | null
+          scheduled_plan_version_id?: string | null
           started_at?: string
           status?: Database["public"]["Enums"]["subscription_status"]
           trial_ends_at?: string | null
@@ -7633,6 +7853,20 @@ export type Database = {
             columns: ["church_id"]
             isOneToOne: true
             referencedRelation: "churches"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "subscriptions_plan_version_id_fkey"
+            columns: ["plan_version_id"]
+            isOneToOne: false
+            referencedRelation: "plan_versions"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "subscriptions_scheduled_plan_version_id_fkey"
+            columns: ["scheduled_plan_version_id"]
+            isOneToOne: false
+            referencedRelation: "plan_versions"
             referencedColumns: ["id"]
           },
         ]
@@ -8290,6 +8524,15 @@ export type Database = {
           checked_in_at: string
         }[]
       }
+      church_entitlements: {
+        Args: { p_church_id: string }
+        Returns: {
+          capability: string
+          limit_value: number
+          source: string
+        }[]
+      }
+      church_service_state: { Args: { p_church_id: string }; Returns: Json }
       churches_due_for_purge: {
         Args: { p_retention_days?: number }
         Returns: {
@@ -8852,6 +9095,35 @@ export type Database = {
           title: string
         }[]
       }
+      platform_audit: {
+        Args: { p_action?: string; p_church_id?: string; p_limit?: number }
+        Returns: {
+          action: string
+          actor_user_id: string
+          church_id: string
+          church_name: string
+          created_at: string
+          id: string
+          metadata: Json
+        }[]
+      }
+      platform_cancel_subscription: {
+        Args: {
+          p_at_period_end?: boolean
+          p_church_id: string
+          p_reason: string
+        }
+        Returns: Json
+      }
+      platform_change_plan: {
+        Args: {
+          p_church_id: string
+          p_effective_at?: string
+          p_plan_version_id: string
+          p_reason: string
+        }
+        Returns: Json
+      }
       platform_church_contacts: {
         Args: { p_church_id: string }
         Returns: {
@@ -8905,8 +9177,28 @@ export type Database = {
           out_invitation_id: string
         }[]
       }
+      platform_grant_override: {
+        Args: {
+          p_capability: string
+          p_church_id: string
+          p_expires_at?: string
+          p_limit_value: number
+          p_reason: string
+          p_starts_at?: string
+        }
+        Returns: string
+      }
       platform_invite_admin: {
         Args: { p_church_id: string; p_email: string; p_role_key?: string }
+        Returns: string
+      }
+      platform_open_support_session: {
+        Args: {
+          p_church_id: string
+          p_minutes?: number
+          p_reason: string
+          p_scopes?: string[]
+        }
         Returns: string
       }
       platform_overview: {
@@ -8920,12 +9212,39 @@ export type Database = {
           invitaciones_pendientes: number
         }[]
       }
+      platform_process_failures: {
+        Args: { p_limit?: number }
+        Returns: {
+          church_id: string
+          correlation_id: string
+          error: string
+          estado: string
+          familia: string
+          id: string
+          intentos: number
+          ocurrido_en: string
+          reintentable: boolean
+        }[]
+      }
+      platform_processes_overview: { Args: never; Returns: Json }
       platform_remove_admin: {
         Args: { p_church_id: string; p_motivo?: string; p_person_id: string }
         Returns: undefined
       }
+      platform_retry_storage_deletion: {
+        Args: { p_id: string }
+        Returns: undefined
+      }
       platform_revoke_invitation: {
         Args: { p_invitation_id: string; p_motivo?: string }
+        Returns: undefined
+      }
+      platform_revoke_override: {
+        Args: { p_override_id: string; p_reason: string }
+        Returns: undefined
+      }
+      platform_revoke_support_session: {
+        Args: { p_reason?: string; p_session_id: string }
         Returns: undefined
       }
       platform_set_module: {
@@ -8936,6 +9255,24 @@ export type Database = {
           p_motivo?: string
         }
         Returns: undefined
+      }
+      platform_set_security_block: {
+        Args: { p_church_id: string; p_reason: string }
+        Returns: undefined
+      }
+      platform_support_sessions: {
+        Args: { p_church_id?: string; p_limit?: number }
+        Returns: {
+          activa: boolean
+          church_id: string
+          church_name: string
+          expires_at: string
+          id: string
+          operator_user_id: string
+          reason: string
+          revoked_at: string
+          started_at: string
+        }[]
       }
       preview_activity_recurrence: {
         Args: { p_church_id: string; p_input: Json }
@@ -8958,6 +9295,10 @@ export type Database = {
           p_church_id: string
           p_rules: Json
         }
+        Returns: Json
+      }
+      preview_plan_change: {
+        Args: { p_church_id: string; p_plan_version_id: string }
         Returns: Json
       }
       process_notification_events: { Args: { p_limit?: number }; Returns: Json }

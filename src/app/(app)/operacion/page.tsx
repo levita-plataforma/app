@@ -18,6 +18,15 @@ export default async function OperacionPage() {
   const resumen = await getOverview();
   const puedeCrear = tiene(acceso.contexto, "platform.churches.create");
 
+  // Cada sección aparece solo si la cuenta tiene su capacidad: un enlace a una
+  // pantalla que va a rechazarte no informa, despista.
+  const secciones = [
+    { href: "/operacion/planes", texto: "Planes", visible: tiene(acceso.contexto, "platform.commercial.read") },
+    { href: "/operacion/procesos", texto: "Procesos", visible: tiene(acceso.contexto, "platform.operations.read") },
+    { href: "/operacion/soporte", texto: "Soporte", visible: tiene(acceso.contexto, "platform.support.manage") },
+    { href: "/operacion/auditoria", texto: "Auditoría", visible: tiene(acceso.contexto, "platform.audit.read") },
+  ].filter((s) => s.visible);
+
   const tarjetas = [
     {
       icono: Building2,
@@ -68,6 +77,11 @@ export default async function OperacionPage() {
                 Alta de iglesia
               </Link>
             )}
+            {secciones.map((s) => (
+              <Link key={s.href} href={s.href} className="shell-card" style={enlaceStyle}>
+                {s.texto}
+              </Link>
+            ))}
             <Link href="/operacion/seguridad" className="shell-card" style={enlaceStyle}>
               Seguridad
             </Link>

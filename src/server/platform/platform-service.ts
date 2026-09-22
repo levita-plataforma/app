@@ -23,6 +23,15 @@ export const PLATFORM_CAPABILITIES = [
   "platform.owners.manage",
   "platform.modules.manage",
   "platform.operators.manage",
+  // Fase 15, por función: quien atiende una incidencia no cambia precios, y
+  // quien lleva los precios no ve el contenido privado de las iglesias.
+  "platform.commercial.read",
+  "platform.commercial.manage",
+  "platform.operations.read",
+  "platform.operations.retry",
+  "platform.support.manage",
+  "platform.audit.read",
+  "platform.config.manage",
 ] as const;
 
 export type PlatformCapability = (typeof PLATFORM_CAPABILITIES)[number];
