@@ -4,7 +4,7 @@ Qué hacer cuando algo va mal en producción. No es una especificación: cada
 procedimiento de aquí usa piezas que existen hoy en el código, y están comprobadas
 contra el esquema real.
 
-Lo que **no** cubre, porque no existe todavía, está en §7. No se describe un
+Lo que **no** cubre, porque no existe todavía, está en §8. No se describe un
 procedimiento que nadie puede ejecutar.
 
 Complementa [17-seguridad-operacion.md](17-seguridad-operacion.md), que dice qué debería
@@ -12,7 +12,7 @@ haber; esto dice qué hay y cómo se usa.
 
 ---
 
-## 1. Los dos procesos periódicos
+## 1. Los tres procesos periódicos
 
 Están en [vercel.json](../vercel.json) y se ejecutan una vez al día. Esa cadencia viene
 del plan de Vercel en uso, no de una decisión de producto: **una comunicación programada
@@ -20,10 +20,11 @@ para una hora concreta puede esperar hasta la siguiente pasada**.
 
 | Tarea | Ruta | Hora (UTC) | Qué hace |
 |---|---|---|---|
+| Retención | `/api/tareas/retencion` | 03:00 | Borra iglesias archivadas hace más de 30 días y vacía su almacenamiento |
 | Avisos | `/api/tareas/avisos` | 07:00 | Convierte eventos de notificación en avisos |
 | Comunicaciones | `/api/tareas/comunicaciones` | 08:00 | Materializa las programadas y envía por lotes |
 
-Las dos exigen `Authorization: Bearer $CRON_SECRET` y devuelven 401 sin él. Aceptan GET
+Las tres exigen `Authorization: Bearer $CRON_SECRET` y devuelven 401 sin él. Aceptan GET
 (lo que usa Vercel) y POST (para una llamada manual).
 
 Para lanzar una a mano:
@@ -199,7 +200,54 @@ church_people` es lo primero que hay que probar.
 
 ---
 
-## 6. Antes de aplicar una migración
+## 6. Una iglesia se ha borrado, o no se ha borrado
+
+Desde la Fase 13, una iglesia archivada se borra sola a los 30 días. **El borrado es real y
+no se puede deshacer**: las 107 tablas con clave foránea a `churches` se vacían en cascada.
+
+**Para ver qué se borrará antes de que ocurra**, sin borrar nada:
+
+```sql
+select * from app.churches_due_for_purge(30);
+```
+
+Devuelve cada iglesia con los días que lleva archivada, cuántas personas y cuántos ficheros
+tiene. Si algo aparece ahí y no debería, la forma de salvarlo es sacarlo del estado
+`archived` antes de las 03:00.
+
+**Para saber qué se borró:**
+
+```sql
+select created_at, metadata
+from platform_audit_logs
+where action = 'church.purged'
+order by created_at desc;
+```
+
+La traza sobrevive al borrado, con el nombre de la iglesia, cuándo se archivó y cuántos
+ficheros se encolaron. El `church_id` queda a null: la iglesia ya no existe.
+
+**Si quedan ficheros sin borrar del almacenamiento:**
+
+```sql
+select bucket, attempts, last_error, count(*)
+from storage_deletion_queue
+where deleted_at is null
+group by bucket, attempts, last_error;
+```
+
+A los 5 intentos fallidos un objeto deja de reintentarse, para que un bucket que ya no
+existe no llene los registros cada noche. Si hay filas ahí con `attempts = 5`, el
+almacenamiento conserva ficheros de una iglesia ya borrada y hay que resolverlo a mano.
+
+**Lo que no puede pasar y conviene saber por qué**: las filas de esta cola no desaparecen
+al borrar la iglesia. No tienen clave foránea a `churches` a propósito, porque la cascada
+se las llevaría justo cuando hacen falta, y el borrado parecería correcto mientras las
+fotos de menores siguen en el bucket. El invariante 11 lo vigila.
+
+---
+
+## 7. Antes de aplicar una migración
 
 Dos reglas que salieron de incidentes reales, no de la teoría:
 
@@ -212,7 +260,7 @@ Dos reglas que salieron de incidentes reales, no de la teoría:
    ejecute **sin dar ningún error**. `scripts/renumerar-migraciones.mjs` renumera una rama
    entera y CI comprueba que no haya repetidos, pero conviene mirarlo antes de subir.
 
-## 6.1 Merge en main no es lo mismo que migraciones aplicadas en producción
+### 7.1 Merge en main no es lo mismo que migraciones aplicadas en producción
 
 Motivo de la auditoría del 21 de septiembre de 2026 (ver docs/13-plan-por-fases.md): un aviso de
 que 13 migraciones no estaban aplicadas en producción resultó, comprobado directamente contra el
@@ -241,7 +289,7 @@ PENDIENTES EN PRODUCCIÓN** o el que corresponda, nunca PRODUCCIÓN.
 
 ---
 
-## 7. Lo que este runbook no puede cubrir
+## 8. Lo que este runbook no puede cubrir
 
 No se describe aquí porque no existe todavía. Decir cómo se haría algo que nadie puede
 ejecutar convierte un runbook en un documento de intenciones.
@@ -258,7 +306,7 @@ ejecutar convierte un runbook en un documento de intenciones.
 
 ---
 
-## 8. Qué mirar cuando no se sabe qué pasa
+## 9. Qué mirar cuando no se sabe qué pasa
 
 En orden, de lo más probable a lo menos:
 

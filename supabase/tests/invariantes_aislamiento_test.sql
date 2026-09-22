@@ -13,7 +13,7 @@
 -- que aparece en ellas es una decisión que alguien tuvo que justificar.
 
 begin;
-select plan(10);
+select plan(11);
 
 -- 1. Toda tabla con church_id tiene RLS habilitada Y forzada ------------------
 -- Sin FORCE, el propietario de la tabla se salta las políticas, y en Supabase
@@ -212,6 +212,28 @@ select is(
    ) d),
   array[]::text[],
   'Ningún índice duplica exactamente a otro'
+);
+
+-- 11. La cola de borrado de ficheros sobrevive al borrado de la iglesia --------
+--
+-- storage_deletion_queue guarda qué objetos del almacenamiento hay que eliminar
+-- después de borrar una iglesia. Si alguien le añadiera una clave foránea a
+-- churches, la cascada se la llevaría en el mismo instante en que hace falta: el
+-- borrado parecería correcto y los ficheros —fotos de menores, documentos
+-- pastorales— seguirían vivos en el bucket.
+--
+-- Es un fallo que no daría ningún síntoma, así que se vigila aquí.
+
+select is(
+  (select coalesce(array_agg(con.conname::text order by con.conname), array[]::text[])
+   from pg_constraint con
+   join pg_class cl on cl.oid = con.conrelid
+   join pg_class cf on cf.oid = con.confrelid
+   where con.contype = 'f'
+     and cl.relname = 'storage_deletion_queue'
+     and cf.relname = 'churches'),
+  array[]::text[],
+  'La cola de borrado de ficheros no depende de churches: debe sobrevivir a la cascada'
 );
 
 select * from finish();
