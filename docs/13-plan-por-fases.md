@@ -112,6 +112,19 @@ Dos iglesias creadas por flujos diferentes quedan aisladas, con billing y config
 
 La iglesia puede importar su base de personas, corregir duplicados, crear hogares e invitar cuentas sin perder historial.
 
+### Estado — 22 de septiembre de 2026 (auditoría de documentación)
+
+**FASE 2: CERRADA**, integrada en `main` (`03dde0e`). Migraciones
+`20260918000100`–`20260918000600` (normalización, detección de duplicados,
+invitar persona, capability de archivado, política de alta, `create_person`).
+Servicios reales en `src/server/people/` (personas, hogares, etiquetas, campos
+personalizados, importación, exportación). Rutas funcionales
+`/app/personas`, `/app/personas/[id]`, `/app/personas/etiquetas`,
+`/app/personas/exportar`, `/app/personas/importar`, `/app/personas/nueva`,
+`/app/familias`. Esta sección se añade el 22 de septiembre porque la fase
+llevaba integrada desde el 18 de septiembre sin ningún "Estado" aquí — no
+hubo ninguna duda sobre si estaba construida, solo faltaba documentarlo.
+
 ---
 
 ## Fase 3 · Áreas, puestos, equipos y capacidades
@@ -136,6 +149,17 @@ La iglesia puede importar su base de personas, corregir duplicados, crear hogare
 ### Criterio de salida
 
 Un líder administra solo sus áreas; una iglesia puede adaptar la estructura sin afectar a otra; las reglas sensibles están modeladas.
+
+### Estado — 22 de septiembre de 2026 (auditoría de documentación)
+
+**FASE 3: CERRADA**, integrada en `main` (`e5679ca`). Migraciones
+`20260919000100`–`20260919000700` (áreas de servicio, equipos y puestos,
+cualificaciones y credenciales, capabilities, RLS, elegibilidad, hotfix de
+invitación de rol). Servicios reales en `src/server/serving/` (9 archivos:
+áreas, puestos, equipos, líderes, miembros, cualificaciones, credenciales,
+elegibilidad, requisitos de puesto, dashboard). Rutas funcionales
+`/app/servicios`, `/app/servicios/areas`, `/app/servicios/credenciales`,
+`/app/servicios/cualificaciones`, `/app/servicios/equipos`.
 
 ---
 
@@ -260,6 +284,17 @@ Nota (20 de septiembre de 2026): los límites de la inscripción pública suben 
 
 La iglesia publica un evento, recibe inscripciones mediante formulario y gestiona asistentes dentro del mismo tenant.
 
+### Estado — 22 de septiembre de 2026 (auditoría de documentación)
+
+**FASE 6: CERRADA**, integrada en `main` (PR #7, `4e65079`) y endurecida con
+un hotfix de seguridad posterior (PR #10, `b3a03da`). Migraciones
+`20260924000100`–`20260924000900` más los hotfixes `20260925000100`–
+`20260925000500` y `20260930000400` (límites de inscripción pública, ver
+nota de arriba). Servicios reales en `src/server/events/` (7 archivos:
+check-in, consentimientos, slug de evento, eventos públicos, inscripciones,
+ICS) y `src/server/forms/`. Rutas funcionales `/app/eventos`,
+`/app/calendario`, `/app/formularios`.
+
 ---
 
 ## Fase 7 · Grupos y discipulado
@@ -287,6 +322,18 @@ La iglesia publica un evento, recibe inscripciones mediante formulario y gestion
 
 Una persona puede pertenecer a grupos y recorridos sin duplicarse, y los líderes solo acceden a la información necesaria.
 
+### Estado — 22 de septiembre de 2026 (auditoría de documentación)
+
+**FASE 7: CERRADA**, construida por Carlos e integrada en `main` (PR #14,
+`466c3ee`). Migraciones `20260927000100`–`20260927000700` más
+`20260929000100` (tipos de aviso propios de la fase). Servicios reales en
+`src/server/groups/` y `src/server/discipleship/`. Rutas funcionales
+`/app/grupos` (con `[id]`, `nuevo`, `solicitudes`, `tipos`) y
+`/app/discipulado` (con `cohortes`, `cursos`, `itinerarios`). Pasó por una
+revisión adversarial documentada en
+[FASE-7-GRUPOS-DISCIPULADO.md](FASE-7-GRUPOS-DISCIPULADO.md), con diez
+hallazgos corregidos (`65bef2e`).
+
 ---
 
 ## Fase 8 · Kids y protección de menores
@@ -310,6 +357,20 @@ Una persona puede pertenecer a grupos y recorridos sin duplicarse, y los lídere
 ### Criterio de salida
 
 Un menor entra y sale con trazabilidad y autorización correcta, sin exponer datos a usuarios no autorizados.
+
+### Estado — 22 de septiembre de 2026 (auditoría de documentación)
+
+**FASE 8: CERRADA**, integrada en `main`, con un hotfix de seguridad
+posterior aplicado el mismo día de la construcción (`8ce6908`/`7262824`,
+"cierra los fallos de seguridad de la Fase 8"). Migraciones
+`20260928000100`–`20260928001000` (10 archivos: perfiles, salas/sesiones,
+check-in/incidencias, capabilities, RLS, elegibilidad/ratio, RPC de
+check-in/check-out, avisos, wrappers públicos de elegibilidad, hotfix de
+seguridad). Servicios reales en `src/server/kids/` (8 archivos: tutores,
+recogida, check-in, incidencias, perfiles, salas, sesiones, personal).
+Rutas funcionales `/app/kids` (con `menores`, `salas`, `sesiones`). Esta
+sección faltaba pese al hotfix de seguridad ya aplicado — la fase nunca
+estuvo en duda, solo sin documentar aquí.
 
 ---
 
@@ -459,16 +520,16 @@ visual. Están escritos en el documento de la fase, no descubiertos más tarde.
 
 Alabanza funciona dentro de la misma iglesia y experiencia, sin doble programación ni pérdida de datos acordados.
 
-### Estado — 20 de septiembre de 2026
+### Estado — 22 de septiembre de 2026 (actualizado; integrada desde el 20 de septiembre)
 
-**Parte de Diogo: IMPLEMENTADA** en `feature/diogo-fase-11-alabanza-contenido`, pendiente de validación
-de Carlos e integración en `main`. Cubre contenido nativo — canciones, tonalidades, repertorios, atril
-y archivos (vía `files` del núcleo) — sin ninguna dependencia de Calserv como fuente de datos o schema:
-corrección de alcance confirmada el 20 de septiembre de 2026, ver
-[CONTRATO-FASE-11-DIOGO.md](CONTRATO-FASE-11-DIOGO.md) y
+**Parte de Diogo: IMPLEMENTADA e integrada en `main`** (PR #20, merge `74e3df0`). Cubre contenido
+nativo — canciones, tonalidades, repertorios, atril y archivos (vía `files` del núcleo) — sin ninguna
+dependencia de Calserv como fuente de datos o schema: corrección de alcance confirmada el 20 de
+septiembre de 2026, ver [CONTRATO-FASE-11-DIOGO.md](CONTRATO-FASE-11-DIOGO.md) y
 [FASE-11-ALABANZA-DIOGO.md](FASE-11-ALABANZA-DIOGO.md). Migraciones `20261002000101` a
 `20261002000106` (renumeradas tras integrar F9/R-01 en `main`, que ya ocupaban `20261002000100`).
-Batería completa del repositorio: 1408 aserciones en verde, sin drift de esquema.
+Ruta funcional `/app/alabanza` (con `atril`, `canciones`, `repertorios`), servicio real en
+`src/server/worship/`. Batería completa del repositorio: 1408 aserciones en verde, sin drift de esquema.
 
 **Parte de Carlos** (identidad, actividades, programación, permisos finales, coordinación con
 Sonido/Multimedia, migración/compatibilidad, rollback de corte) **no iniciada**. La Fase 11 requiere
@@ -590,6 +651,25 @@ producto aparte (qué pasa con los datos ya creados bajo ese módulo) que no se 
 
 No quedan fallos críticos de aislamiento, pérdida de datos, permisos, cobro o recuperación; la operación puede diagnosticar y asistir sin acceso indiscriminado.
 
+### Estado — 22 de septiembre de 2026
+
+**Parte de Diogo: IMPLEMENTADA e integrada en `main`** (PR #23, merge `664168c`). Cubre hallazgos
+reales de auditoría de aislamiento (política `people_insert` sin restricción de identidad, superficie
+de escritura anónima, FK entre tenants), tolerancia de la cola de comunicaciones a una fila corrupta,
+índices medidos sobre consultas reales del directorio con 100.000 personas, retirada de índices
+redundantes, `RUNBOOK-OPERACION.md`, y las cuatro suites que no caben en pgTAP ejecutándose en CI.
+Detalle en [FASE-13-OPERACION-ESCALA.md](FASE-13-OPERACION-ESCALA.md).
+
+**PR #28 (Carlos), "Fase 13 · Cierre: las tres decisiones pendientes" — ABIERTA, sin mergear.** Rama
+`feature/carlos-fase-13-cierre`, 16 archivos, ~1165 líneas. Resuelve tres decisiones pendientes de
+producto (MFA opcional pero recomendada, objetivo de rendimiento <300ms con 5.000 personas, borrado a
+30 días tras archivar una iglesia) con trabajo real: UI de inscripción TOTP
+(`/operacion/seguridad`), job diario de retención (`src/app/api/tareas/retencion/route.ts` +
+`src/server/retention/runner.ts`), migración `20261004001003_retencion_y_borrado.sql` (incluye
+`storage_deletion_queue` para no dejar objetos de archivo huérfanos antes del cascade), y tests
+propios. **Mientras esta PR no se mergee, ninguno de estos tres mecanismos está en producción** —
+no tratar el MFA, el objetivo de rendimiento ni el borrado a 30 días como ya vigentes.
+
 ### Auditoría de migraciones de producción — 21 de septiembre de 2026
 
 Se recibió un aviso de que 13 migraciones (Alabanza F11, Analítica F12, cinco hotfixes de F13)
@@ -629,6 +709,43 @@ No se aplicó ninguna migración porque no hacía falta — el esquema ya estaba
 `scripts/check-prod-migrations.mjs` (`npm run check:prod-migrations`) como guardrail para que la
 próxima vez esta pregunta se responda con un comando, no con una inspección manual del Table Editor.
 Ver `docs/RUNBOOK-OPERACION.md` §6.1 para el checklist "merge ≠ producción" resultante.
+
+---
+
+## Fase 14 · Administración de plataforma
+
+**Resultado:** el equipo de LEVITA puede operar sobre cualquier iglesia sin depender de acceso
+directo a la base de datos ni de `service_role` desde el cliente.
+
+### Alcance
+
+- panel de operación (`/operacion`) con portada, listado de iglesias y ficha de iglesia;
+- habilitar/deshabilitar módulos de una iglesia ajena, con capacidad y registro propios;
+- gestión de responsables de una iglesia;
+- reanudar un alta que quedó a medias.
+
+### No incluye
+
+- transferencia de propiedad de una iglesia (regla pendiente de aprobar, ver
+  [FASE-14-ADMINISTRACION-PLATAFORMA.md](FASE-14-ADMINISTRACION-PLATAFORMA.md): mientras tanto, el
+  cambio de propietario se hace invitando al nuevo y retirando al anterior);
+- nada comercial (precios, cobros, suspensiones) — la suscripción se consulta, no se toca;
+- impersonación.
+
+### Estado — 22 de septiembre de 2026 (auditoría de documentación)
+
+**FASE 14: CERRADA**, construida por Carlos e integrada en `main` (PR #24, merge `feb45aa`). Esta
+sección no existía en este documento pese a que la fase llevaba integrada desde el 20 de septiembre
+— es la brecha de documentación más grande encontrada en la auditoría del 22 de septiembre de 2026.
+Migraciones `20261004001000`–`20261004001002` (capacidades de plataforma, lecturas, acciones).
+Servicio real en `src/server/platform/platform-service.ts`. Rutas funcionales bajo `/operacion`
+(`page.tsx`, `guard.tsx`, `/operacion/iglesias` con listado y ficha `[id]` con panel de módulos).
+Habilitar un módulo desde aquí no concede roles ni permisos a nadie dentro de esa iglesia: solo
+autoriza que la use. Deshabilitar tampoco borra datos.
+
+**Aviso:** el archivo satélite [FASE-14-ADMINISTRACION-PLATAFORMA.md](FASE-14-ADMINISTRACION-PLATAFORMA.md)
+seguía marcado como "pendiente de validación... no integrada ni aplicada en producción" pese a este
+merge; corregido en la misma auditoría.
 
 ---
 
