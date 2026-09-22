@@ -39,7 +39,7 @@ export default async function IglesiasPage({ searchParams }: { searchParams: Pro
   const paginas = Math.max(Math.ceil(total / pageSize), 1);
 
   return (
-    <div style={{ minHeight: "100svh", background: "var(--shell-bg)", padding: "32px 20px" }}>
+    <div style={{ padding: "32px 20px" }}>
       <div style={{ maxWidth: 1100, margin: "0 auto", display: "flex", flexDirection: "column", gap: 16 }}>
         <header>
           <Link href="/operacion" style={{ fontSize: 12.5 }}>

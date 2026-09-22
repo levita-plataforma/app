@@ -43,7 +43,7 @@ export default async function ProcesosPage() {
   const puedeReintentar = acceso.contexto.capabilities.includes("platform.operations.retry");
 
   return (
-    <div style={{ minHeight: "100svh", background: "var(--shell-bg)", padding: "32px 20px" }}>
+    <div style={{ padding: "32px 20px" }}>
       <div style={{ maxWidth: 1000, margin: "0 auto", display: "flex", flexDirection: "column", gap: 20 }}>
         <header>
           <h1 style={{ margin: 0, fontSize: 20 }}>Procesos</h1>

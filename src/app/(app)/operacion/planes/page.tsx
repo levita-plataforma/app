@@ -26,7 +26,7 @@ export default async function PlanesPage() {
   }
 
   return (
-    <div style={{ minHeight: "100svh", background: "var(--shell-bg)", padding: "32px 20px" }}>
+    <div style={{ padding: "32px 20px" }}>
       <div style={{ maxWidth: 1000, margin: "0 auto", display: "flex", flexDirection: "column", gap: 20 }}>
         <header>
           <h1 style={{ margin: 0, fontSize: 20 }}>Catálogo de planes</h1>

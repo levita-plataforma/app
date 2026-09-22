@@ -19,7 +19,7 @@ export default async function AltasAsistidasPage() {
   if ("bloqueado" in acceso) return acceso.bloqueado;
 
   return (
-    <div style={{ minHeight: "100svh", background: "var(--shell-bg)", padding: "40px 20px" }}>
+    <div style={{ padding: "40px 20px" }}>
       <div style={{ maxWidth: 520, margin: "0 auto" }}>
         <h1 style={{ fontSize: 20, fontWeight: 600, marginBottom: 4 }}>Alta asistida de iglesia</h1>
         <p style={{ fontSize: 13, color: "var(--shell-text-muted)", marginBottom: 24 }}>
