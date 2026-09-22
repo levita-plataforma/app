@@ -3,6 +3,13 @@ import { notFound } from "next/navigation";
 import { getChurchDetail, tiene } from "@/server/platform/platform-service";
 import { requireOperator } from "../../guard";
 import ModulosPanel from "./ModulosPanel";
+import PanelComercial from "./PanelComercial";
+import {
+  getChurchEntitlements,
+  getServiceState,
+  listOverrides,
+  listPlanVersions,
+} from "@/server/platform/commercial-service";
 import "../../../app-shell.css";
 
 /**
@@ -31,6 +38,19 @@ export default async function FichaIglesiaPage({ params }: { params: Promise<{ i
   if (!ficha) notFound();
 
   const puedeModulos = tiene(acceso.contexto, "platform.modules.manage");
+  const puedeVerComercial = tiene(acceso.contexto, "platform.commercial.read");
+  const puedeGestionarComercial = tiene(acceso.contexto, "platform.commercial.manage");
+
+  // En paralelo porque son cuatro lecturas independientes: encadenarlas solo
+  // sumaría latencias.
+  const [estadoServicio, derechos, excepciones, versiones] = puedeVerComercial
+    ? await Promise.all([
+        getServiceState(id),
+        getChurchEntitlements(id),
+        listOverrides(id),
+        listPlanVersions(),
+      ])
+    : [null, [], [], []];
 
   return (
     <div style={{ minHeight: "100svh", background: "var(--shell-bg)", padding: "32px 20px" }}>
@@ -60,7 +80,9 @@ export default async function FichaIglesiaPage({ params }: { params: Promise<{ i
               <p style={vacioStyle}>Sin suscripción registrada.</p>
             )}
             <p style={{ ...vacioStyle, marginTop: 8 }}>
-              Se consulta, no se modifica: lo comercial no se toca desde aquí.
+              {puedeVerComercial
+                ? "El plan, los derechos y las excepciones están más abajo, en la sección comercial."
+                : "Solo consulta: gestionar lo comercial necesita su propia capacidad."}
             </p>
           </section>
 
@@ -127,6 +149,22 @@ export default async function FichaIglesiaPage({ params }: { params: Promise<{ i
           modulos={ficha.modulos}
           puedeGestionar={puedeModulos}
         />
+
+        {/*
+          La parte comercial solo se carga si la cuenta puede verla: sin la
+          capacidad, las RPC devuelven vacío y la sección enseñaría un hueco sin
+          explicar por qué.
+        */}
+        {puedeVerComercial && (
+          <PanelComercial
+            churchId={ficha.id}
+            estado={estadoServicio}
+            derechos={derechos}
+            excepciones={excepciones}
+            versiones={versiones}
+            puedeGestionar={puedeGestionarComercial}
+          />
+        )}
 
         <section className="shell-card" style={{ padding: 16 }}>
           <h2 style={seccionStyle}>Sedes</h2>

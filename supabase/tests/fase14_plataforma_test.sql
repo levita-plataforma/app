@@ -73,11 +73,14 @@ select lives_ok(
   'El primer operador se crea con el procedimiento de arranque'
 );
 
+-- Contra el catálogo, no contra un número fijo: la Fase 15 añadió siete
+-- capacidades y esta aserción decía «cinco». Lo que hay que comprobar es que el
+-- arranque concede todas las que existan, sea cual sea su número.
 select is(
   (select count(*)::int from platform_operator_capabilities
    where user_id = 'fe000000-0000-0000-0000-000000000002'),
-  5,
-  'Y recibe las cinco capacidades'
+  (select count(*)::int from platform_capabilities),
+  'Y recibe todas las capacidades del catálogo'
 );
 
 select is(
