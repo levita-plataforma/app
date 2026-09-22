@@ -1,6 +1,12 @@
 # Visión, alcance y estrategia de producto
 
-Revisión: **15 de septiembre de 2026 — ampliación a plataforma integral para iglesias**.
+Revisión: **15 de septiembre de 2026 — ampliación a plataforma integral para iglesias.** Nota del 22
+de septiembre de 2026: este documento describe la estrategia y el orden previsto de construcción, no
+el estado real de cada módulo — para eso, ver [13-plan-por-fases.md](13-plan-por-fases.md), que la
+auditoría de esa fecha actualizó fase por fase (Personas, Servicio, Actividades, Asignaciones,
+Eventos, Grupos, Discipulado, Kids, Comunicación, Recursos, Alabanza, Giving, Analítica,
+Administración de plataforma y parte de Operación/Escala ya están implementadas e integradas; Pastoral
+e Integraciones siguen sin construir).
 
 LEVITA se define como una **plataforma SaaS multiiglesia, modular y multi-tenant para la gestión integral de una iglesia evangélica moderna**. El primer gran módulo funcional será la organización de servicios, voluntarios y programación, pero la arquitectura base debe permitir incorporar progresivamente personas, familias, grupos, discipulado, eventos, niños, comunicación, acompañamiento pastoral, recursos, donaciones, analítica e integraciones sin reconstruir el núcleo.
 
@@ -77,7 +83,7 @@ LEVITA se estructura alrededor de un núcleo común y módulos activables.
 - **Kids / Niños:** responsables, check-in/out, autorizaciones y seguridad.
 - **Communications / Comunicación:** comunicados, segmentos, email, push y futuras integraciones.
 - **Pastoral / Acompañamiento:** seguimientos, tareas y peticiones con acceso especialmente restringido.
-- **Giving / Donaciones:** fondos, aportaciones e integraciones de pago; fuera del MVP inicial.
+- **Giving / Donaciones:** fondos, aportaciones y conciliación (implementado; sin proveedor de pago real todavía).
 - **Facilities / Recursos:** salas, vehículos, equipos y reservas.
 - **Analytics / Informes:** métricas operativas y agregadas por tenant.
 

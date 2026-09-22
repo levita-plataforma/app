@@ -1,13 +1,16 @@
 # Contrato de la Fase 10 · Recursos, salas y mantenimiento
 
-Estado: **propuesta para revisión — no implementada**. Ningún código, migración, tabla, componente o
-RPC de esta fase existe todavía. Este documento se escribe antes de tocar el repositorio, siguiendo
-el mismo criterio que [CONTRATO-FASE-7.md](CONTRATO-FASE-7.md): lo que no está aquí, o sobra o falta
-el acuerdo.
+Estado (actualizado el 22 de septiembre de 2026): **IMPLEMENTADA e integrada en `main`**
+(`feature/carlos-fase-10-recursos-instalaciones`, merge `fa6704c`). El párrafo original de este
+documento ("propuesta para revisión — no implementada") quedó desactualizado tras la integración y
+nunca se corrigió; se corrige ahora. Migraciones `20261004000400`–`20261004000409`. Ruta funcional
+`/app/instalaciones` (con `[id]`, `nuevo`). Servicio real en `src/server/facilities/`. Detalle de
+implementación en [FASE-10-RECURSOS-INSTALACIONES.md](FASE-10-RECURSOS-INSTALACIONES.md) y estado
+consolidado en [13-plan-por-fases.md](13-plan-por-fases.md) §Fase 10. El resto de este documento
+(alcance, decisiones de diseño) sigue siendo el contrato original y se conserva como referencia de lo
+acordado, no como descripción de un trabajo pendiente.
 
 Punto de partida real: `main` en `0db9faa` (Fase 9 en producción, `docs/13-plan-por-fases.md` §Fase 9).
-Ninguna migración de Fase 10 existe todavía; el próximo prefijo libre es posterior a
-`20261001001200`.
 
 **Asignación confirmada.** [`docs/REPARTO-CARLOS-DIOGO.md`](REPARTO-CARLOS-DIOGO.md) §1 asigna la Fase
 10 a **Carlos**, no a Diogo («F10 · Recursos e instalaciones | Carlos — propuesto, después de F7»).
