@@ -80,7 +80,8 @@ from app.provision_church(
   'Owner', 'F15', 'owner@iglesia.test', null, 'Sede', null, null, null, null,
   array['people'], null);
 
-select pg_temp.sin_sesion();
+reset role;
+select set_config('request.jwt.claims', '', true);
 
 update subscriptions
 set plan_version_id = 'f1500000-0000-0000-0000-00000000aa01',
@@ -142,7 +143,8 @@ select throws_ok(
   'Un operador de soporte NO puede cancelar una suscripción'
 );
 
-select pg_temp.sin_sesion();
+reset role;
+select set_config('request.jwt.claims', '', true);
 
 -- Y al revés: quien lleva lo comercial no bloquea iglesias por seguridad.
 select pg_temp.como('f1500000-0000-0000-0000-000000000001');
@@ -191,7 +193,8 @@ select ok(
   'Y el consumo real de la iglesia, para compararlo con el límite nuevo'
 );
 
-select pg_temp.sin_sesion();
+reset role;
+select set_config('request.jwt.claims', '', true);
 
 select is(
   (select plan_version_id from subscriptions where church_id = (select church_id from t_iglesia)),
@@ -209,7 +212,8 @@ select lives_ok(
   'El operador comercial sí puede cambiar el plan'
 );
 
-select pg_temp.sin_sesion();
+reset role;
+select set_config('request.jwt.claims', '', true);
 
 select is(
   (select plan_version_id from subscriptions where church_id = (select church_id from t_iglesia)),
@@ -263,7 +267,8 @@ select lives_ok(
   'Se puede programar un cambio de plan para más adelante'
 );
 
-select pg_temp.sin_sesion();
+reset role;
+select set_config('request.jwt.claims', '', true);
 
 select is(
   (select plan_version_id from subscriptions where church_id = (select church_id from t_iglesia)),
@@ -295,7 +300,8 @@ select throws_ok(
   'Una excepción que caduca antes de empezar se rechaza'
 );
 
-select pg_temp.sin_sesion();
+reset role;
+select set_config('request.jwt.claims', '', true);
 
 select is(
   (select limit_value from app.church_entitlements((select church_id from t_iglesia))
@@ -333,7 +339,8 @@ select is(
   'Cancelar declara explícitamente que los datos se conservan'
 );
 
-select pg_temp.sin_sesion();
+reset role;
+select set_config('request.jwt.claims', '', true);
 
 select is(
   (select count(*)::int from church_people where church_id = (select church_id from t_iglesia)),
