@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { AlertTriangle, Building2, MailWarning, ShieldAlert, UserX } from "lucide-react";
-import { getOverview, tiene } from "@/server/platform/platform-service";
+import { getOverview } from "@/server/platform/platform-service";
 import { requireOperator } from "./guard";
 import "../app-shell.css";
 
@@ -16,17 +16,10 @@ export default async function OperacionPage() {
   if ("bloqueado" in acceso) return acceso.bloqueado;
 
   const resumen = await getOverview();
-  const puedeCrear = tiene(acceso.contexto, "platform.churches.create");
 
-  // Cada sección aparece solo si la cuenta tiene su capacidad: un enlace a una
-  // pantalla que va a rechazarte no informa, despista.
-  const secciones = [
-    { href: "/operacion/planes", texto: "Planes", visible: tiene(acceso.contexto, "platform.commercial.read") },
-    { href: "/operacion/procesos", texto: "Procesos", visible: tiene(acceso.contexto, "platform.operations.read") },
-    { href: "/operacion/soporte", texto: "Soporte", visible: tiene(acceso.contexto, "platform.support.manage") },
-    { href: "/operacion/auditoria", texto: "Auditoría", visible: tiene(acceso.contexto, "platform.audit.read") },
-  ].filter((s) => s.visible);
-
+  // La navegación entre secciones vive en el layout, filtrada por capacidad.
+  // Aquí solo quedan los indicadores, que llevan a su listado ya filtrado: un
+  // número sin sitio adonde ir no sirve para trabajar.
   const tarjetas = [
     {
       icono: Building2,
@@ -59,7 +52,7 @@ export default async function OperacionPage() {
   ];
 
   return (
-    <div style={{ minHeight: "100svh", background: "var(--shell-bg)", padding: "32px 20px" }}>
+    <div style={{ padding: "32px 20px" }}>
       <div style={{ maxWidth: 1100, margin: "0 auto", display: "flex", flexDirection: "column", gap: 20 }}>
         <header style={{ display: "flex", flexWrap: "wrap", gap: 12, alignItems: "center", justifyContent: "space-between" }}>
           <div>
@@ -67,24 +60,6 @@ export default async function OperacionPage() {
             <p style={{ margin: "4px 0 0", color: "var(--shell-text-muted)", fontSize: 13 }}>
               Panel del equipo. No da acceso a los datos de ninguna iglesia.
             </p>
-          </div>
-          <div style={{ display: "flex", gap: 8 }}>
-            <Link href="/operacion/iglesias" className="shell-card" style={enlaceStyle}>
-              Ver iglesias
-            </Link>
-            {puedeCrear && (
-              <Link href="/operacion/altas" className="shell-card" style={enlaceStyle}>
-                Alta de iglesia
-              </Link>
-            )}
-            {secciones.map((s) => (
-              <Link key={s.href} href={s.href} className="shell-card" style={enlaceStyle}>
-                {s.texto}
-              </Link>
-            ))}
-            <Link href="/operacion/seguridad" className="shell-card" style={enlaceStyle}>
-              Seguridad
-            </Link>
           </div>
         </header>
 
@@ -167,10 +142,3 @@ export default async function OperacionPage() {
   );
 }
 
-const enlaceStyle: React.CSSProperties = {
-  padding: "9px 14px",
-  fontSize: 12.5,
-  fontWeight: 600,
-  textDecoration: "none",
-  color: "inherit",
-};

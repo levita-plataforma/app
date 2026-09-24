@@ -53,7 +53,7 @@ export default async function FichaIglesiaPage({ params }: { params: Promise<{ i
     : [null, [], [], []];
 
   return (
-    <div style={{ minHeight: "100svh", background: "var(--shell-bg)", padding: "32px 20px" }}>
+    <div style={{ padding: "32px 20px" }}>
       <div style={{ maxWidth: 1000, margin: "0 auto", display: "flex", flexDirection: "column", gap: 16 }}>
         <header>
           <Link href="/operacion/iglesias" style={{ fontSize: 12.5 }}>

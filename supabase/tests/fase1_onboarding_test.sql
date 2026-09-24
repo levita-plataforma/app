@@ -134,6 +134,14 @@ select is((select app.slugify('Iglesia Ñandú & Café')), 'iglesia-nandu-cafe',
 -- 5. Alta asistida por operación LEVITA
 -- ============================================================
 insert into platform_operators (user_id) values ('30000000-0000-0000-0000-000000000003');
+
+-- Desde CA-0.2 pertenecer al equipo ya no basta: hace falta la capacidad
+-- concreta, la misma que exige app.platform_create_church desde la Fase 14.
+-- Antes, un operador sin ninguna capacidad podía crear iglesias por aquí.
+insert into platform_operator_capabilities (user_id, capability_key)
+values ('30000000-0000-0000-0000-000000000003', 'platform.churches.create')
+on conflict do nothing;
+
 select test_set_auth_uid('30000000-0000-0000-0000-000000000003');
 
 select lives_ok(
@@ -141,7 +149,7 @@ select lives_ok(
     'Iglesia Asistida', 'iglesia-asistida', 'es-ES', 'Europe/Madrid', 'EUR', 'España',
     'invitado@example.test', array['people','serving']
   ) $$,
-  'assisted_provision_church no lanza excepción para un operador de plataforma'
+  'assisted_provision_church no lanza excepción para un operador con capacidad de crear iglesias'
 );
 
 reset role;
@@ -159,13 +167,18 @@ select ok(
 -- Un usuario sin capacidad de operador no puede hacer alta asistida.
 select test_set_auth_uid('30000000-0000-0000-0000-000000000001');
 
-select throws_like(
+-- Sigue rechazando, pero desde CA-0.2 con el mensaje estándar del panel en vez
+-- de «FORBIDDEN: se requiere capacidad…». El cambio es deliberado: a quien no
+-- debería estar aquí no se le dice qué le falta. Se comprueba por el código de
+-- error, que es más estable que el texto.
+select throws_ok(
   $$ select * from app.assisted_provision_church(
     'Iglesia No Autorizada', 'iglesia-no-autorizada', 'es-ES', 'Europe/Madrid', 'EUR', 'España',
     'x@example.test', array['people']
   ) $$,
-  '%FORBIDDEN%',
-  'Un usuario sin capacidad de operador no puede usar assisted_provision_church'
+  '42501',
+  'No tienes permiso para esta operación.',
+  'Un usuario que no es operador de plataforma no puede usar assisted_provision_church'
 );
 
 -- ============================================================

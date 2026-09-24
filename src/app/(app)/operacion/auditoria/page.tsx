@@ -39,7 +39,7 @@ export default async function AuditoriaPage({ searchParams }: { searchParams: Pr
   const entradas = await listAudit({ churchId: params.iglesia, action: params.accion, limit: 200 });
 
   return (
-    <div style={{ minHeight: "100svh", background: "var(--shell-bg)", padding: "32px 20px" }}>
+    <div style={{ padding: "32px 20px" }}>
       <div style={{ maxWidth: 1000, margin: "0 auto", display: "flex", flexDirection: "column", gap: 20 }}>
         <header>
           <h1 style={{ margin: 0, fontSize: 20 }}>Auditoría</h1>
