@@ -1,14 +1,24 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { env } from "@/server/env";
 import { createSupabaseServerClient } from "@/server/supabase/server-client";
 
-export type AltaAsistidaState = { error: string | null; invitationLink?: string };
+export type AltaAsistidaState = {
+  error: string | null;
+  invitationLink?: string;
+  /** Si el identificador ya existía, a qué iglesia corresponde. */
+  iglesiaExistenteId?: string;
+};
 
 /**
- * Alta asistida por operación LEVITA. Nunca usa service_role desde el
- * cliente: delega en app.assisted_provision_church (security definer,
- * comprueba app.is_platform_operator()). Ver encargo de Fase 1 §16.
+ * Alta asistida por operación LEVITA.
+ *
+ * Delega en `app.assisted_provision_church`, que es el punto único de entrada:
+ * `app.platform_create_church` de la Fase 14 la llama por dentro y solo oculta
+ * el token. Las dos exigen `platform.churches.create` desde CA-0.2.
+ *
+ * Nunca usa service_role: la autorización la hace la base.
  */
 export async function crearAltaAsistidaAction(
   _prevState: AltaAsistidaState,
@@ -37,20 +47,44 @@ export async function crearAltaAsistidaAction(
   });
 
   if (error) {
-    if (error.message.includes("FORBIDDEN")) {
-      return { error: "No tienes capacidad de operación de plataforma." };
+    // Por código y no por texto: desde CA-0.2 el rechazo por permisos llega
+    // como 42501 con el mensaje estándar del panel y ya no dice «FORBIDDEN»,
+    // así que esta comprobación había dejado de encontrarlo sin que nada
+    // fallara a la vista: el operador recibía «no se pudo crear», a secas.
+    if (error.code === "42501") {
+      return { error: "Tu cuenta no puede crear iglesias." };
     }
+
     if (error.message.includes("SLUG_UNAVAILABLE")) {
-      return { error: "Ese identificador ya está en uso." };
+      // Un reintento tras un fallo de red aterriza aquí, y la iglesia puede
+      // haberse creado en el primer intento. En vez de dejar al operador
+      // creyendo que no existe, se busca y se enlaza.
+      const { data: existente } = await supabase
+        .from("churches")
+        .select("id")
+        .eq("slug", slug)
+        .maybeSingle();
+
+      return {
+        error: existente
+          ? "Ese identificador ya está en uso. Si acabas de intentarlo y falló, puede que la iglesia se creara igualmente: ábrela para comprobarlo."
+          : "Ese identificador ya está en uso.",
+        iglesiaExistenteId: existente?.id,
+      };
     }
+
     return { error: "No se pudo crear el alta asistida." };
   }
 
   const row = data?.[0];
-  const link = row
-    ? `${process.env.NEXT_PUBLIC_APP_URL ?? ""}/acceso/invitacion/${row.out_invitation_token}`
-    : undefined;
 
   revalidatePath("/operacion/altas");
-  return { error: null, invitationLink: link };
+  revalidatePath("/operacion/iglesias");
+
+  return {
+    error: null,
+    // env.appUrl y no process.env directo: con la variable sin definir el
+    // enlace salía relativo, y pegado en un correo no lleva a ninguna parte.
+    invitationLink: row ? `${env.appUrl}/acceso/invitacion/${row.out_invitation_token}` : undefined,
+  };
 }

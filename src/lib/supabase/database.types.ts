@@ -9140,8 +9140,10 @@ export type Database = {
           p_limit?: number
           p_module?: string
           p_offset?: number
+          p_onboarding_pendiente?: boolean
           p_plan?: string
           p_search?: string
+          p_sin_propietario?: boolean
           p_status?: string
         }
         Returns: {

@@ -144,6 +144,10 @@ export type ChurchFilters = {
   plan?: string;
   module?: string;
   createdFrom?: string;
+  /** Solo las que no han terminado el alta. Es el filtro al que enlaza la portada. */
+  onboardingPendiente?: boolean;
+  /** Solo las que no tienen propietario: nadie puede administrarlas hasta resolverlo. */
+  sinPropietario?: boolean;
   page?: number;
   pageSize?: number;
 };
@@ -161,6 +165,8 @@ export async function listChurches(
     p_plan: filtros.plan ?? undefined,
     p_module: filtros.module ?? undefined,
     p_created_from: filtros.createdFrom ?? undefined,
+    p_onboarding_pendiente: filtros.onboardingPendiente ? true : undefined,
+    p_sin_propietario: filtros.sinPropietario ? true : undefined,
     p_limit: pageSize,
     p_offset: (page - 1) * pageSize,
   });

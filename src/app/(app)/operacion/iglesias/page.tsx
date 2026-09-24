@@ -9,6 +9,9 @@ type SearchParams = {
   plan?: string;
   modulo?: string;
   desde?: string;
+  /** Los dos filtros a los que enlazan los indicadores de la portada. */
+  onboarding?: string;
+  sinPropietario?: string;
   page?: string;
 };
 
@@ -27,12 +30,19 @@ export default async function IglesiasPage({ searchParams }: { searchParams: Pro
   const params = await searchParams;
   const page = Math.max(Number(params.page ?? "1") || 1, 1);
 
+  // Hasta CA-2.1 estos dos llegaban en la URL desde la portada y se ignoraban:
+  // el listado salía entero y parecía que no había nada pendiente.
+  const soloAltaPendiente = params.onboarding === "pendiente";
+  const soloSinPropietario = params.sinPropietario === "1";
+
   const { items, total, pageSize } = await listChurches({
     search: params.q,
     status: params.estado,
     plan: params.plan,
     module: params.modulo,
     createdFrom: params.desde,
+    onboardingPendiente: soloAltaPendiente,
+    sinPropietario: soloSinPropietario,
     page,
   });
 
@@ -48,7 +58,24 @@ export default async function IglesiasPage({ searchParams }: { searchParams: Pro
           <h1 style={{ margin: "6px 0 0", fontSize: 20 }}>Iglesias</h1>
           <p style={{ margin: "4px 0 0", color: "var(--shell-text-muted)", fontSize: 13 }}>
             {total === 1 ? "1 iglesia" : `${total} iglesias`}
+            {(soloAltaPendiente || soloSinPropietario) && " con el filtro aplicado"}
           </p>
+
+          {/*
+            Si el filtro viene de un indicador de la portada, hay que decirlo:
+            un recuento pequeño sin explicación se lee como «hay pocas», no como
+            «estás viendo un subconjunto».
+          */}
+          {(soloAltaPendiente || soloSinPropietario) && (
+            <p style={{ margin: "8px 0 0", fontSize: 12.5, display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap" }}>
+              <span className="serving-chip is-warning">
+                {soloAltaPendiente ? "Solo altas sin terminar" : "Solo sin propietario"}
+              </span>
+              <Link href="/operacion/iglesias" style={{ color: "var(--shell-text-muted)" }}>
+                Ver todas
+              </Link>
+            </p>
+          )}
         </header>
 
         <form className="shell-card" style={{ padding: 14, display: "flex", gap: 8, flexWrap: "wrap" }}>
