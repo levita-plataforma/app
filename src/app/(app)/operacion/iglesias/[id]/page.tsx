@@ -4,6 +4,7 @@ import { getChurchDetail, tiene } from "@/server/platform/platform-service";
 import { requireOperator } from "../../guard";
 import ModulosPanel from "./ModulosPanel";
 import PanelComercial from "./PanelComercial";
+import PanelResponsables from "./PanelResponsables";
 import {
   getChurchEntitlements,
   getServiceState,
@@ -38,6 +39,7 @@ export default async function FichaIglesiaPage({ params }: { params: Promise<{ i
   if (!ficha) notFound();
 
   const puedeModulos = tiene(acceso.contexto, "platform.modules.manage");
+  const puedeResponsables = tiene(acceso.contexto, "platform.owners.manage");
   const puedeVerComercial = tiene(acceso.contexto, "platform.commercial.read");
   const puedeGestionarComercial = tiene(acceso.contexto, "platform.commercial.manage");
 
@@ -127,22 +129,16 @@ export default async function FichaIglesiaPage({ params }: { params: Promise<{ i
           </p>
         </section>
 
-        <section className="shell-card" style={{ padding: 16 }}>
-          <h2 style={seccionStyle}>Invitaciones</h2>
-          {ficha.invitaciones.length === 0 ? (
-            <p style={vacioStyle}>No hay invitaciones.</p>
-          ) : (
-            <ul style={{ margin: 0, paddingLeft: 18, fontSize: 13, lineHeight: 1.8 }}>
-              {ficha.invitaciones.map((i) => (
-                <li key={i.id}>
-                  {i.role_key === "church_owner" ? "Propietario" : "Administrador"} ·{" "}
-                  {i.caducada ? "caducada" : i.status}
-                  {i.expires_at && ` · hasta ${fecha(i.expires_at)}`}
-                </li>
-              ))}
-            </ul>
-          )}
-        </section>
+        {/*
+          Sustituye a la lista de solo lectura: invitar existía en el servicio
+          desde la Fase 14 y ninguna pantalla lo llamaba, así que una iglesia
+          sin propietario no tenía forma de recibir uno desde el panel.
+        */}
+        <PanelResponsables
+          churchId={ficha.id}
+          invitaciones={ficha.invitaciones}
+          puedeGestionar={puedeResponsables}
+        />
 
         <ModulosPanel
           churchId={ficha.id}

@@ -9192,7 +9192,11 @@ export type Database = {
       }
       platform_invite_admin: {
         Args: { p_church_id: string; p_email: string; p_role_key?: string }
-        Returns: string
+        Returns: {
+          out_invitation_id: string
+          out_reutilizada: boolean
+          out_token: string
+        }[]
       }
       platform_open_support_session: {
         Args: {
