@@ -9140,8 +9140,10 @@ export type Database = {
           p_limit?: number
           p_module?: string
           p_offset?: number
+          p_onboarding_pendiente?: boolean
           p_plan?: string
           p_search?: string
+          p_sin_propietario?: boolean
           p_status?: string
         }
         Returns: {
@@ -9190,7 +9192,11 @@ export type Database = {
       }
       platform_invite_admin: {
         Args: { p_church_id: string; p_email: string; p_role_key?: string }
-        Returns: string
+        Returns: {
+          out_invitation_id: string
+          out_reutilizada: boolean
+          out_token: string
+        }[]
       }
       platform_open_support_session: {
         Args: {

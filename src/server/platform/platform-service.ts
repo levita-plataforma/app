@@ -1,6 +1,7 @@
 import "server-only";
 import { createSupabaseServerClient } from "@/server/supabase/server-client";
 import { toDomainError } from "@/server/activities/rpc";
+import { env } from "@/server/env";
 
 /**
  * Panel de operación de LEVITA (Fase 14).
@@ -144,6 +145,10 @@ export type ChurchFilters = {
   plan?: string;
   module?: string;
   createdFrom?: string;
+  /** Solo las que no han terminado el alta. Es el filtro al que enlaza la portada. */
+  onboardingPendiente?: boolean;
+  /** Solo las que no tienen propietario: nadie puede administrarlas hasta resolverlo. */
+  sinPropietario?: boolean;
   page?: number;
   pageSize?: number;
 };
@@ -161,6 +166,8 @@ export async function listChurches(
     p_plan: filtros.plan ?? undefined,
     p_module: filtros.module ?? undefined,
     p_created_from: filtros.createdFrom ?? undefined,
+    p_onboarding_pendiente: filtros.onboardingPendiente ? true : undefined,
+    p_sin_propietario: filtros.sinPropietario ? true : undefined,
     p_limit: pageSize,
     p_offset: (page - 1) * pageSize,
   });
@@ -264,11 +271,19 @@ export async function setModule(
   if (error) throw toDomainError(error, "No se pudo cambiar el módulo.");
 }
 
+/**
+ * Invita a un responsable y devuelve el enlace para entregárselo.
+ *
+ * El enlace sale una sola vez: la base guarda su huella, no el enlace. Si la
+ * invitación ya existía se reutiliza, y entonces `link` es null porque su token
+ * no se puede recuperar. Quien llame tiene que distinguir los dos casos en vez
+ * de enseñar un hueco.
+ */
 export async function inviteAdmin(
   churchId: string,
   email: string,
   roleKey: "church_owner" | "church_admin",
-): Promise<{ id: string }> {
+): Promise<{ id: string; link: string | null; reutilizada: boolean }> {
   const supabase = await createSupabaseServerClient();
   const { data, error } = await supabase.rpc("platform_invite_admin", {
     p_church_id: churchId,
@@ -276,7 +291,15 @@ export async function inviteAdmin(
     p_role_key: roleKey,
   });
   if (error) throw toDomainError(error, "No se pudo crear la invitación.");
-  return { id: data as string };
+
+  type Fila = { out_invitation_id: string; out_token: string | null; out_reutilizada: boolean };
+  const fila = ((data ?? []) as Fila[])[0];
+
+  return {
+    id: fila?.out_invitation_id ?? "",
+    link: fila?.out_token ? `${env.appUrl}/acceso/invitacion/${fila.out_token}` : null,
+    reutilizada: Boolean(fila?.out_reutilizada),
+  };
 }
 
 export async function revokeInvitation(invitationId: string, motivo?: string): Promise<void> {
