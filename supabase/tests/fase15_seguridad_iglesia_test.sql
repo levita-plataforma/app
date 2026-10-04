@@ -5,7 +5,7 @@
 -- desbloqueo no cambia la suscripción. Lecturas y escrituras con rol authenticated.
 
 begin;
-select plan(19);
+select plan(21);
 
 create or replace function t15q_set_uid(p_uid uuid) returns void as $$
 begin
@@ -30,6 +30,15 @@ begin
 exception when others then
   get stacked diagnostics v_state = returned_sqlstate;
   return v_state;
+end;
+$$ language plpgsql;
+
+create or replace function t15q_count_text(p_sql text) returns integer as $$
+declare
+  v_n integer;
+begin
+  execute p_sql into v_n;
+  return v_n;
 end;
 $$ language plpgsql;
 
@@ -174,9 +183,21 @@ select is((select count(*)::int from platform_audit_logs
 select is((select count(*)::int from platform_audit_logs
   where action = 'church.security_unblocked' and actor_user_id = 'e1000000-0000-0000-0000-000000000014'
     and created_at is not null), 1, 'auditoría · el desbloqueo queda con operador y momento');
-select is((select (metadata ? 'previous_reason') from platform_audit_logs
+select is((select (metadata ? 'reason') or (metadata ? 'previous_reason') from platform_audit_logs
   where action = 'church.security_unblocked' limit 1), false,
-  'auditoría · el desbloqueo no guarda el motivo interno anterior');
+  'auditoría · el payload del desbloqueo no guarda el texto del motivo');
+-- platform.audit.read: lee la auditoría pero no obtiene el texto interno
+insert into auth.users (id, email) values ('e1000000-0000-0000-0000-000000000015', 'op.auditoria.q@example.test');
+insert into platform_operators (user_id) values ('e1000000-0000-0000-0000-000000000015');
+insert into platform_operator_capabilities (user_id, capability_key) values
+  ('e1000000-0000-0000-0000-000000000015', 'platform.audit.read');
+select t15q_set_uid('e1000000-0000-0000-0000-000000000015');
+select is(t15q_count_text($$ select count(*)::int from app.platform_audit(null, null, 200)
+  where metadata::text like '%Sospecha de acceso indebido%' $$), 0,
+  'auditoría · platform.audit.read no obtiene el texto interno del motivo de bloqueo');
+select is(t15q_count_text($$ select count(*)::int from app.platform_audit(null, 'church.security_blocked', 200) $$), 1,
+  'auditoría · platform.audit.read sí ve que hubo un bloqueo (acción y tenant)');
+select t15q_reset();
 
 select * from finish();
 rollback;

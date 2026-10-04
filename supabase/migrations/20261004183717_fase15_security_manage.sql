@@ -8,7 +8,9 @@
 -- Leer no concede gestionar, y gestionar no concede leer. Cada acción exige motivo y
 -- queda en platform_audit_logs con el operador (actor) y el momento. El desbloqueo
 -- no toca subscriptions.
--- La auditoría no guarda el motivo interno anterior: solo si existía.
+-- La auditoría no guarda el texto del motivo (ni el nuevo ni el anterior): solo
+-- indicadores (had_reason, had_previous_block). El texto solo lo ve quien tiene
+-- platform.church_security.read.
 
 insert into platform_capabilities (key, description) values
   ('platform.church_security.manage',
@@ -42,8 +44,10 @@ begin
       updated_at = now()
   where id = p_church_id;
 
+  -- El texto del motivo no entra en la auditoría: platform.audit.read lo leería sin
+  -- platform.church_security.read. Queda solo el indicador.
   perform app.write_platform_audit('church.security_blocked', p_church_id,
-    jsonb_build_object('reason', btrim(p_reason), 'had_previous_block', v_anterior is not null));
+    jsonb_build_object('had_reason', true, 'had_previous_block', v_anterior is not null));
 end;
 $$;
 
@@ -75,7 +79,7 @@ begin
   where id = p_church_id;
 
   perform app.write_platform_audit('church.security_unblocked', p_church_id,
-    jsonb_build_object('reason', btrim(p_reason), 'had_previous_block', v_anterior is not null));
+    jsonb_build_object('had_reason', true, 'had_previous_block', v_anterior is not null));
 end;
 $$;
 

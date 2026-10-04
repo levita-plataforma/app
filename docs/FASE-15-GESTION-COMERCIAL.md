@@ -637,10 +637,9 @@ aprobada, con su propio alcance, auditoría y pruebas. No existe hoy.
 - Bloquear y desbloquear usan `platform.church_security.manage`, no `platform.support.manage`. Cada acción exige
   motivo y se escribe en `platform_audit_logs` con el operador y el momento (`church.security_blocked` /
   `church.security_unblocked`). El desbloqueo no toca `subscriptions`.
-- La auditoría no guarda el motivo interno anterior, solo si existía (`had_previous_block`). Antes, `platform.audit.read`
-  podía leer el texto anterior sin ninguna capacidad de seguridad.
-- Pruebas: `fase15_seguridad_iglesia_test.sql` (19 aserciones): soporte y comercial no leen el motivo; lectura solo con
+- La auditoría no guarda el texto del motivo: ni el nuevo ni el anterior. Solo indicadores: `had_reason` y
+  `had_previous_block`. Antes, `platform.audit.read` podía leer el texto anterior sin ninguna capacidad de seguridad.
+  El texto solo está en `churches.security_block_reason`, que lee quien tiene `platform.church_security.read`.
+- Pruebas: `fase15_seguridad_iglesia_test.sql` (21 aserciones): soporte y comercial no leen el motivo; lectura solo con
   `church_security.read`; leer no altera; gestionar no concede lectura; owner y otro tenant no alteran; motivo
   obligatorio; auditoría; desbloqueo sin cambio de suscripción.
-- Decisión abierta: el motivo del bloqueo queda en la auditoría, que puede leer `platform.audit.read`. Si se quiere que
-  solo lo vea quien tiene `church_security.read`, hay que redactar el motivo en la auditoría. No se ha hecho.
