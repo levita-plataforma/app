@@ -1059,8 +1059,19 @@ select t_clock('');
 -- ============================================================
 -- 14. Borrado de la iglesia en cascada
 -- ============================================================
+-- Borrar una iglesia solo es posible por lifecycle (Fase 15, bypass acotado).
+create or replace function t_cascade_delete(p_church uuid) returns void as $$
+begin
+  perform set_config('role', 'service_role', true);
+  perform set_config('app.lifecycle_bypass', 'on', true);
+  delete from churches where id = p_church;
+  perform set_config('app.lifecycle_bypass', 'off', true);
+  perform set_config('role', 'none', true);
+end;
+$$ language plpgsql;
+
 select lives_ok(
-  $$ delete from churches where id = t_id('church_a') $$,
+  $$ select t_cascade_delete(t_id('church_a')) $$,
   'Borrar la iglesia no falla con avisos, entregas y preferencias'
 );
 
