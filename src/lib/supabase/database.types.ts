@@ -8894,6 +8894,28 @@ export type Database = {
           out_phone: string
         }[]
       }
+      get_church_recovery_context: {
+        Args: { p_church_id: string }
+        Returns: Json
+      }
+      get_my_church_access_modes: {
+        Args: never
+        Returns: {
+          access_mode: string
+          church_id: string
+        }[]
+      }
+      get_my_memberships: {
+        Args: never
+        Returns: {
+          access_mode: string
+          church_id: string
+          church_name: string
+          church_slug: string
+          person_id: string
+          relationship: string
+        }[]
+      }
       giving_summary: {
         Args: { p_church_id: string; p_from?: string; p_to?: string }
         Returns: Json
@@ -8994,6 +9016,18 @@ export type Database = {
           medical_alert: boolean
           room_name: string
         }[]
+      }
+      kids_record_incident_for_present_kid: {
+        Args: {
+          p_actions_taken?: string
+          p_church_id: string
+          p_description: string
+          p_incident_type: Database["public"]["Enums"]["kids_incident_type"]
+          p_kid_person_id: string
+          p_session_id: string
+          p_severity: Database["public"]["Enums"]["kids_incident_severity"]
+        }
+        Returns: string
       }
       kids_remove_session_staff: {
         Args: { p_reason?: string; p_staff_id: string }

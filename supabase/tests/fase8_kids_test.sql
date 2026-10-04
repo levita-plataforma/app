@@ -864,8 +864,8 @@ select is(
 
 select is(
   test_err($$ select * from app.kids_lookup_pickup('80000000-0000-0000-0000-0000000c0002', 'AAAAAAAA') $$),
-  '42501',
-  'Buscar por código en una sesión de la iglesia A desde la iglesia B está denegado antes de mirar ningún código'
+  'P0002',
+  'Buscar por código en una sesión de la iglesia A desde la iglesia B da el mismo error que un código inválido'
 );
 
 reset role;

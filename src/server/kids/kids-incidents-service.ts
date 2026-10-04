@@ -1,6 +1,7 @@
 import "server-only";
 import { createSupabaseServerClient } from "@/server/supabase/server-client";
 import { requireCapability } from "@/server/tenant/authorize";
+import { getTenantContext, isOperationalAccessMode } from "@/server/tenant/tenant-context";
 import { auditLog } from "@/server/audit/audit-log";
 import { DomainError } from "@/server/errors/domain-error";
 import type { Database } from "@/lib/supabase/database.types";
@@ -165,10 +166,18 @@ export type CreateIncidentInput = {
 };
 
 export async function createIncident(churchId: string, input: CreateIncidentInput): Promise<{ incidentId: string }> {
-  await requireCapability(churchId, "kids.incident.manage");
-
   const description = input.description.trim();
   if (!description) throw new DomainError("VALIDATION_ERROR", "La descripción de la incidencia es obligatoria.");
+
+  // En estado no operativo no se lee Kids. La comprobación de capacidad va por
+  // public.has_capability, que lee roles con RLS y allí no ve nada: el cierre
+  // seguro usa la RPC mínima, que valida rol y presencia activa en servidor.
+  const membership = (await getTenantContext())?.memberships.find((m) => m.churchId === churchId);
+  if (membership && !isOperationalAccessMode(membership.accessMode)) {
+    return createIncidentForPresentKid(churchId, input, description);
+  }
+
+  await requireCapability(churchId, "kids.incident.manage");
 
   const supabase = await createSupabaseServerClient();
   const {
@@ -209,6 +218,40 @@ export async function createIncident(churchId: string, input: CreateIncidentInpu
   });
 
   return { incidentId: data.id };
+}
+
+async function createIncidentForPresentKid(
+  churchId: string,
+  input: CreateIncidentInput,
+  description: string,
+): Promise<{ incidentId: string }> {
+  const supabase = await createSupabaseServerClient();
+  const { data, error } = await supabase.rpc("kids_record_incident_for_present_kid", {
+    p_church_id: churchId,
+    p_kid_person_id: input.kidPersonId,
+    p_session_id: input.sessionId ?? undefined,
+    p_incident_type: input.incidentType,
+    p_severity: input.severity,
+    p_description: description,
+    p_actions_taken: input.actionsTaken?.trim() || undefined,
+  });
+
+  if (error || !data) throw new DomainError("FORBIDDEN", "No se puede registrar la incidencia para este menor en este momento.");
+
+  await auditLog({
+    churchId,
+    action: "kids.incident_created",
+    entityType: "kids_incidents",
+    entityId: data as string,
+    metadata: {
+      incident_type: input.incidentType,
+      severity: input.severity,
+      kid_person_id: input.kidPersonId,
+      path: "present_kid_safe_close",
+    },
+  });
+
+  return { incidentId: data as string };
 }
 
 export type UpdateIncidentInput = {
