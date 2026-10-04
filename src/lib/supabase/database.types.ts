@@ -9237,6 +9237,10 @@ export type Database = {
         }[]
       }
       platform_church_detail: { Args: { p_church_id: string }; Returns: Json }
+      platform_church_diagnostics: {
+        Args: { p_church_id: string }
+        Returns: Json
+      }
       platform_churches: {
         Args: {
           p_created_from?: string
@@ -9801,6 +9805,10 @@ export type Database = {
           p_organization: string
         }
         Returns: string
+      }
+      support_session_active_for_church: {
+        Args: { p_church_id: string }
+        Returns: boolean
       }
       transition_activity_status: {
         Args: {

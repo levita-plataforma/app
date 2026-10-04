@@ -6,6 +6,7 @@ import { getTenantContext, isOperationalAccessMode } from "@/server/tenant/tenan
 import { createSupabaseServerClient } from "@/server/supabase/server-client";
 import { getOnboardingState } from "@/server/onboarding/onboarding-service";
 import { EstadoView } from "./estado/EstadoView";
+import SoporteActivoBanner from "./SoporteActivoBanner";
 import "../app-shell.css";
 
 /**
@@ -51,6 +52,7 @@ export default async function AppLayout({
           </div>
         </aside>
         <div className="shell-main">
+          <SoporteActivoBanner churchId={tenant.churchId} />
           <main className="shell-content">
             <EstadoView
               churchId={tenant.churchId}
@@ -108,6 +110,7 @@ export default async function AppLayout({
       </aside>
 
       <div className="shell-main">
+        <SoporteActivoBanner churchId={tenant.churchId} />
         <ShellHeader tenant={tenant} displayName={displayName} roleLabel={roleLabel} />
         <main className="shell-content">{children}</main>
       </div>
