@@ -181,3 +181,175 @@ Ninguna reescribe una migración aplicada. Todas se aplican sobre el esquema int
    (colas sin procesador en «desconocido»), `/operacion/soporte` (lo que una sesión no
    permite) y la ficha de una iglesia.
 3. Si se aprueba: aplicar las cuatro migraciones **antes** de integrar, y después el PR.
+
+---
+
+## 11. A1 · Gating comercial a nivel de tabla (4 de octubre de 2026)
+
+Rama `feature/diogo-fase-15-estados-acceso`. Migraciones `20261004170016`, `20261004170017`,
+`20261004170018` y `20261004170019`. Estado de la fase: **PARCIAL**, sin cambios.
+
+### Principio
+
+Membresía, permiso y acceso comercial son tres preguntas distintas:
+
+- `app.church_ids_for_user()`: a qué tenants pertenece el usuario. **Sin cambios.**
+- `has_capability(...)`: qué puede hacer dentro de un tenant. **Sin cambios.**
+- `app.church_access_mode(church_id)`: si el tenant puede operar comercialmente. **Nuevo.**
+
+Una operación de negocio necesita las tres: membresía, capacidad y modo `full` o `grace`.
+
+### Modo de acceso
+
+Prioridad: `security_blocked` > `cancelled`/`suspended` > `trial_expired` > `past_due` en gracia > `active`/`trial`.
+
+`cancelled` y `suspended` van por delante de `trial_expired` porque una baja o una suspensión operativa
+explica el bloqueo mejor que el vencimiento de una prueba, y no debe presentarse como "prueba vencida".
+
+| Modo | Origen | Escritura de negocio |
+|---|---|---|
+| `full` | suscripción `active` o `trial`, o sin suscripción aún | permitida |
+| `grace` | `past_due` con menos de 15 días desde `past_due_since` | permitida |
+| `suspended` | `suspended`, o `past_due` tras 15 días | denegada |
+| `cancelled` | `cancelled`, o iglesia archivada | denegada |
+| `trial_expired` | `trial` con `trial_ends_at` pasado, sin conversión | denegada (`CHURCH_TRIAL_EXPIRED`) |
+| `security_blocked` | `churches.security_block_reason` no nulo | denegada, aunque la suscripción esté activa |
+
+`past_due_since` lo fija la operación de plataforma hasta que exista la integración de cobro. Es
+obligatorio mientras `status = past_due`. La gracia se calcula en el servidor; el cliente no envía
+fechas.
+
+### Clasificación de las 109 tablas con `church_id`
+
+- **Negocio (94):** triggers `<tabla>_commercial_gate`. Incluye `webhook_endpoints_outbound` (movida
+  desde infraestructura) y las tablas de Kids, `campuses`, `church_people_roles` e `invitations`.
+- **Plano de control (6):** sin trigger general, con sus propias reglas: `subscriptions`,
+  `subscription_history`, `support_sessions`, `church_entitlement_overrides`, `church_feature_flags`,
+  `church_modules`.
+- **Infraestructura y ciclo de vida (7):** sin trigger general. Reglas propias: `export_jobs`
+  (ver más abajo), `church_onboarding`, `import_jobs`, `notification_events`,
+  `notification_deliveries`, `notifications`, `webhook_events_inbound`.
+- **Auditoría (2):** `audit_logs`, `platform_audit_logs`. Inmutables.
+
+La clasificación vive en la tabla `commercial_gate_classification`, con su motivo por fila. El test
+de guardarraíl usa el catálogo de PostgreSQL: falla si aparece una tabla con `church_id` sin
+clasificar, o si una tabla de negocio no tiene su trigger.
+
+**Triggers añadidos:** 96 en total. 94 de negocio, más `churches_commercial_gate` (solo
+`update` y `delete`) y `export_jobs_commercial_gate`.
+
+### Iglesia (`churches`)
+
+No tiene `church_id`, así que no entra en el trigger genérico. Tiene su propio guardarraíl: en modos
+restringidos solo pueden cambiar `status`, `archived_at`, `archived_by`, `security_block_reason`,
+`security_blocked_at`, `security_blocked_by` y `updated_at`. El branding y la configuración normal se
+bloquean. Borrar una iglesia solo es posible con el bypass de lifecycle.
+
+### Excepciones de Kids (por transición, no por módulo)
+
+Permitidas en cualquier modo:
+
+- pasar un check-in de `checked_in` a `checked_out`, manteniendo sesión, menor e iglesia;
+- marcar una autorización de recogida como `used`, si está ligada a un check-out ya hecho.
+
+Permitida en `trial_expired`, `suspended`, `cancelled` y `security_blocked`:
+
+- registrar una incidencia de un menor que sigue dentro (`checked_in`). Es el cierre seguro de una
+  presencia activa; sin menor dentro, la incidencia se deniega.
+
+Denegadas en todos los modos no activos: crear check-ins nuevos, crear sesiones, cambiar configuración
+de salas y crear menores. Denegada también cualquier incidencia de un menor que no está dentro.
+
+El estado comercial nunca impide entregar un menor de forma segura: check-out y recogida no miran el modo.
+La lectura de Kids no se abre con esto (eso es A2, mediante una RPC mínima y auditada).
+Tests: `supabase/tests/fase15_kids_cierre_seguro_test.sql`.
+
+### Exportaciones (`export_jobs`)
+
+- `trial_expired`, `suspended`, `cancelled`, `full` y `grace`: se pueden solicitar.
+- `security_blocked`: denegadas, también para la plataforma.
+
+### Bypass de lifecycle
+
+`app.run_lifecycle(p_church_id, p_action, p_retention_days)`.
+
+- `EXECUTE` solo para `service_role`. Revocado de `public`, `anon` y `authenticated`.
+- Solo acepta `purge_church`, sobre una iglesia archivada hace más de 30 días (mínimo 7).
+- Pone `app.lifecycle_bypass = 'on'` con `set_config(..., true)`: transaccional. Al terminar la
+  transacción vuelve a su valor previo.
+- El trigger lo acepta **solo** si el flag está en `on` **y** `current_setting('role') = 'service_role'`.
+  Un usuario autenticado puede poner el flag, pero el trigger lo ignora, y no puede hacer
+  `SET ROLE service_role` porque no es miembro de ese rol.
+
+**Solo lifecycle.** No se usa para comunicaciones ni para avisos.
+
+La purga en lote `purge_archived_churches` queda revocada de `service_role`. Su único uso era el
+runner de retención, que ahora llama a `run_lifecycle` por iglesia.
+
+### Jobs
+
+- **Comunicaciones:** `due_scheduled_communications` y `pending_send_communications` solo devuelven
+  iglesias en `full` o `grace`.
+- **Avisos:** `claim_notification_deliveries` solo reclama entregas de iglesias en `full` o `grace`.
+- **Retención:** `src/server/retention/runner.ts` llama a `run_lifecycle` por iglesia vencida. No se
+  detiene por el estado comercial.
+
+### Pruebas
+
+- `supabase/tests/fase15_gating_comercial_test.sql`, 48 aserciones: modos por estado, escritura de
+  negocio, `DETAIL` seguro (`CHURCH_SUSPENDED`, etc.), superficie de recuperación del owner, Kids
+  (cuatro casos del encargo más incidencias), exportaciones, aislamiento entre tenants, traslado
+  entre tenants denegado, bypass (flag sin rol, anon, authenticated, service_role, persistencia),
+  purga real, jobs (comunicaciones y avisos) y guardarraíl por catálogo.
+- `supabase/tests/fase5_asignaciones_test.sql` y `fase5_avisos_test.sql`: el borrado en cascada usa
+  ahora el mismo camino que producción (`service_role` y bypass transaccional).
+- `supabase/tests/retencion/borrado.mjs`: adaptado a `run_lifecycle`. Pasa desde una base limpia.
+- Persistencia del flag entre conexiones: comprobada con dos peticiones independientes al servidor
+  (la segunda lee el flag vacío).
+- `supabase test db`: 43 ficheros, 1.806 aserciones en verde (incluye `fase15_trial_expired_test.sql` y `fase15_kids_cierre_seguro_test.sql`). `supabase db diff --local`: sin cambios.
+
+### Prueba vencida y avisos suprimidos (4 de octubre de 2026)
+
+- **Fechas de prueba.** `subscriptions.trial_started_at` (nueva, con backfill desde `created_at`) y
+  `trial_ends_at` (ya escrita por el provisioning, 30 días). Restricción: el fin es posterior al inicio.
+  La app no calcula la prueba: el modo compara `now()` con `trial_ends_at`. Una prueba sin fin se trata
+  como `full` (no debería existir, el provisioning siempre la escribe).
+- **Sin conversión, no se borra nada.** `trial_expired` no entra en retención, no cambia el estado de la
+  iglesia a cancelada y no tiene un botón de pago ficticio. El propietario puede exportar.
+- **Eventos de aviso.** `process_notification_events` cierra como `suppressed` los eventos de iglesias
+  fuera de full/grace, con `processed_at`, `suppressed_at` y `suppression_reason` (JSON
+  `{"reason":"tenant_access_mode","tenant_access_mode":"<modo>"}`). No genera bandeja ni entregas.
+- **Entregas en cola.** `claim_notification_deliveries` pasa a `suppressed` las entregas email/push
+  pendientes de iglesias fuera de full/grace, con el mismo motivo en `last_error`. La bandeja (`inapp`)
+  no se toca.
+- **Reactivación.** Lo suprimido no se reenvía nunca. Al volver a full, los eventos nuevos sí generan avisos.
+- **Avisos de plataforma y recuperación** (prueba vencida, suspensión, bloqueo de seguridad, instrucciones
+  de recuperación, futuras incidencias de cobro) **no son avisos de negocio**. No pasan por esta cola ni se
+  generan aquí. Su canal se decidirá con los mensajes de plataforma existentes, no con una cola nueva.
+- **Coste medido** (base local, lote en una sola sentencia, trigger activo frente a desactivado en la misma
+  transacción): ~11 µs por fila en lotes de 100 y de 10.000 filas; ~51 µs en una inserción unitaria, que
+  incluye el arranque en frío. Una importación de 10.000 filas suma ~108 ms. Cada fila hace una llamada a
+  `app.church_access_mode`, es decir, dos búsquedas por clave (`churches` y `subscriptions`). Es coste por
+  fila por diseño; no se optimiza sin evidencia de volumen real. Deuda P2: cachear el modo por sentencia si
+  alguna importación supera el orden de 100.000 filas.
+
+### Lo que A1 NO hace
+
+- **No bloquea lecturas (A2).** Mientras A2 no esté, un owner de una iglesia `security_blocked` puede
+  leer datos de negocio mediante RLS. Esto **no cumple** todavía la regla aprobada de que
+  `security_blocked` impide el acceso normal a datos.
+- **No ofrece superficie de recuperación nueva.** Hoy el owner ve su fila de iglesia y su suscripción,
+  pero no hay pantalla de estado ni de próximos pasos (PR C).
+- **Sin prueba en navegador ni en Preview.** Hace falta una sesión real de owner y de operador.
+- **Superficie del propietario en prueba vencida.** No hay pantalla de estado ni de próximos pasos para
+  `trial_expired` (ni para `suspended`). Pendiente de la superficie de recuperación.
+- **Coste de la reclamación de entregas** con el paso de supresión: no medido.
+
+### Pendientes de esta fase
+
+- **A2:** gating de lecturas, con inventario de las 92 políticas de lectura y el diseño de la
+  superficie de recuperación.
+- **PR B:** sesiones de soporte (60 min por defecto, 4 h como máximo, motivo obligatorio), con deny-by-default
+  para Pastoral, Giving y Kids.
+- **PR C:** consola y banners sin Stripe.
+- **Stripe, precios, límites de plan e IVA:** aplazados, sin cambios en esta fase.

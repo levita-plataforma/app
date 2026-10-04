@@ -1056,8 +1056,19 @@ select ok(
   'Antes de borrar la iglesia hay puestos con asignaciones vigentes'
 );
 
+-- Borrar una iglesia solo es posible por lifecycle (Fase 15, bypass acotado).
+create or replace function t_cascade_delete(p_church uuid) returns void as $$
+begin
+  perform set_config('role', 'service_role', true);
+  perform set_config('app.lifecycle_bypass', 'on', true);
+  delete from churches where id = p_church;
+  perform set_config('app.lifecycle_bypass', 'off', true);
+  perform set_config('role', 'none', true);
+end;
+$$ language plpgsql;
+
 select lives_ok(
-  $$ delete from churches where id = t_id('church_a') $$,
+  $$ select t_cascade_delete(t_id('church_a')) $$,
   'Borrar la iglesia en cascada no falla aunque haya puestos con asignaciones vigentes'
 );
 
