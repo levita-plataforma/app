@@ -201,7 +201,10 @@ Una operación de negocio necesita las tres: membresía, capacidad y modo `full`
 
 ### Modo de acceso
 
-Prioridad: `security_blocked` > `suspended`/`cancelled` > `past_due` en gracia > `active`/`trial`.
+Prioridad: `security_blocked` > `cancelled`/`suspended` > `trial_expired` > `past_due` en gracia > `active`/`trial`.
+
+`cancelled` y `suspended` van por delante de `trial_expired` porque una baja o una suspensión operativa
+explica el bloqueo mejor que el vencimiento de una prueba, y no debe presentarse como "prueba vencida".
 
 | Modo | Origen | Escritura de negocio |
 |---|---|---|
@@ -209,6 +212,7 @@ Prioridad: `security_blocked` > `suspended`/`cancelled` > `past_due` en gracia >
 | `grace` | `past_due` con menos de 15 días desde `past_due_since` | permitida |
 | `suspended` | `suspended`, o `past_due` tras 15 días | denegada |
 | `cancelled` | `cancelled`, o iglesia archivada | denegada |
+| `trial_expired` | `trial` con `trial_ends_at` pasado, sin conversión | denegada (`CHURCH_TRIAL_EXPIRED`) |
 | `security_blocked` | `churches.security_block_reason` no nulo | denegada, aunque la suscripción esté activa |
 
 `past_due_since` lo fija la operación de plataforma hasta que exista la integración de cobro. Es
@@ -257,7 +261,7 @@ en `security_blocked`, cualquier incidencia nueva.
 
 ### Exportaciones (`export_jobs`)
 
-- `suspended`, `cancelled`, `full` y `grace`: se pueden solicitar.
+- `trial_expired`, `suspended`, `cancelled`, `full` y `grace`: se pueden solicitar.
 - `security_blocked`: denegadas, también para la plataforma.
 
 ### Bypass de lifecycle
@@ -297,7 +301,32 @@ runner de retención, que ahora llama a `run_lifecycle` por iglesia.
 - `supabase/tests/retencion/borrado.mjs`: adaptado a `run_lifecycle`. Pasa desde una base limpia.
 - Persistencia del flag entre conexiones: comprobada con dos peticiones independientes al servidor
   (la segunda lee el flag vacío).
-- `supabase test db`: 41 ficheros, 1.766 aserciones en verde. `supabase db diff --local`: sin cambios.
+- `supabase test db`: 42 ficheros, 1.787 aserciones en verde (incluye `fase15_trial_expired_test.sql`). `supabase db diff --local`: sin cambios.
+
+### Prueba vencida y avisos suprimidos (4 de octubre de 2026)
+
+- **Fechas de prueba.** `subscriptions.trial_started_at` (nueva, con backfill desde `created_at`) y
+  `trial_ends_at` (ya escrita por el provisioning, 30 días). Restricción: el fin es posterior al inicio.
+  La app no calcula la prueba: el modo compara `now()` con `trial_ends_at`. Una prueba sin fin se trata
+  como `full` (no debería existir, el provisioning siempre la escribe).
+- **Sin conversión, no se borra nada.** `trial_expired` no entra en retención, no cambia el estado de la
+  iglesia a cancelada y no tiene un botón de pago ficticio. El propietario puede exportar.
+- **Eventos de aviso.** `process_notification_events` cierra como `suppressed` los eventos de iglesias
+  fuera de full/grace, con `processed_at`, `suppressed_at` y `suppression_reason` (JSON
+  `{"reason":"tenant_access_mode","tenant_access_mode":"<modo>"}`). No genera bandeja ni entregas.
+- **Entregas en cola.** `claim_notification_deliveries` pasa a `suppressed` las entregas email/push
+  pendientes de iglesias fuera de full/grace, con el mismo motivo en `last_error`. La bandeja (`inapp`)
+  no se toca.
+- **Reactivación.** Lo suprimido no se reenvía nunca. Al volver a full, los eventos nuevos sí generan avisos.
+- **Avisos de plataforma y recuperación** (prueba vencida, suspensión, bloqueo de seguridad, instrucciones
+  de recuperación, futuras incidencias de cobro) **no son avisos de negocio**. No pasan por esta cola ni se
+  generan aquí. Su canal se decidirá con los mensajes de plataforma existentes, no con una cola nueva.
+- **Coste medido** (base local, lote en una sola sentencia, trigger activo frente a desactivado en la misma
+  transacción): ~11 µs por fila en lotes de 100 y de 10.000 filas; ~51 µs en una inserción unitaria, que
+  incluye el arranque en frío. Una importación de 10.000 filas suma ~108 ms. Cada fila hace una llamada a
+  `app.church_access_mode`, es decir, dos búsquedas por clave (`churches` y `subscriptions`). Es coste por
+  fila por diseño; no se optimiza sin evidencia de volumen real. Deuda P2: cachear el modo por sentencia si
+  alguna importación supera el orden de 100.000 filas.
 
 ### Lo que A1 NO hace
 
@@ -306,14 +335,10 @@ runner de retención, que ahora llama a `run_lifecycle` por iglesia.
   `security_blocked` impide el acceso normal a datos.
 - **No ofrece superficie de recuperación nueva.** Hoy el owner ve su fila de iglesia y su suscripción,
   pero no hay pantalla de estado ni de próximos pasos (PR C).
-- **No define qué pasa al vencer la prueba de 30 días.** `trial` se trata como `full` sin fecha de
-  fin. Falta una regla aprobada.
-- **No genera eventos de aviso en silencio para tenants bloqueados.** `process_notification_events`
-  sigue creando eventos y entregas en cola. Nada se envía, pero al reactivar podrían salir avisos
-  antiguos. Pendiente de decidir.
-- **Coste:** `app.church_access_mode` hace dos consultas por fila escrita. Un import grande genera
-  muchas consultas. No se ha medido.
 - **Sin prueba en navegador ni en Preview.** Hace falta una sesión real de owner y de operador.
+- **Superficie del propietario en prueba vencida.** No hay pantalla de estado ni de próximos pasos para
+  `trial_expired` (ni para `suspended`). Pendiente de la superficie de recuperación.
+- **Coste de la reclamación de entregas** con el paso de supresión: no medido.
 
 ### Pendientes de esta fase
 

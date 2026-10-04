@@ -5494,6 +5494,8 @@ export type Database = {
           payload: Json
           processed_at: string | null
           recipient_person_ids: string[]
+          suppressed_at: string | null
+          suppression_reason: Json | null
         }
         Insert: {
           attempts?: number
@@ -5510,6 +5512,8 @@ export type Database = {
           payload?: Json
           processed_at?: string | null
           recipient_person_ids?: string[]
+          suppressed_at?: string | null
+          suppression_reason?: Json | null
         }
         Update: {
           attempts?: number
@@ -5526,6 +5530,8 @@ export type Database = {
           payload?: Json
           processed_at?: string | null
           recipient_person_ids?: string[]
+          suppressed_at?: string | null
+          suppression_reason?: Json | null
         }
         Relationships: [
           {
@@ -7840,6 +7846,7 @@ export type Database = {
           started_at: string
           status: Database["public"]["Enums"]["subscription_status"]
           trial_ends_at: string | null
+          trial_started_at: string
           updated_at: string
         }
         Insert: {
@@ -7863,6 +7870,7 @@ export type Database = {
           started_at?: string
           status?: Database["public"]["Enums"]["subscription_status"]
           trial_ends_at?: string | null
+          trial_started_at?: string
           updated_at?: string
         }
         Update: {
@@ -7886,6 +7894,7 @@ export type Database = {
           started_at?: string
           status?: Database["public"]["Enums"]["subscription_status"]
           trial_ends_at?: string | null
+          trial_started_at?: string
           updated_at?: string
         }
         Relationships: [
