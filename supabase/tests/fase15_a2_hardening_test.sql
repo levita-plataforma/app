@@ -4,7 +4,7 @@
 -- superusuario después de crear las presencias, igual que en las pruebas anteriores.
 
 begin;
-select plan(46);
+select plan(54);
 
 create or replace function t15h_set_uid(p_uid uuid) returns void as $$
 begin
@@ -176,8 +176,8 @@ select is(t15h_err($$ select public.kids_checkout('ZZZZZZZZ', 'c7000000-0000-000
   'Madre K1', null, null) $$), 'P0002',
   'trial · check-out con código inválido: denegado');
 select is(t15h_err($$ select public.kids_checkout('$$ || t15h_get('code_k1') || $$',
-  'c7000000-0000-0000-0000-00000000000c', 'Madre K1', null, null) $$), '42501',
-  'trial · código de A con sesión de C: denegado (tenant y sesión no coinciden)');
+  'c7000000-0000-0000-0000-00000000000c', 'Madre K1', null, null) $$), 'P0002',
+  'trial · código de A con sesión de C: mismo error que un código inválido (no revela existencia)');
 select is(t15h_count($$ select count(*)::int from public.kids_checkout('$$ || t15h_get('code_k1') || $$',
   'c7000000-0000-0000-0000-00000000000a', 'Madre K1',
   'c9000000-0000-0000-0000-000000000000', null) where authorized = false and status = 'checked_in' $$), 1,
@@ -305,9 +305,60 @@ select t15h_reset();
 select t15h_set_uid('c1000000-0000-0000-0000-000000000004');
 select is(t15h_err($$ select security_block_reason from churches where id = 'c2000000-0000-0000-0000-00000000000a' $$), '42501',
   'plataforma · la tabla no expone el motivo ni con la capacidad de lectura comercial');
-select is((select app.church_service_state('c2000000-0000-0000-0000-00000000000a')->>'security_block_reason')
-  , 'Motivo técnico confidencial H',
-  'plataforma · con platform.commercial.read el estado de servicio sí devuelve el motivo');
+select is((select app.church_service_state('c2000000-0000-0000-0000-00000000000a') ? 'security_block_reason'),
+  false, 'plataforma · con solo platform.commercial.read: el estado no incluye el motivo');
+select t15h_reset();
+
+-- Con la capacidad específica, el mismo operador sí lee el motivo
+insert into platform_operator_capabilities (user_id, capability_key) values
+  ('c1000000-0000-0000-0000-000000000004', 'platform.church_security.read');
+select t15h_set_uid('c1000000-0000-0000-0000-000000000004');
+select is((select app.church_service_state('c2000000-0000-0000-0000-00000000000a')->>'security_block_reason'),
+  'Motivo técnico confidencial H', 'plataforma · con platform.church_security.read el motivo sí aparece');
+select t15h_reset();
+
+-- ============================================================
+-- Recogida de Kids: lo mínimo, mensajes uniformes y sin otros menores
+-- ============================================================
+create or replace function t15h_msg(p_sql text) returns text as $$
+declare
+  v_msg text;
+begin
+  execute p_sql;
+  return 'ok';
+exception when others then
+  get stacked diagnostics v_msg = message_text;
+  return v_msg;
+end;
+$$ language plpgsql;
+
+select is((select pg_get_function_result('app.kids_lookup_pickup(uuid,text)'::regprocedure)),
+  'TABLE(checkin_id uuid, kid_person_id uuid, kid_name text, room_name text, medical_alert boolean)',
+  'recogida · la RPC devuelve solo identificadores, nombre y booleano de alerta');
+
+select ok(
+  (select pg_get_function_result('app.kids_lookup_pickup(uuid,text)'::regprocedure) not ilike '%note%'
+     and pg_get_function_result('app.kids_lookup_pickup(uuid,text)'::regprocedure) not ilike '%alerg%'
+     and pg_get_function_result('app.kids_lookup_pickup(uuid,text)'::regprocedure) not ilike '%diagnos%'
+     and pg_get_function_result('app.kids_lookup_pickup(uuid,text)'::regprocedure) not ilike '%medicac%'),
+  'recogida · el resultado no tiene columnas de notas, diagnóstico, alergias ni medicación');
+
+select is((select pg_typeof(medical_alert)::text from (select 1) x,
+  lateral (values (true)) v(medical_alert)), 'boolean', 'recogida · la alerta es booleana');
+
+select t15h_set_uid('c1000000-0000-0000-0000-000000000001');
+select is(t15h_msg($$ select * from public.kids_lookup_pickup('c7000000-0000-0000-0000-00000000000a',
+  '$$ || t15h_get('code_k3') || $$') $$), t15h_msg($$ select * from public.kids_lookup_pickup('c7000000-0000-0000-0000-00000000000a', 'ZZZZZZZZ') $$),
+  'recogida · un código ya usado (K3 ya retirada) da el mismo error que un código inválido');
+select is(t15h_msg($$ select * from public.kids_lookup_pickup('c7000000-0000-0000-0000-00000000000a', 'ZZZZZZZZ') $$),
+  t15h_msg($$ select * from public.kids_lookup_pickup('c7000000-0000-0000-0000-00000000000c', 'ZZZZZZZZ') $$),
+  'recogida · código inválido y sesión de otra iglesia dan el mismo mensaje');
+select is(t15h_msg($$ select * from public.kids_lookup_pickup('c7000000-0000-0000-0000-00000000000a', 'ZZZZZZZZ') $$),
+  t15h_msg($$ select * from public.kids_lookup_pickup('c7000000-0000-0000-0000-000000000099', 'ZZZZZZZZ') $$),
+  'recogida · código inválido y sesión inexistente dan el mismo mensaje');
+select is(t15h_msg($$ select * from public.kids_lookup_pickup('c7000000-0000-0000-0000-00000000000c', '$$ || t15h_get('code_k1') || $$') $$),
+  t15h_msg($$ select * from public.kids_lookup_pickup('c7000000-0000-0000-0000-00000000000a', 'ZZZZZZZZ') $$),
+  'recogida · código de A en sesión de C no revela existencia');
 select t15h_reset();
 
 -- ============================================================
