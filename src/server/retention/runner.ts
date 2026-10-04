@@ -72,21 +72,26 @@ export async function runRetention(retentionDays = 30): Promise<RetentionRunResu
     });
   }
 
-  const { data: purgeData, error: purgeError } = await supabase.rpc("purge_archived_churches", {
-    p_retention_days: retentionDays,
-    p_limit: PURGE_LIMIT,
-  });
+  // Una iglesia cada vez: el bypass de lifecycle es transaccional y acotado a
+  // esta llamada (app.run_lifecycle). Si una falla, se corta la pasada; la
+  // siguiente la retoma porque la iglesia sigue en la lista de vencidas.
+  let purged = 0;
+  for (const pendiente of pendientes.slice(0, PURGE_LIMIT)) {
+    const { data: purgeData, error: purgeError } = await supabase.rpc("run_lifecycle", {
+      p_church_id: pendiente.church_id,
+      p_action: "purge_church",
+      p_retention_days: retentionDays,
+    });
 
-  if (purgeError) {
-    throw new Error(`Falló el borrado de iglesias vencidas: ${purgeError.message}`);
+    if (purgeError) {
+      throw new Error(`Falló el borrado de una iglesia vencida: ${purgeError.message}`);
+    }
+
+    if ((purgeData as { purged?: boolean } | null)?.purged) purged += 1;
   }
 
-  const purgeResult = (purgeData ?? {}) as { purged?: number; retention_days?: number };
-  const purged = purgeResult.purged ?? 0;
-  const aplicado = purgeResult.retention_days ?? retentionDays;
-
   if (purged > 0) {
-    logger.info("Iglesias borradas por retención", { purged, retentionDays: aplicado });
+    logger.info("Iglesias borradas por retención", { purged, retentionDays });
   }
 
   // --- 2. Vaciar el almacenamiento ------------------------------------------
@@ -136,5 +141,5 @@ export async function runRetention(retentionDays = 30): Promise<RetentionRunResu
     logger.warn("Quedan ficheros sin borrar del almacenamiento", { filesFailed });
   }
 
-  return { purged, retentionDays: aplicado, filesDeleted, filesFailed };
+  return { purged, retentionDays: Math.max(retentionDays, 7), filesDeleted, filesFailed };
 }

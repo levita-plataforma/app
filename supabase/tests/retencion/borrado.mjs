@@ -88,9 +88,18 @@ comprobar(Number(previa[0]?.files_count) === 1, `cuenta su fichero (${previa[0]?
 
 console.log("\n--- 2. El plazo no se puede forzar ---");
 // Pedir 0 días debería quedarse en el mínimo de 7 y no arrastrar a la reciente.
-const forzado = (await c.query(`select app.purge_archived_churches(0, 10) as r`)).rows[0].r;
-comprobar(Number(forzado.retention_days) === 7,
-  `pedir 0 días se queda en el mínimo de 7 (devolvió ${forzado.retention_days})`);
+// El borrado va por app.run_lifecycle (solo service_role). Pedir 0 días no debe
+// arrastrar a la archivada hace 2 días: el plazo mínimo es de 7.
+await c.query("select set_config('role','service_role', false)");
+const forzado = (await c.query(
+  `select app.run_lifecycle($1::uuid, 'purge_church', 0) as r`, [reciente])).rows[0].r;
+const forzadoVieja = (await c.query(
+  `select app.run_lifecycle($1::uuid, 'purge_church', 0) as r`, [vieja])).rows[0].r;
+await c.query("reset role");
+comprobar(forzado.purged === false,
+  `pedir 0 días no purga la archivada hace 2 días (respuesta: ${JSON.stringify(forzado)})`);
+comprobar(forzadoVieja.purged === true,
+  `pedir 0 días sí purga la archivada hace 45 días, porque el mínimo es 7 (respuesta: ${JSON.stringify(forzadoVieja)})`);
 comprobar(await existe(reciente), "la archivada hace 2 días sigue ahí");
 
 console.log("\n--- 3. Lo que no debe tocarse ---");
@@ -162,7 +171,7 @@ await c.query(
           set_config('role','authenticated', false)`);
 let pudo = false;
 try {
-  await c.query(`select app.purge_archived_churches(30, 10)`);
+  await c.query(`select app.run_lifecycle($1::uuid, 'purge_church', 30)`, [reciente]);
   pudo = true;
 } catch {
   // Se espera que falle.
