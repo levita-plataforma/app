@@ -567,11 +567,12 @@ Se reutiliza `support_sessions` (no hay tabla nueva): `church_id`, `operator_use
 
 | Capacidad | Qué permite | Concesión |
 |---|---|---|
-| `platform.support.manage` | Abrir, revocar y listar sesiones; bloquear por seguridad (escritura, ver gap) | explícita |
+| `platform.support.manage` | Abrir, revocar y listar sesiones de soporte. **Ya no bloquea ni desbloquea** | explícita |
 | `platform.operations.read` | Diagnóstico de la iglesia (metadatos) | explícita |
 | `platform.churches.read` | Ficha y diagnóstico | explícita |
 | `platform.commercial.read` | Estado comercial (sin motivo de seguridad) | explícita |
-| `platform.church_security.read` | Motivo interno de bloqueo y `security_blocked_by` | **deny-by-default**; no se concede en ninguna migración |
+| `platform.church_security.read` | Motivo interno de bloqueo y `security_blocked_by`. Solo lectura: no altera nada | **deny-by-default**; no se concede en ninguna migración |
+| `platform.church_security.manage` | Bloquear y desbloquear por seguridad. Exige motivo y queda auditado (operador y momento). No concede lectura del motivo | **deny-by-default**; no se concede en ninguna migración |
 
 No se concede ninguna capacidad automáticamente. Para que un operador pueda abrir sesiones, hay que asignarle
 `platform.support.manage` con `app.grant_platform_capability`.
@@ -625,10 +626,21 @@ aprobada, con su propio alcance, auditoría y pruebas. No existe hoy.
 
 ### Gaps y riesgos
 
-- **Escritura del bloqueo de seguridad** (`platform_set_security_block`) sigue en `platform.support.manage`. Lo
-  correcto sería una capacidad propia de escritura; no se cambia aquí para no dejar sin poder de bloqueo a nadie.
 - **Sin lectura del motivo en la UI:** el panel no muestra el motivo de bloqueo. Quien tenga
   `platform.church_security.read` lo ve por `church_service_state`; no hay pantalla para ello.
 - **Sin ámbitos de datos:** un diagnóstico más profundo (p. ej., ver una actividad concreta) necesitará política aprobada.
 - **Sin Playwright:** el flujo completo (abrir, expirar, cerrar, banner) solo se ha probado en base de datos.
 - **Sin notificación al tenant** de que se abrió una sesión: el banner es el único aviso.
+
+### Ajuste final de seguridad (PR B)
+
+- Bloquear y desbloquear usan `platform.church_security.manage`, no `platform.support.manage`. Cada acción exige
+  motivo y se escribe en `platform_audit_logs` con el operador y el momento (`church.security_blocked` /
+  `church.security_unblocked`). El desbloqueo no toca `subscriptions`.
+- La auditoría no guarda el motivo interno anterior, solo si existía (`had_previous_block`). Antes, `platform.audit.read`
+  podía leer el texto anterior sin ninguna capacidad de seguridad.
+- Pruebas: `fase15_seguridad_iglesia_test.sql` (19 aserciones): soporte y comercial no leen el motivo; lectura solo con
+  `church_security.read`; leer no altera; gestionar no concede lectura; owner y otro tenant no alteran; motivo
+  obligatorio; auditoría; desbloqueo sin cambio de suscripción.
+- Decisión abierta: el motivo del bloqueo queda en la auditoría, que puede leer `platform.audit.read`. Si se quiere que
+  solo lo vea quien tiene `church_security.read`, hay que redactar el motivo en la auditoría. No se ha hecho.

@@ -9270,6 +9270,10 @@ export type Database = {
           total_count: number
         }[]
       }
+      platform_clear_security_block: {
+        Args: { p_church_id: string; p_reason: string }
+        Returns: undefined
+      }
       platform_create_church: {
         Args: {
           p_country: string
