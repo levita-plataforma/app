@@ -430,8 +430,7 @@ Las escrituras no cambian: la guardia de A1 (triggers) sigue siendo la barrera d
 - `analytics_dashboard`: `assert_can_read_church` al inicio.
 - `analytics_trend` y `analytics_period_bounds`: cálculo puro sobre fechas, sin datos de la iglesia: sin guardia.
 - `list_my_notifications` y `count_my_unread_notifications`: sin bandeja fuera de full/grace (devuelven vacío o 0).
-- `kids_checkin`, `kids_checkout`, `kids_lookup_pickup`, `kids_find_checkin_by_code`, `kids_save_sensitive_notes`,
-  `kids_staff_check_in/out`: **pendientes de auditoría fina** (ver "Lo que A2 NO hace").
+- Kids: auditoría completa de RPC de lectura y escritura en la sección "A2 hardening" (tabla por RPC).
 
 ### Notificaciones y archivos
 
@@ -460,11 +459,6 @@ Las escrituras no cambian: la guardia de A1 (triggers) sigue siendo la barrera d
 
 ### Lo que A2 NO hace
 
-- **Auditoría fina de RPC de lectura** (checkin, lookup, pickup por código, notas sensibles, staff): inventario hecho
-  en la sección de Kids, pero falta revisar cada una con un test de rol real.
-- **`security_block_reason` directo:** el owner puede leerlo desde la API de `churches` (la columna no tiene
-  privilegio restringido). La recuperación no lo muestra, pero la fuga por API sigue abierta. Requiere privilegio de
-  columna y revisar consumidores antes de aplicarlo.
 - **Support sessions:** no concede lectura de negocio hoy, y no se ha tocado. Es el siguiente hueco de PR B.
 - **Playwright** y **smoke real en Preview:** pendientes.
 - **Exportación desde la UI:** no existe pantalla de solicitud de exportación en la aplicación. La superficie
@@ -474,7 +468,78 @@ Las escrituras no cambian: la guardia de A1 (triggers) sigue siendo la barrera d
 ### Pendientes de esta fase
 
 - A1: smoke real en Preview y validación de Carlos (PR #35).
-- A2: auditoría fina de RPC de Kids, privilegio de columna para `security_block_reason`, Playwright, descarga de
+- A2: Playwright, descarga de
   archivos con la misma condición cuando exista.
 - PR B: sesiones de soporte. PR C: consola y banners.
 - Stripe, precios, límites de plan e IVA: aplazados.
+
+### A2 hardening (4 de octubre de 2026)
+
+**Historial de suscripción (decisión aprobada).** Owner y admin del propio tenant lo leen en solo lectura en
+`full`, `grace`, `trial_expired`, `suspended` y `cancelled`. No lo leen en `security_blocked`. Nunca cross-tenant.
+Antes, un owner en `full` no lo veía: la política exigía `settings.manage`, que ningún rol tiene. Que `full` lo vea
+ahora es una corrección funcional, no una regresión. La capacidad de plataforma (`platform.commercial.read`) se
+mantiene como estaba.
+
+**`security_block_reason` (motivo interno).** Había dos fugas, las dos corregidas:
+
+- `app.church_service_state` estaba concedida a `authenticated` y **no comprobaba membresía**: cualquier usuario
+  autenticado podía pedir el estado de cualquier iglesia y recibir su motivo interno. Ahora:
+  - con `platform.commercial.read` devuelve el motivo;
+  - owner o admin de la propia iglesia recibe el estado sin el motivo;
+  - cualquier otro usuario recibe 42501.
+- La columna era legible por tabla. Se revoca el SELECT de tabla a `authenticated` y se concede el resto de
+  columnas (lista explícita). `anon` conserva su SELECT de tabla, pero RLS no le devuelve filas de `churches`.
+  **Las columnas nuevas de `churches` no llegan al cliente hasta que se concedan en una migración.**
+- La recuperación (`get_church_recovery_context`) nunca devuelve el motivo: el texto que ve el owner sale del estado.
+- La plataforma lee el motivo solo con `platform.commercial.read`, la capacidad que ya tiene el panel comercial. No
+  hay una capacidad específica para el motivo. Si se quiere una, debe aprobarse aparte.
+
+**Tabla de RPC Kids y funciones que devuelven datos de Kids:**
+
+| RPC | SECURITY DEFINER | RETORNA PII | FULL/GRACE | NO OPERATIVO | GATING | ACCIÓN |
+|---|---|---|---|---|---|---|
+| `kids_checkin` | sí | sí (código de recogida; en replay, el de una presencia existente) | permite | **deniega** (también el replay) | `assert_can_read_church` | **modificada** |
+| `kids_checkout` | sí | no (IDs y estado) | permite | permite solo con código válido, presencia activa, sesión de la iglesia y autorización o anulación | safe-close | ninguna; verificada con tests negativos |
+| `kids_find_checkin_by_code` | sí | no (UUID) | — | — | interna, sin GRANT a `authenticated` | ninguna |
+| `kids_lookup_pickup` | sí | sí: nombre del menor y alerta médica (booleano), necesarios para validar la entrega | permite con sala | permite **sin nombre de sala** | safe-close | **modificada** |
+| `kids_authorized_pickups` | sí | sí (nombre y parentesco de autorizados) | solo con `kids.checkout` | solo para un menor con check-in activo | A2 | **modificada** (A2) |
+| `kids_room_ratio_status` | sí | no (conteos) | permite | deniega | `assert_can_read_church` | modificada (A2) |
+| `kids_staff_eligibility` | sí | no (motivos) | permite | deniega | `assert_can_read_church` | modificada (A2) |
+| `kids_staff_check_in` | sí | no | permite | **deniega** | `assert_can_read_church` | **modificada** |
+| `kids_staff_check_out` | sí | no | permite | permite: solo cierra la presencia de un adulto y no devuelve datos | ninguno, decisión documentada | ninguna |
+| `kids_add_session_staff` / `kids_remove_session_staff` | sí | no | permite | deniega | `assert_can_read_church` | modificada (A2) |
+| `kids_save_sensitive_notes` | sí | sí (notas médicas) | permite | **deniega** (lectura y escritura) | `assert_can_read_church` | **modificada** |
+| `people_birth_dates` | sí | sí (fechas de nacimiento) | permite | **deniega** | `assert_can_read_church` | **modificada** |
+| `notify_kid_guardians` | sí | no (genera avisos) | permite | **devuelve 0 y no crea avisos** | `church_access_mode` | **modificada** |
+| `emit_kid_checkin_notification` (trigger) | sí | no | — | delega en `notify_kid_guardians` | — | ninguna |
+| `kids_cap` | sí | no (booleano) | — | — | — | ninguna |
+| `kids_record_incident_for_present_kid` (nueva) | sí | sí (incidencia restricted) | — | solo menor dentro; owner, admin o coordinador de Kids | membresía, rol y presencia | **nueva** |
+| `analytics_dashboard` | sí | agregados | permite | deniega | `assert_can_read_church` | modificada (A2) |
+
+Las RPC `public.*` son `security invoker` y llaman a las de `app.*`: heredan la guardia. Las tablas `kid_*` y
+`kids_*` tienen SELECT gateado por RLS.
+
+**Códigos y tokens de recogida.** Un código solo sirve si la presencia está activa, pertenece a la sesión indicada y
+la sesión es de la iglesia del usuario. El hash incluye el id de la sesión y el del check-in, así que un código no
+sirve en otra sesión ni en otra iglesia. Las pruebas negativas (`fase15_a2_hardening_test.sql`) cubren: código
+inválido, código de otra sesión o iglesia, check-out repetido, autorización inexistente, replay de check-in, check-in
+nuevo y lista de salas.
+
+**Almacenamiento.** No hay URL firmada ni descarga de archivos en la aplicación. El guardarraíl de catálogo
+(`guardarraíl · la lectura de metadatos de archivos exige lectura comercial`) falla si la lectura de `files` deja de
+exigir lectura comercial. Cuando exista descarga, debe pasar por la misma condición.
+
+**Cambio de iglesia.** Cubierto a nivel de base de datos: membresías con su modo (A bloqueada, B operativa), selección
+de B, datos de B disponibles y ningún dato de A. La cookie y la redirección no tienen prueba en navegador.
+
+**Pruebas.** `fase15_a2_hardening_test.sql`: 46 aserciones. Suite completa: 45 ficheros, 1.904 aserciones.
+`supabase db diff --local`: sin cambios. Lint, typecheck y build: en verde.
+
+### Lo que sigue pendiente
+
+- Playwright y smoke real en Preview.
+- Kids: `kids_lookup_pickup` devuelve el nombre del menor y la alerta médica (booleano) fuera de estado operativo,
+  porque la validación de la entrega los necesita. Si se quiere quitarlos, hay que cambiar el flujo de recogida.
+- Pantalla de solicitud de exportación: no existe.
+- Activación desde la UI: depende de la integración de cobro (Stripe).
