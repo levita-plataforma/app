@@ -104,7 +104,9 @@ values
   ('f1500000-0000-0000-0000-0000000000f1', t_id('church_a'), 'f1500000-0000-0000-0000-0000000000e1',
    'f1500000-0000-0000-0000-0000000000a1', 'f1500000-0000-0000-0000-0000000000d1', 'checked_in', 'hash-1', now()),
   ('f1500000-0000-0000-0000-0000000000f2', t_id('church_a'), 'f1500000-0000-0000-0000-0000000000e1',
-   'f1500000-0000-0000-0000-0000000000a2', 'f1500000-0000-0000-0000-0000000000d1', 'checked_in', 'hash-2', now());
+   'f1500000-0000-0000-0000-0000000000a2', 'f1500000-0000-0000-0000-0000000000d1', 'checked_in', 'hash-2', now()),
+  ('f1500000-0000-0000-0000-0000000000f3', t_id('church_a'), 'f1500000-0000-0000-0000-0000000000e1',
+   'f1500000-0000-0000-0000-0000000000a3', 'f1500000-0000-0000-0000-0000000000d1', 'checked_in', 'hash-3', now());
 
 -- ============================================================
 -- 1. Modo de acceso por estado
@@ -241,8 +243,8 @@ select is(
 );
 select is(
   t_err($$ insert into kids_incidents (church_id, kid_person_id, description)
-           values (t_id('church_a'), 'f1500000-0000-0000-0000-0000000000a1', 'Incidencia bloqueada') $$),
-  '42501', 'Kids · security_blocked + incidencia nueva: DENIED (no es acción mínima de cierre)'
+           values (t_id('church_a'), 'f1500000-0000-0000-0000-0000000000a3', 'Incidencia bloqueada') $$),
+  'ok', 'Kids · security_blocked + incidencia de un menor que sigue dentro: ALLOWED (cierre seguro)'
 );
 select test_reset();
 

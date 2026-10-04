@@ -252,12 +252,17 @@ Permitidas en cualquier modo:
 - pasar un check-in de `checked_in` a `checked_out`, manteniendo sesión, menor e iglesia;
 - marcar una autorización de recogida como `used`, si está ligada a un check-out ya hecho.
 
-Permitida solo en `suspended` y `cancelled`:
+Permitida en `trial_expired`, `suspended`, `cancelled` y `security_blocked`:
 
-- registrar una incidencia de un menor que sigue dentro (`checked_in`).
+- registrar una incidencia de un menor que sigue dentro (`checked_in`). Es el cierre seguro de una
+  presencia activa; sin menor dentro, la incidencia se deniega.
 
-Denegadas: crear check-ins nuevos, crear sesiones, cambiar configuración de salas, crear menores y,
-en `security_blocked`, cualquier incidencia nueva.
+Denegadas en todos los modos no activos: crear check-ins nuevos, crear sesiones, cambiar configuración
+de salas y crear menores. Denegada también cualquier incidencia de un menor que no está dentro.
+
+El estado comercial nunca impide entregar un menor de forma segura: check-out y recogida no miran el modo.
+La lectura de Kids no se abre con esto (eso es A2, mediante una RPC mínima y auditada).
+Tests: `supabase/tests/fase15_kids_cierre_seguro_test.sql`.
 
 ### Exportaciones (`export_jobs`)
 
@@ -301,7 +306,7 @@ runner de retención, que ahora llama a `run_lifecycle` por iglesia.
 - `supabase/tests/retencion/borrado.mjs`: adaptado a `run_lifecycle`. Pasa desde una base limpia.
 - Persistencia del flag entre conexiones: comprobada con dos peticiones independientes al servidor
   (la segunda lee el flag vacío).
-- `supabase test db`: 42 ficheros, 1.787 aserciones en verde (incluye `fase15_trial_expired_test.sql`). `supabase db diff --local`: sin cambios.
+- `supabase test db`: 43 ficheros, 1.806 aserciones en verde (incluye `fase15_trial_expired_test.sql` y `fase15_kids_cierre_seguro_test.sql`). `supabase db diff --local`: sin cambios.
 
 ### Prueba vencida y avisos suprimidos (4 de octubre de 2026)
 
