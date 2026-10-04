@@ -31,6 +31,8 @@ export const PLATFORM_CAPABILITIES = [
   "platform.operations.read",
   "platform.operations.retry",
   "platform.support.manage",
+  "platform.church_security.read",
+  "platform.church_security.manage",
   "platform.audit.read",
   "platform.config.manage",
 ] as const;

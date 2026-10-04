@@ -246,11 +246,22 @@ export async function getServiceState(churchId: string): Promise<ServiceState | 
   return (data as unknown as ServiceState) ?? null;
 }
 
-export async function setSecurityBlock(churchId: string, reason: string | null): Promise<void> {
+/** Bloquea una iglesia por seguridad. Exige platform.church_security.manage y motivo. */
+export async function blockChurchSecurity(churchId: string, reason: string): Promise<void> {
   const supabase = await createSupabaseServerClient();
   const { error } = await supabase.rpc("platform_set_security_block", {
     p_church_id: churchId,
     p_reason: reason,
   });
-  if (error) throw toDomainError(error, "No se pudo cambiar el bloqueo de seguridad.");
+  if (error) throw toDomainError(error, "No se pudo bloquear la iglesia por seguridad.");
+}
+
+/** Desbloquea una iglesia. Exige platform.church_security.manage y motivo; no cambia la suscripción. */
+export async function unblockChurchSecurity(churchId: string, reason: string): Promise<void> {
+  const supabase = await createSupabaseServerClient();
+  const { error } = await supabase.rpc("platform_clear_security_block", {
+    p_church_id: churchId,
+    p_reason: reason,
+  });
+  if (error) throw toDomainError(error, "No se pudo desbloquear la iglesia.");
 }

@@ -543,3 +543,103 @@ de B, datos de B disponibles y ningún dato de A. La cookie y la redirección no
   porque la validación de la entrega los necesita. Si se quiere quitarlos, hay que cambiar el flujo de recogida.
 - Pantalla de solicitud de exportación: no existe.
 - Activación desde la UI: depende de la integración de cobro (Stripe).
+
+## 13. PR B · Soporte operacional (4 de octubre de 2026)
+
+Estado: **implementado en `feature/diogo-fase-15-soporte-operacion`**, apilado sobre A2 (PR #36) y con base en
+esa rama. A1 (PR #35) y A2 (PR #36) siguen sin merge. **Stripe sigue pendiente.** Fase 15 sigue parcial.
+
+### Modelo
+
+Se reutiliza `support_sessions` (no hay tabla nueva): `church_id`, `operator_user_id`, `reason`, `capabilities`,
+`started_at`, `expires_at`, `revoked_at`, `created_at`. Lo que se añade:
+
+- **Duración explícita:** 15, 30, 60, 120 o 240 minutos. Por defecto, 60. Un valor fuera de la lista se rechaza con
+  22023; antes se recortaba en silencio entre 5 y 480 minutos con 120 por defecto.
+- **Motivo obligatorio** (no vacío, 500 caracteres como máximo).
+- **Una sesión viva por operador e iglesia** (23505 si ya hay una).
+- **Ámbito:** solo `diagnostics`. Cualquier otro ámbito se rechaza. No hay ningún ámbito de datos aprobado.
+- **Expiración:** `expires_at` siempre se fija. La validez se comprueba en cada lectura con `now()`, no con un job.
+  El job solo limpiaría el estado visual, y no existe ninguno.
+- **Revocación:** `platform_revoke_support_session` deja la sesión sin efecto al instante.
+
+### Capacidades
+
+| Capacidad | Qué permite | Concesión |
+|---|---|---|
+| `platform.support.manage` | Abrir, revocar y listar sesiones de soporte. **Ya no bloquea ni desbloquea** | explícita |
+| `platform.operations.read` | Diagnóstico de la iglesia (metadatos) | explícita |
+| `platform.churches.read` | Ficha y diagnóstico | explícita |
+| `platform.commercial.read` | Estado comercial (sin motivo de seguridad) | explícita |
+| `platform.church_security.read` | Motivo interno de bloqueo y `security_blocked_by`. Solo lectura: no altera nada | **deny-by-default**; no se concede en ninguna migración |
+| `platform.church_security.manage` | Bloquear y desbloquear por seguridad. Exige motivo y queda auditado (operador y momento). No concede lectura del motivo | **deny-by-default**; no se concede en ninguna migración |
+
+No se concede ninguna capacidad automáticamente. Para que un operador pueda abrir sesiones, hay que asignarle
+`platform.support.manage` con `app.grant_platform_capability`.
+
+### Diagnóstico sin datos
+
+`app.platform_church_diagnostics(church_id)` devuelve: ciclo de vida, plan y estado de pago, modo de acceso, flag de
+bloqueo de seguridad (sin motivo), mantenimiento, archivado, número de sesiones activas, fecha de la última sesión,
+última actividad técnica (fecha de auditoría), avisos fallidos de los últimos 7 días y avisos en cola. Son conteos y
+fechas. No incluye nombres, contenido de avisos, motivo de bloqueo ni datos de personas.
+
+### Banner del tenant
+
+`app.support_session_active_for_church(church_id)` devuelve solo un booleano, y solo para miembros. El banner dice
+"Una sesión de soporte de LEVITA está activa." No dice quién es el operador, por qué ni hasta cuándo.
+
+### Auditoría
+
+Cada apertura escribe en `platform_audit_logs` con: sesión, motivo, minutos, ámbitos, `grants_data_access: false` y
+`authorized_by` (el operador que la abre con `platform.support.manage`). La revocación queda en la misma tabla.
+La tabla `audit_logs` tiene `support_session_id` y `origin`, pensadas para acciones dentro del tenant; esta PR no
+las usa porque no hay acciones de tenant bajo sesión.
+
+### Lo que una sesión NO hace
+
+- No da lectura de personas, actividades, grupos, eventos, Kids, donaciones ni notas pastorales. Ninguna política
+  RLS consulta `support_sessions`. Los tests lo comprueban: un operador con sesión activa no lee etiquetas, presencias
+  Kids ni datos de bloqueo.
+- No reactiva una iglesia `suspended`, `cancelled` ni `trial_expired`: el modo comercial no cambia.
+- No abre `security_blocked`: el modo y los datos siguen igual.
+- No hay impersonation: no hay login como usuario, ni token reutilizable, ni contraseña del cliente.
+
+### Módulos sensibles
+
+Kids, Giving y Pastoral quedan denegados por defecto. Para concederlos hará falta una política de autorización
+aprobada, con su propio alcance, auditoría y pruebas. No existe hoy.
+
+### Pruebas
+
+- `supabase/tests/fase15_soporte_test.sql` (29 aserciones): operador sin sesión, motivo, duración (default, 45 y 241
+  rechazados, 240 admitido), ámbito, sesión duplicada, banner por tenant, diagnóstico sin motivo, expiración y revocación
+  inmediatas, suspensión y `security_blocked` no bypasados, auditoría y grants.
+- `supabase test db`: 46 ficheros, 1.941 aserciones. Lint, typecheck y build en verde. `db diff` sin cambios.
+- La UI se prueba con typecheck y build. No hay Playwright: el smoke de la consola y del banner queda para Preview.
+
+### UI
+
+- Ficha de la iglesia (`/operacion/iglesias/[id]`): panel "Soporte" con diagnóstico, sesiones activas y anteriores,
+  formulario de apertura (motivo obligatorio, duración 15 min a 4 h, por defecto 1 hora) y botón de cierre.
+- Banner en la app de la iglesia cuando hay una sesión activa, también en el estado no operativo.
+
+### Gaps y riesgos
+
+- **Sin lectura del motivo en la UI:** el panel no muestra el motivo de bloqueo. Quien tenga
+  `platform.church_security.read` lo ve por `church_service_state`; no hay pantalla para ello.
+- **Sin ámbitos de datos:** un diagnóstico más profundo (p. ej., ver una actividad concreta) necesitará política aprobada.
+- **Sin Playwright:** el flujo completo (abrir, expirar, cerrar, banner) solo se ha probado en base de datos.
+- **Sin notificación al tenant** de que se abrió una sesión: el banner es el único aviso.
+
+### Ajuste final de seguridad (PR B)
+
+- Bloquear y desbloquear usan `platform.church_security.manage`, no `platform.support.manage`. Cada acción exige
+  motivo y se escribe en `platform_audit_logs` con el operador y el momento (`church.security_blocked` /
+  `church.security_unblocked`). El desbloqueo no toca `subscriptions`.
+- La auditoría no guarda el texto del motivo: ni el nuevo ni el anterior. Solo indicadores: `had_reason` y
+  `had_previous_block`. Antes, `platform.audit.read` podía leer el texto anterior sin ninguna capacidad de seguridad.
+  El texto solo está en `churches.security_block_reason`, que lee quien tiene `platform.church_security.read`.
+- Pruebas: `fase15_seguridad_iglesia_test.sql` (21 aserciones): soporte y comercial no leen el motivo; lectura solo con
+  `church_security.read`; leer no altera; gestionar no concede lectura; owner y otro tenant no alteran; motivo
+  obligatorio; auditoría; desbloqueo sin cambio de suscripción.

@@ -5,6 +5,7 @@ import { requireOperator } from "../../guard";
 import ModulosPanel from "./ModulosPanel";
 import PanelComercial from "./PanelComercial";
 import PanelResponsables from "./PanelResponsables";
+import PanelSoporte from "./PanelSoporte";
 import {
   getChurchEntitlements,
   getServiceState,
@@ -161,6 +162,13 @@ export default async function FichaIglesiaPage({ params }: { params: Promise<{ i
             puedeGestionar={puedeGestionarComercial}
           />
         )}
+
+        <PanelSoporte
+          churchId={ficha.id}
+          puedeGestionar={tiene(acceso.contexto, "platform.support.manage")}
+          puedeLeerMotivo={tiene(acceso.contexto, "platform.church_security.read")}
+          puedeGestionarSeguridad={tiene(acceso.contexto, "platform.church_security.manage")}
+        />
 
         <section className="shell-card" style={{ padding: 16 }}>
           <h2 style={seccionStyle}>Sedes</h2>
