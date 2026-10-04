@@ -1,9 +1,26 @@
 import "server-only";
 import { cache } from "react";
 import type { SupabaseClient } from "@supabase/supabase-js";
+import { cookies } from "next/headers";
 import { createSupabaseServerClient } from "@/server/supabase/server-client";
 import { DomainError } from "@/server/errors/domain-error";
 import { logger } from "@/server/logger/logger";
+
+/** Cookie con la iglesia activa elegida por el usuario. Se valida siempre contra sus membresías. */
+export const ACTIVE_CHURCH_COOKIE = "levita_church";
+
+/** Modo de acceso comercial (Fase 15 A1/A2). Solo full y grace permiten uso normal. */
+export type ChurchAccessMode =
+  | "full"
+  | "grace"
+  | "trial_expired"
+  | "suspended"
+  | "cancelled"
+  | "security_blocked";
+
+export function isOperationalAccessMode(mode: string): boolean {
+  return mode === "full" || mode === "grace";
+}
 
 export type ChurchMembership = {
   churchId: string;
@@ -11,6 +28,7 @@ export type ChurchMembership = {
   churchSlug: string;
   personId: string;
   relationship: string;
+  accessMode: ChurchAccessMode;
 };
 
 export type TenantContext = {
@@ -21,6 +39,7 @@ export type TenantContext = {
   churchSlug: string;
   campusId?: string;
   personId: string;
+  accessMode: ChurchAccessMode;
 };
 
 /**
@@ -54,8 +73,15 @@ export const getTenantContext = cache(async function getTenantContext(
     return null;
   }
 
+  // Orden de preferencia: la iglesia pedida, la elegida en la cookie (ya
+  // validada contra membresías), una iglesia operativa, y por último la primera.
+  // Así un usuario con una iglesia bloqueada y otra activa no queda atrapado.
+  const cookieChurchId = (await cookies()).get(ACTIVE_CHURCH_COOKIE)?.value;
   const active =
-    memberships.find((m) => m.churchId === requestedChurchId) ?? memberships[0];
+    memberships.find((m) => m.churchId === requestedChurchId) ??
+    memberships.find((m) => m.churchId === cookieChurchId) ??
+    memberships.find((m) => isOperationalAccessMode(m.accessMode)) ??
+    memberships[0];
 
   return {
     userId: user.id,
@@ -64,46 +90,18 @@ export const getTenantContext = cache(async function getTenantContext(
     churchName: active.churchName,
     churchSlug: active.churchSlug,
     personId: active.personId,
+    accessMode: active.accessMode,
   };
 });
 
 async function loadMemberships(
   supabase: SupabaseClient,
 ): Promise<ChurchMembership[]> {
-  // RLS de church_people permite ver TODAS las pertenencias de una iglesia
-  // a la que el usuario pertenece (es el directorio interno), no solo la
-  // propia. Por eso hay que filtrar explícitamente por las personas
-  // vinculadas a la cuenta actual, nunca asumir que la primera fila
-  // devuelta es "la mía". Ver docs/adr/0002.
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) return [];
-
-  const { data: ownPeople, error: peopleError } = await supabase
-    .from("people")
-    .select("id")
-    .eq("user_id", user.id);
-
-  if (peopleError) {
-    logger.error("No se pudo resolver la persona del usuario", {
-      error: peopleError.message,
-    });
-    return [];
-  }
-
-  const ownPersonIds = (ownPeople ?? []).map((p) => p.id as string);
-  if (ownPersonIds.length === 0) return [];
-
-  const { data, error } = await supabase
-    .from("church_people")
-    // Desambigua explícitamente la FK: desde la Fase 5,
-    // notification_preferences crea una ruta many-to-many indirecta entre
-    // church_people y churches (vía person_id + church_id), y PostgREST no
-    // puede elegir automáticamente cuál usar para el embed.
-    .select("church_id, person_id, relationship, churches!church_people_church_id_fkey(name, slug)")
-    .in("person_id", ownPersonIds)
-    .is("archived_at", null);
+  // Una sola RPC (app.get_my_memberships): solo las pertenencias del usuario
+  // autenticado, con su modo comercial. No pasa por RLS de people ni de
+  // church_people, que en un estado no operativo ocultarían la iglesia y
+  // dejarían la recuperación inalcanzable.
+  const { data, error } = await supabase.rpc("get_my_memberships");
 
   if (error) {
     logger.error("No se pudieron resolver las pertenencias del usuario", {
@@ -112,16 +110,14 @@ async function loadMemberships(
     return [];
   }
 
-  return (data ?? []).map((row) => {
-    const church = Array.isArray(row.churches) ? row.churches[0] : row.churches;
-    return {
-      churchId: row.church_id as string,
-      churchName: (church?.name as string) ?? "",
-      churchSlug: (church?.slug as string) ?? "",
-      personId: row.person_id as string,
-      relationship: row.relationship as string,
-    };
-  });
+  return (data ?? []).map((row: Record<string, unknown>) => ({
+    churchId: row.church_id as string,
+    churchName: (row.church_name as string) ?? "",
+    churchSlug: (row.church_slug as string) ?? "",
+    personId: row.person_id as string,
+    relationship: row.relationship as string,
+    accessMode: row.access_mode as ChurchAccessMode,
+  }));
 }
 
 /**

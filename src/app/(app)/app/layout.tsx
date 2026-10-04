@@ -2,9 +2,10 @@ import { redirect } from "next/navigation";
 import { BrandMark } from "@/components/Logo";
 import SidebarNav from "@/components/shell/SidebarNav";
 import ShellHeader from "@/components/shell/ShellHeader";
-import { getTenantContext } from "@/server/tenant/tenant-context";
+import { getTenantContext, isOperationalAccessMode } from "@/server/tenant/tenant-context";
 import { createSupabaseServerClient } from "@/server/supabase/server-client";
 import { getOnboardingState } from "@/server/onboarding/onboarding-service";
+import { EstadoView } from "./estado/EstadoView";
 import "../app-shell.css";
 
 /**
@@ -32,6 +33,34 @@ export default async function AppLayout({
   const onboarding = await getOnboardingState(tenant.churchId);
   if (onboarding && !onboarding.completedAt) {
     redirect("/acceso/onboarding");
+  }
+
+  // Estado no operativo (Fase 15 A2): no se renderiza navegación ni hijos. La
+  // superficie de recuperación sustituye a la app, así que una ruta profunda
+  // como /app/personas no carga ningún dato de negocio antes de redirigir.
+  if (!isOperationalAccessMode(tenant.accessMode)) {
+    return (
+      <div className="shell">
+        <aside className="shell-sidebar">
+          <div className="shell-brand">
+            <BrandMark style={{ color: "var(--shell-brand)" }} />
+            <span>LEVITA</span>
+          </div>
+          <div className="shell-church">
+            <p className="shell-church-name">{tenant.churchName}</p>
+          </div>
+        </aside>
+        <div className="shell-main">
+          <main className="shell-content">
+            <EstadoView
+              churchId={tenant.churchId}
+              churchName={tenant.churchName}
+              memberships={tenant.memberships}
+            />
+          </main>
+        </div>
+      </div>
+    );
   }
 
   const supabase = await createSupabaseServerClient();

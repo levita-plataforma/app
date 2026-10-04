@@ -353,3 +353,128 @@ runner de retención, que ahora llama a `run_lifecycle` por iglesia.
   para Pastoral, Giving y Kids.
 - **PR C:** consola y banners sin Stripe.
 - **Stripe, precios, límites de plan e IVA:** aplazados, sin cambios en esta fase.
+
+## 12. A2 · Gating de lectura y superficie de recuperación
+
+Estado: **A1 implementado en PR #35** (`feature/diogo-fase-15-estados-acceso`, pendiente de smoke real y de
+validación de Carlos antes de merge). **A2 implementado en `feature/diogo-fase-15-gating-lecturas`**, con base en la
+rama de A1 y PR propia contra esa rama, no contra `main`. **Stripe sigue pendiente.** Fase 15 **sigue parcial**.
+
+### Principio
+
+Pertenencia y acceso comercial son condiciones separadas. `app.church_ids_for_user()` no cambia: responde solo a
+"¿de qué iglesias es miembro este usuario?". La lectura de negocio exige las dos cosas:
+
+- pertenencia (la condición que ya tenía cada política);
+- acceso comercial de lectura: `full` o `grace`.
+
+Un estado no operativo (`trial_expired`, `suspended`, `cancelled`, `security_blocked`) no deja usar LEVITA como
+aplicación de solo lectura. Lo único que se ve es la superficie de recuperación.
+
+### Funciones centrales
+
+| Función | Uso |
+|---|---|
+| `app.can_read_church(church_id)` | RPC de un solo church_id: pertenencia AND modo operativo. |
+| `app.readable_church_ids()` | Políticas. Devuelve un array de iglesias legibles; el planificador la evalúa una vez por sentencia (InitPlan), no por fila. |
+| `app.church_ids_without_security_block()` | Historial y exportaciones, que siguen visibles en el resto de estados no operativos. |
+| `app.assert_can_read_church(church_id)` | RPC que devuelven datos de negocio. Lanza 42501 con DETAIL `CHURCH_<MODO>`. |
+| `app.get_my_memberships()` | Membresías propias con su modo. Sin RLS de `people` ni `church_people`, que ocultarían la iglesia bloqueada. |
+| `app.get_my_church_access_modes()` | Modo por membresía (la usa la app para elegir una iglesia operativa). |
+| `app.get_church_recovery_context(church_id)` | Contexto de recuperación. Solo owner/admin. Sin `security_block_reason`. |
+| `app.kids_record_incident_for_present_kid(...)` | Incidencia de un menor que sigue dentro. Owner, admin o coordinador de Kids. |
+
+### Inventario de políticas SELECT
+
+166 políticas SELECT/ALL en 120 tablas (estado real de `pg_policies`):
+
+- **Negocio (133 políticas):** `ALTER POLICY` que añade `church_id = ANY (app.readable_church_ids())`. Incluye
+  personas (vía `church_people`), Kids, grupos, eventos, comunicaciones, giving, recursos, archivos, avisos.
+- **Recuperación (3 políticas):** `subscription_history` y `export_jobs`: visibles salvo en `security_blocked`.
+- **Historial de suscripción:** la condición original (`settings.manage`) no la tiene ningún rol en
+  `role_capabilities`, así que nadie de la iglesia la veía, ni siquiera en full. Se sustituye por
+  `church_owner`/`church_admin`. Es un defecto previo corregido aquí.
+- **Control, infra, auditoría de plataforma y catálogos:** sin cambio (`churches`, `subscriptions`,
+  `church_modules`, `church_feature_flags`, `church_onboarding`, `notification_preferences`, `support_sessions`,
+  catálogos y tablas de plataforma).
+- **Políticas `anon`:** sin cambio. La página pública de eventos se cierra dentro de `app.can_read_event_public`,
+  que ya es la excepción pública de la lista blanca de seguridad.
+
+Las escrituras no cambian: la guardia de A1 (triggers) sigue siendo la barrera de escritura.
+
+### Superficie de recuperación
+
+- Un owner o admin de una iglesia no operativa ve, en `/app/estado` y en el layout: estado, motivo seguro según el
+  modo, fechas (prueba, gracia, retención), próximos pasos y, si aplica, el historial de suscripción en solo lectura.
+- En `security_blocked` no se devuelve historial, ni fechas de retención, ni exportación, ni el motivo interno.
+- Los textos son fijos por modo en `estado-copy.ts`. No hay botones de pago.
+- El layout, en estado no operativo, renderiza solo la superficie de recuperación y **no renderiza los hijos**: una
+  ruta profunda como `/app/personas` no carga datos de negocio.
+- Cambio de iglesia: `getTenantContext` elige la iglesia pedida, la de la cookie (validada), una operativa, o la
+  primera. La acción `switchActiveChurch` valida el id contra las membresías propias antes de guardar la cookie.
+- Un usuario con una iglesia bloqueada y otra activa sigue usando la activa, y no queda atrapado.
+
+### Kids
+
+- Check-out y recogida: sin cambio desde A1. Son RPC y no dependen del modo.
+- `kids_authorized_pickups`: visible en cualquier modo solo para un menor con check-in activo (cierre seguro).
+  Para el resto de menores, solo en full/grace.
+- Incidencia de menor dentro: `kids_record_incident_for_present_kid` cuando el modo no es operativo. El servicio
+  de incidencias usa esa RPC porque `public.has_capability` lee roles con RLS y allí no vería nada.
+- No hay SELECT normal de Kids en ningún modo no operativo.
+- `kids_room_ratio_status`, `kids_staff_eligibility`, `kids_add_session_staff`, `kids_remove_session_staff`:
+  `assert_can_read_church`. `kids_cap` solo devuelve un booleano de capacidad: sin guardia.
+
+### Funciones SECURITY DEFINER con lectura de negocio
+
+- `analytics_dashboard`: `assert_can_read_church` al inicio.
+- `analytics_trend` y `analytics_period_bounds`: cálculo puro sobre fechas, sin datos de la iglesia: sin guardia.
+- `list_my_notifications` y `count_my_unread_notifications`: sin bandeja fuera de full/grace (devuelven vacío o 0).
+- `kids_checkin`, `kids_checkout`, `kids_lookup_pickup`, `kids_find_checkin_by_code`, `kids_save_sensitive_notes`,
+  `kids_staff_check_in/out`: **pendientes de auditoría fina** (ver "Lo que A2 NO hace").
+
+### Notificaciones y archivos
+
+- Bandeja de negocio: cerrada fuera de full/grace. La recuperación no depende de `notifications`.
+- Archivos: se cierra la tabla `files` (metadatos). **No hay ninguna URL firmada de Storage en la aplicación**, así que
+  hoy no existe un camino de descarga de negocio; el control real está en `files`. Cuando se añada descarga, debe
+  pasar por la misma condición (ver pendientes).
+
+### Pruebas
+
+- `supabase/tests/fase15_gating_lecturas_test.sql` (52 aserciones) con rol `authenticated` real, no superusuario:
+  full, trial_expired, suspended, cancelled, security_blocked, multi-iglesia (A bloqueada, B operativa), aislamiento
+  con C, miembro sin rol, RPC de analytics y Kids, bandeja, historial, exportaciones y reactivación.
+- `fase15_gating_comercial_test.sql`: la expectativa de incidencia en `security_blocked` pasa a ALLOWED (cierre seguro).
+- `hotfix_revokes_publicos_test.sql` sin cambios: la lista blanca de anon no cambia.
+- `supabase test db`: 44 ficheros, 1.858 aserciones en verde. `supabase db diff --local`: sin cambios.
+- Playwright: **no implementado.** El proyecto no tiene Playwright instalado. Queda como pendiente, con el flujo que
+  cubriría: full, trial_expired, suspended, security_blocked, deep links, sidebar reducida, recuperación y cambio de iglesia.
+
+### Rendimiento (base local, 50.000 filas de `tags`, rol `authenticated`)
+
+- Con gating: 4,6 ms en `count(*)`. Sin RLS (superusuario): 2,4 ms.
+- `readable_church_ids()` y `church_ids_for_user()` aparecen como InitPlan y se evalúan una vez por sentencia.
+- Índices: `churches_pkey`, `subscriptions_church_id_key` (único), `church_people_person_id_idx`, `tags_church_id_idx`.
+  No se han creado índices nuevos.
+
+### Lo que A2 NO hace
+
+- **Auditoría fina de RPC de lectura** (checkin, lookup, pickup por código, notas sensibles, staff): inventario hecho
+  en la sección de Kids, pero falta revisar cada una con un test de rol real.
+- **`security_block_reason` directo:** el owner puede leerlo desde la API de `churches` (la columna no tiene
+  privilegio restringido). La recuperación no lo muestra, pero la fuga por API sigue abierta. Requiere privilegio de
+  columna y revisar consumidores antes de aplicarlo.
+- **Support sessions:** no concede lectura de negocio hoy, y no se ha tocado. Es el siguiente hueco de PR B.
+- **Playwright** y **smoke real en Preview:** pendientes.
+- **Exportación desde la UI:** no existe pantalla de solicitud de exportación en la aplicación. La superficie
+  de recuperación indica disponibilidad, pero el botón está pendiente.
+- **Activación desde la UI:** pendiente hasta que exista la integración de cobro (Stripe).
+
+### Pendientes de esta fase
+
+- A1: smoke real en Preview y validación de Carlos (PR #35).
+- A2: auditoría fina de RPC de Kids, privilegio de columna para `security_block_reason`, Playwright, descarga de
+  archivos con la misma condición cuando exista.
+- PR B: sesiones de soporte. PR C: consola y banners.
+- Stripe, precios, límites de plan e IVA: aplazados.
