@@ -660,15 +660,14 @@ de escritura anónima, FK entre tenants), tolerancia de la cola de comunicacione
 redundantes, `RUNBOOK-OPERACION.md`, y las cuatro suites que no caben en pgTAP ejecutándose en CI.
 Detalle en [FASE-13-OPERACION-ESCALA.md](FASE-13-OPERACION-ESCALA.md).
 
-**PR #28 (Carlos), "Fase 13 · Cierre: las tres decisiones pendientes" — ABIERTA, sin mergear.** Rama
-`feature/carlos-fase-13-cierre`, 16 archivos, ~1165 líneas. Resuelve tres decisiones pendientes de
-producto (MFA opcional pero recomendada, objetivo de rendimiento <300ms con 5.000 personas, borrado a
-30 días tras archivar una iglesia) con trabajo real: UI de inscripción TOTP
+**PR #28 (Carlos), "Fase 13 · Cierre: las tres decisiones pendientes" — MERGEADA el 22 de septiembre
+de 2026** (`3904383`). Rama `feature/carlos-fase-13-cierre`, 16 archivos, ~1165 líneas. Resuelve tres
+decisiones pendientes de producto (MFA opcional pero recomendada, objetivo de rendimiento <300ms con
+5.000 personas, borrado a 30 días tras archivar una iglesia) con trabajo real: UI de inscripción TOTP
 (`/operacion/seguridad`), job diario de retención (`src/app/api/tareas/retencion/route.ts` +
 `src/server/retention/runner.ts`), migración `20261004001003_retencion_y_borrado.sql` (incluye
 `storage_deletion_queue` para no dejar objetos de archivo huérfanos antes del cascade), y tests
-propios. **Mientras esta PR no se mergee, ninguno de estos tres mecanismos está en producción** —
-no tratar el MFA, el objetivo de rendimiento ni el borrado a 30 días como ya vigentes.
+propios.
 
 ### Auditoría de migraciones de producción — 21 de septiembre de 2026
 
@@ -746,6 +745,43 @@ autoriza que la use. Deshabilitar tampoco borra datos.
 **Aviso:** el archivo satélite [FASE-14-ADMINISTRACION-PLATAFORMA.md](FASE-14-ADMINISTRACION-PLATAFORMA.md)
 seguía marcado como "pendiente de validación... no integrada ni aplicada en producción" pese a este
 merge; corregido en la misma auditoría.
+
+---
+
+## Fase 15 · Gestión comercial y operación de plataforma
+
+**Resultado:** el equipo de LEVITA puede gestionar planes, suscripciones, excepciones y el estado
+operativo de cada iglesia desde el panel de plataforma, con cada acción autorizada por capacidad y
+auditada.
+
+### Alcance
+
+- catálogo de planes con versiones, y suscripciones con periodo, cambios programados y excepciones;
+- consola comercial en la ficha de iglesia (cambio de plan con vista previa, excepciones,
+  cancelación ahora o al final del periodo);
+- estados de iglesia separados en dimensiones (operativo, comercial, seguridad);
+- consola de operación (colas y trabajos, reintentos seguros) y sesiones de soporte con ciclo de vida;
+- integración de facturación con un proveedor de cobro.
+
+### Estado — 4 de octubre de 2026
+
+**Estado: PARCIAL.** La base operativa y la consola están integradas, pero facturación y
+comportamiento de estados comerciales siguen pendientes de decisiones de producto y proveedor.
+
+- **PR #31** (Carlos) mergeada: contrato, capacidades por función, planes, operaciones comerciales,
+  consola de operación y sesiones de soporte. Migraciones `20261004001004` a `20261004001007`.
+- **PR #32 y #33** (Carlos) mergeadas: consola CA-0 a CA-2 (base, capacidades y navegación; iglesias,
+  alta e invitaciones). Migraciones `20261004001008` a `20261004001010`.
+- **Producción** sincronizada con las migraciones del repositorio, hasta `20261004001010`.
+- **Pendiente, sin decidir:** las decisiones de producto de
+  [FASE-15-GESTION-COMERCIAL.md](FASE-15-GESTION-COMERCIAL.md) §4 (4.1 planes y precios, 4.2 prueba
+  de 30 días, 4.5 qué impide cada estado, 4.6 gracia tras impago, 4.8 acceso de soporte a datos, 4.9
+  proveedor de cobro). Hasta que se decidan, los estados comerciales no impiden nada en el código.
+- **Bloqueado:** la integración de facturación, por falta de proveedor de cobro elegido y configurado.
+  No se simula.
+- **No probado en navegador:** la interfaz de la consola en móvil y escritorio.
+
+No se declara Fase 15 cerrada.
 
 ---
 

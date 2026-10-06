@@ -1,6 +1,7 @@
 # Fase 15 · Gestión comercial y operación de plataforma
 
-Rama `feature/carlos-fase-15-gestion-comercial-operacion`, sobre `origin/main` = `3904383`.
+Rama `feature/carlos-fase-15-gestion-comercial-operacion`, integrada en `main` mediante PR #31
+(merge `29d4b97`). Estado documentado el 4 de octubre de 2026, sobre `main` = `5eacdf9`.
 
 ```
 FASE 15: PARCIAL
@@ -168,10 +169,12 @@ Ninguna reescribe una migración aplicada. Todas se aplican sobre el esquema int
 
 ## 9. Estado exacto
 
-- **`main`**: `3904383`, con F13 y F14 integradas.
-- **Producción**: al día con `main`, 123 tablas, sin migraciones pendientes.
-- **Esta rama**: cuatro migraciones **sin aplicar** en producción. Van antes del despliegue.
-- **Sin integrar**: esperando validación de Carlos del commit concreto.
+- **`main`**: `5eacdf9`, con F13, F14 y F15 (base y consola CA-0 a CA-2) integradas.
+- **Producción**: sincronizada con las migraciones del repositorio, hasta `20261004001010`. No hay
+  migraciones pendientes entre repositorio y producción.
+- **Pendiente**: las decisiones de producto de §4. Facturación sigue bloqueada por falta de
+  proveedor de cobro.
+- **Sin integrar**: nada de esta fase queda fuera de `main`.
 
 ## 10. Para validar
 
