@@ -120,6 +120,14 @@ Hay dos superficies distintas y no se mezclan:
 
 - La consola no es una iglesia más en el selector de iglesias. Un operador que también es miembro de una iglesia
   cambia de contexto con un enlace explícito ("Administración LEVITA" en la app; "Ir a la app de iglesia" en la consola).
+- Destino tras el login (`src/server/auth/destino-acceso.ts`, probado en `tests/unit/`):
+  - operador de plataforma sin iglesia → `/operacion`;
+  - miembro de una iglesia sin plataforma → `/app` (si el alta no terminó, `/app` lo lleva al onboarding);
+  - las dos cosas → el último contexto usado (cookie `levita_contexto`, que el proxy actualiza al visitar `/operacion`
+    o `/app`); si no hay, `/acceso/contexto` ofrece elegir entre "Administración LEVITA" y cada iglesia;
+  - ni una cosa ni otra → `/app`, que lleva al alta de una iglesia nueva.
+  `/acceso/onboarding` no es un destino por defecto: un operador sin iglesia que llegue ahí va a la consola. La cookie no
+  autoriza nada; cada contexto vuelve a comprobar sus permisos.
 - No hay superusuario: el propietario de LEVITA es un operador con capacidades explícitas
   (`platform.churches.read`, `platform.churches.create`, `platform.owners.manage`, `platform.modules.manage`,
   `platform.commercial.read/manage`, `platform.support.manage`, `platform.operations.read`,

@@ -27,9 +27,11 @@ export default async function AppLayout({
     const {
       data: { user },
     } = await supabase.auth.getUser();
-    // Autenticado pero sin ninguna iglesia todavía: continúa el
-    // onboarding, no vuelve al login (ver encargo de Fase 1 §2).
-    redirect(user ? "/acceso/onboarding" : "/acceso");
+    if (!user) redirect("/acceso");
+    // Operador de plataforma sin iglesia: su sitio es la consola, no el alta de
+    // una iglesia nueva. El resto, sin iglesia todavía, continúa el onboarding.
+    if (await getOperatorContext()) redirect("/operacion");
+    redirect("/acceso/onboarding");
   }
 
   // La consola de plataforma es otro contexto: se ofrece como enlace aparte,

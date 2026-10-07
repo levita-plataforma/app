@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
 import { getTenantContext } from "@/server/tenant/tenant-context";
 import { getOnboardingState } from "@/server/onboarding/onboarding-service";
+import { getOperatorContext } from "@/server/platform/platform-service";
 import { createSupabaseServerClient } from "@/server/supabase/server-client";
 import OnboardingLayout from "./OnboardingLayout";
 import PasoIglesia from "./PasoIglesia";
@@ -26,6 +27,10 @@ export default async function OnboardingPage() {
     } = await supabase.auth.getUser();
 
     if (!user) redirect("/acceso");
+
+    // El onboarding es para dar de alta una iglesia, no un sitio por defecto: un
+    // operador de plataforma sin iglesia va a la consola.
+    if (await getOperatorContext()) redirect("/operacion");
 
     return (
       <OnboardingLayout currentStep="church" completedSteps={["account"]}>
