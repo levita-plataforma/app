@@ -2,6 +2,7 @@
 
 import { redirect } from "next/navigation";
 import { createSupabaseServerClient } from "@/server/supabase/server-client";
+import { resolverDestinoAcceso } from "@/server/auth/acceso-servidor";
 
 export type AccesoState = { error: string | null };
 
@@ -29,5 +30,6 @@ export async function signInAction(
     return { error: "No hemos podido verificar tus datos. Revisa el correo y la contraseña." };
   }
 
-  redirect("/app");
+  // Operador sin iglesia → consola; iglesia → app; ambos → último contexto o elección.
+  redirect(await resolverDestinoAcceso());
 }

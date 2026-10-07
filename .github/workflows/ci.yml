@@ -26,6 +26,9 @@ jobs:
       - name: Typecheck
         run: npm run typecheck
 
+      - name: Pruebas unitarias
+        run: npm run test:unit
+
       - name: Build
         run: npm run build
         env:
