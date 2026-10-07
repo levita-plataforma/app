@@ -1,7 +1,8 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { inviteAdmin, revokeInvitation } from "@/server/platform/platform-service";
+import { inviteAdmin, resendInvitation, revokeInvitation } from "@/server/platform/platform-service";
+import { env } from "@/server/env";
 import { DomainError } from "@/server/errors/domain-error";
 
 /**
@@ -46,4 +47,23 @@ export async function revocarInvitacionAction(
   }
   revalidatePath(`/operacion/iglesias/${churchId}`);
   return { error: null };
+}
+
+/**
+ * Reenviar una invitación pendiente (también si ya caducó): revoca la anterior y
+ * emite otra en la misma transacción. Devuelve el enlace nuevo una sola vez.
+ */
+export async function reenviarInvitacionAction(
+  invitationId: string,
+  churchId?: string,
+): Promise<{ error: string | null; link?: string }> {
+  try {
+    const token = await resendInvitation(invitationId);
+    if (churchId) revalidatePath(`/operacion/iglesias/${churchId}`);
+    revalidatePath("/operacion/invitaciones");
+    return { error: null, link: `${env.appUrl}/acceso/invitacion/${token}` };
+  } catch (err) {
+    if (err instanceof DomainError) return { error: err.message };
+    throw err;
+  }
 }

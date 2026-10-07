@@ -1,32 +1,34 @@
 import AltaAsistidaForm from "./AltaAsistidaForm";
 import { requireOperator } from "../guard";
+import { ACTIVATABLE_MODULE_KEYS, ACTIVATABLE_MODULE_DESCRIPTIONS } from "@/server/church/modules-catalog";
+import { NAV_ITEMS } from "@/components/shell/nav-items";
 import "../../app-shell.css";
 
 /**
- * Alta asistida de iglesias.
- *
- * Usa la misma guarda que el resto del panel en vez de comprobar a mano la
- * pertenencia a `platform_operators`, que era lo que hacía antes. La diferencia
- * importa: desde la Fase 14, pertenecer al equipo y poder crear iglesias son
- * cosas distintas, y aquí se pedía solo la primera.
- *
- * La guarda no es la protección —quien no tenga la capacidad recibe 42501 de la
- * base igualmente, desde CA-0.2—: lo que evita es enseñar un formulario que va
- * a fallar al enviarlo.
+ * Nueva iglesia (alta asistida). La guarda evita enseñar un formulario que va a
+ * fallar; la protección real es la base, que exige platform.churches.create.
  */
 export default async function AltasAsistidasPage() {
   const acceso = await requireOperator("platform.churches.create");
   if ("bloqueado" in acceso) return acceso.bloqueado;
 
+  // Solo módulos activables con ruta real; nunca los «próximamente».
+  const modulos = ACTIVATABLE_MODULE_KEYS.map((key) => ({
+    key,
+    label: NAV_ITEMS.find((n) => n.moduleKey === key)?.label ?? key,
+    description: ACTIVATABLE_MODULE_DESCRIPTIONS[key],
+  }));
+
   return (
-    <div style={{ padding: "40px 20px" }}>
-      <div style={{ maxWidth: 520, margin: "0 auto" }}>
-        <h1 style={{ fontSize: 20, fontWeight: 600, marginBottom: 4 }}>Alta asistida de iglesia</h1>
-        <p style={{ fontSize: 13, color: "var(--shell-text-muted)", marginBottom: 24 }}>
-          Crea el espacio de una iglesia y genera el enlace de invitación para su propietario.
+    <div className="consola-pagina" style={{ maxWidth: 720 }}>
+      <header>
+        <h1>Nueva iglesia</h1>
+        <p className="consola-sub">
+          Crea el tenant, su sede principal, la prueba y los módulos, e invita al propietario. Un alta no termina hasta
+          que el propietario acepta y completa el onboarding.
         </p>
-        <AltaAsistidaForm />
-      </div>
+      </header>
+      <AltaAsistidaForm modulos={modulos} />
     </div>
   );
 }

@@ -643,3 +643,33 @@ aprobada, con su propio alcance, auditoría y pruebas. No existe hoy.
 - Pruebas: `fase15_seguridad_iglesia_test.sql` (21 aserciones): soporte y comercial no leen el motivo; lectura solo con
   `church_security.read`; leer no altera; gestionar no concede lectura; owner y otro tenant no alteran; motivo
   obligatorio; auditoría; desbloqueo sin cambio de suscripción.
+
+## 14. Consola de plataforma consolidada (7 de octubre de 2026)
+
+La consola de `/operacion` se reorganiza como superficie propia ("LEVITA · Administración"), separada de la app de
+iglesia. Reutiliza las RPC y pantallas existentes; no crea otra arquitectura. Detalle de la separación de contextos
+en `docs/16-arquitectura-multitenant.md`, sección 7, y del alta en `docs/12-iglesias-y-tenants.md`.
+
+- **Navegación:** sidebar propia (Resumen, Iglesias, Altas, Invitaciones, Soporte, Procesos, Seguridad, Auditoría,
+  Configuración), filtrada por capacidad.
+- **Resumen:** `app.platform_console_summary()`: iglesias por modo de acceso, en prueba, altas del mes, altas sin
+  terminar, sin propietario, invitaciones pendientes y caducadas, sesiones de soporte activas, avisos y exportaciones
+  fallidas en 7 días. Solo recuentos.
+- **Listado:** `app.platform_churches` añade modo de acceso, fin de prueba, país, propietario, invitación pendiente y
+  última actividad (fecha del último registro de auditoría, sin contenido). Filtros por modo, prueba y país. La
+  búsqueda por correo solo funciona con `platform.owners.manage`.
+- **Ficha:** secciones Resumen, Owners y administradores, Sedes, Módulos, Suscripción, Soporte, Seguridad y Auditoría.
+  `platform_church_detail` añade modo de acceso, país, fechas de prueba y gracia, y si hay bloqueo (sin motivo).
+- **Seguridad** sale del panel de soporte a su propia sección: motivo con `church_security.read`, bloqueo y
+  desbloqueo con `church_security.manage`.
+- **Invitaciones:** `app.platform_invitations` (transversal, con correos, exige `platform.owners.manage`) y
+  `app.platform_resend_invitation` (revoca y emite otra en una transacción; auditado).
+- **Alta asistida:** cuatro pasos; núcleo siempre activo; solo módulos activables; nombre del propietario
+  (`invitations.invited_name`) y correo administrativo (`churches.settings.email`); auditoría de plataforma en el punto
+  único (`platform_create_church` deja de escribir la suya para no duplicar).
+- **Corrección:** el alta anterior generaba un enlace terminado en `undefined` (leía `out_invitation_token` de un
+  wrapper que devuelve `invitation_token`).
+- **Pruebas:** `supabase/tests/consola_plataforma_test.sql` (33 aserciones, rol `authenticated` real).
+
+Pendiente: transporte de correo para las invitaciones, índice `audit_logs (church_id, created_at)` si el listado
+crece, y prueba en navegador.

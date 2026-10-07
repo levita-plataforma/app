@@ -1,0 +1,189 @@
+/* Consola de plataforma (LEVITA · Administración). Sobria: tablas, estados y acciones. */
+.consola {
+  min-height: 100svh;
+  display: grid;
+  grid-template-columns: 220px minmax(0, 1fr);
+  background: var(--shell-bg);
+}
+
+.consola-sidebar {
+  border-right: 1px solid var(--shell-border);
+  background: var(--shell-surface, var(--shell-bg));
+  padding: 16px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  position: sticky;
+  top: 0;
+  height: 100svh;
+  overflow-y: auto;
+}
+
+.consola-identidad {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 0 8px;
+}
+
+.consola-identidad strong {
+  font-size: 13.5px;
+}
+
+.consola-identidad span {
+  font-size: 11px;
+  color: var(--shell-text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.consola-nav {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.consola-nav a {
+  font-size: 13px;
+  padding: 7px 8px;
+  border-radius: var(--shell-radius-sm);
+  text-decoration: none;
+  color: var(--shell-text-muted);
+}
+
+.consola-nav a:hover {
+  color: var(--shell-text);
+  background: var(--shell-hover, rgba(0, 0, 0, 0.04));
+}
+
+.consola-nav a[aria-current="page"] {
+  color: var(--shell-text);
+  font-weight: 600;
+  background: var(--shell-hover, rgba(0, 0, 0, 0.06));
+}
+
+.consola-pie {
+  margin-top: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 0 8px;
+  font-size: 11.5px;
+  color: var(--shell-text-muted);
+}
+
+.consola-pie a {
+  font-size: 12.5px;
+}
+
+.consola-main {
+  min-width: 0;
+}
+
+.consola-pagina {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 28px 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.consola-pagina h1 {
+  margin: 0;
+  font-size: 20px;
+}
+
+.consola-sub {
+  margin: 4px 0 0;
+  color: var(--shell-text-muted);
+  font-size: 13px;
+}
+
+.consola-metricas {
+  display: grid;
+  gap: 1px;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  background: var(--shell-border);
+  border: 1px solid var(--shell-border);
+  border-radius: var(--shell-radius-md);
+  overflow: hidden;
+}
+
+.consola-metrica {
+  background: var(--shell-surface, var(--shell-bg));
+  padding: 12px 14px;
+  text-decoration: none;
+  color: inherit;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.consola-metrica strong {
+  font-size: 22px;
+  font-variant-numeric: tabular-nums;
+}
+
+.consola-metrica span {
+  font-size: 12px;
+  color: var(--shell-text-muted);
+}
+
+.consola-metrica.is-alerta strong {
+  color: var(--shell-danger, #b42318);
+}
+
+.consola-secciones {
+  display: flex;
+  gap: 4px;
+  flex-wrap: wrap;
+  border-bottom: 1px solid var(--shell-border);
+  padding-bottom: 8px;
+  position: sticky;
+  top: 0;
+  background: var(--shell-bg);
+  z-index: 5;
+}
+
+.consola-secciones a {
+  font-size: 12.5px;
+  padding: 6px 10px;
+  border-radius: var(--shell-radius-sm);
+  text-decoration: none;
+  color: var(--shell-text-muted);
+}
+
+.consola-secciones a:hover {
+  color: var(--shell-text);
+}
+
+.consola-seccion {
+  scroll-margin-top: 56px;
+}
+
+@media (max-width: 860px) {
+  .consola {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .consola-sidebar {
+    position: static;
+    height: auto;
+    border-right: none;
+    border-bottom: 1px solid var(--shell-border);
+  }
+
+  .consola-nav {
+    flex-direction: row;
+    flex-wrap: wrap;
+  }
+
+  .consola-pie {
+    margin-top: 0;
+  }
+
+  .consola-pagina {
+    padding: 20px 16px;
+  }
+}

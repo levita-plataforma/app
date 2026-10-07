@@ -2,8 +2,6 @@ import { createSupabaseServerClient } from "@/server/supabase/server-client";
 import { listSupportSessions } from "@/server/platform/operations-service";
 import RevocarSesion from "../../soporte/RevocarSesion";
 import AbrirSesionForm from "./AbrirSesionForm";
-import BloqueoSeguridadForm from "./BloqueoSeguridadForm";
-import { getServiceState } from "@/server/platform/commercial-service";
 
 type Diagnostico = {
   lifecycle: string;
@@ -23,35 +21,25 @@ const fecha = (v: string | null | undefined) =>
 
 /**
  * Soporte operacional de una iglesia (PR B). Muestra solo diagnóstico y metadatos.
- * El motivo de bloqueo de seguridad no sale aquí: lo ve solo quien tiene
- * platform.church_security.read, y esta pantalla no lo pide.
+ * La seguridad (bloqueo, motivo) vive en su propia sección: PanelSeguridad.
  */
 export default async function PanelSoporte({
   churchId,
   puedeGestionar,
-  puedeLeerMotivo,
-  puedeGestionarSeguridad,
 }: {
   churchId: string;
   puedeGestionar: boolean;
-  puedeLeerMotivo: boolean;
-  puedeGestionarSeguridad: boolean;
 }) {
   const supabase = await createSupabaseServerClient();
   const { data } = await supabase.rpc("platform_church_diagnostics", { p_church_id: churchId });
   const d = (data ?? null) as Diagnostico | null;
-
-  // El motivo solo se pide con platform.church_security.read. Sin esa capacidad, la RPC
-  // no lo devuelve y la pantalla no tiene nada que mostrar.
-  const motivo = puedeLeerMotivo ? (await getServiceState(churchId))?.security_block_reason ?? null : null;
-  const bloqueada = d?.security_blocked ?? false;
 
   const sesiones = puedeGestionar ? await listSupportSessions(churchId) : [];
   const activas = sesiones.filter((s) => s.activa);
   const anteriores = sesiones.filter((s) => !s.activa).slice(0, 10);
 
   return (
-    <section className="shell-card" style={{ padding: 16, display: "flex", flexDirection: "column", gap: 14 }}>
+    <section id="soporte" className="shell-card consola-seccion" style={{ padding: 16, display: "flex", flexDirection: "column", gap: 14 }}>
       <div>
         <h2 style={{ margin: 0, fontSize: 15 }}>Soporte</h2>
         <p style={{ margin: "4px 0 0", fontSize: 12, color: "var(--shell-text-muted)" }}>
@@ -69,13 +57,7 @@ export default async function PanelSoporte({
           <dt>Modo de acceso</dt>
           <dd style={{ margin: 0 }}>{d.access_mode}</dd>
           <dt>Bloqueo de seguridad</dt>
-          <dd style={{ margin: 0 }}>{bloqueada ? "sí" : "no"}</dd>
-          {puedeLeerMotivo && bloqueada && (
-            <>
-              <dt>Motivo interno</dt>
-              <dd style={{ margin: 0 }}>{motivo ?? "—"}</dd>
-            </>
-          )}
+          <dd style={{ margin: 0 }}>{d.security_blocked ? "sí (ver Seguridad)" : "no"}</dd>
           <dt>Mantenimiento</dt>
           <dd style={{ margin: 0 }}>{d.maintenance ? "sí" : "no"}</dd>
           <dt>Actividad técnica</dt>
@@ -85,16 +67,6 @@ export default async function PanelSoporte({
           <dt>Avisos en cola</dt>
           <dd style={{ margin: 0 }}>{d.queued_deliveries}</dd>
         </dl>
-      )}
-
-      {puedeGestionarSeguridad && (
-        <div>
-          <h3 style={{ margin: "0 0 6px", fontSize: 13 }}>Seguridad de la iglesia</h3>
-          <p style={{ margin: "0 0 8px", fontSize: 12, color: "var(--shell-text-muted)" }}>
-            Bloquear o desbloquear por seguridad. Exige motivo y queda auditado. No cambia la suscripción.
-          </p>
-          <BloqueoSeguridadForm churchId={churchId} bloqueada={bloqueada} />
-        </div>
       )}
 
       {puedeGestionar && (

@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { invitarResponsableAction, revocarInvitacionAction } from "./acciones-responsables";
+import { invitarResponsableAction, revocarInvitacionAction, reenviarInvitacionAction } from "./acciones-responsables";
 
 /**
  * Invitar y revocar responsables desde la ficha (CA-2.4).
@@ -70,6 +70,24 @@ export default function PanelResponsables({
                 {i.role_key === "church_owner" ? "Propietario" : "Administrador"} ·{" "}
                 {i.caducada ? "caducada" : i.status} · hasta {fecha(i.expires_at)}
               </span>
+              {i.status === "pending" && (
+                <button
+                  type="button"
+                  className="shell-button"
+                  disabled={pendiente}
+                  style={{ fontSize: 11.5 }}
+                  onClick={() => {
+                    setError(null);
+                    startTransition(async () => {
+                      const r = await reenviarInvitacionAction(i.id, churchId);
+                      if (r.error) setError(r.error);
+                      else setResultado({ link: r.link ?? null, reutilizada: false });
+                    });
+                  }}
+                >
+                  Reenviar
+                </button>
+              )}
               {!i.caducada && i.status === "pending" && (
                 <button
                   type="button"

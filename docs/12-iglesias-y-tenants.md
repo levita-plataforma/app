@@ -25,6 +25,18 @@ Una iglesia es el tenant de LEVITA. Tiene identidad, configuración, suscripció
 
 Operación LEVITA crea una invitación/provisioning mínimo. El responsable de la iglesia completa datos, acepta términos y finaliza el pago. Soporte no debe inventar contraseña ni asumir permanentemente la identidad del cliente.
 
+Implementación (consola de plataforma, `/operacion/altas`): un asistente de cuatro pasos (datos de la iglesia,
+propietario, módulos, confirmación) llama a `assisted_provision_church`, punto único de alta. En una sola transacción
+crea la iglesia en `provisioning`, la sede principal, la suscripción en prueba (30 días), el onboarding, los módulos
+(núcleo `people, serving, events, communications` siempre, más los activables elegidos; nunca los «próximamente») y
+la invitación del propietario, y deja auditoría de plataforma. El operador no define contraseña: recibe el enlace de
+invitación una sola vez (no hay transporte de correo) y lo entrega al propietario. Repetir con el mismo identificador
+no duplica la iglesia.
+
+Estados de un alta: `provisioning` (creada) → propietario invitado (invitación `pending`) → propietario aceptado →
+onboarding completado (`church_onboarding.completed_at`). Un alta sin onboarding completado aparece como "Alta sin
+terminar" en la consola y se retoma desde su ficha (reenviar o revocar la invitación, invitar a otro propietario).
+
 ## 3. Iglesia
 
 Datos base:

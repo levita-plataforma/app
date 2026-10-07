@@ -232,7 +232,10 @@ export type ServiceState = {
   lifecycle: string;
   commercial: string;
   security_blocked: boolean;
-  security_block_reason: string | null;
+  /** Solo llega con platform.church_security.read. */
+  security_block_reason?: string | null;
+  /** Solo llega con platform.church_security.read. */
+  security_blocked_by?: string | null;
   in_maintenance: boolean;
   maintenance_until: string | null;
   archived: boolean;
