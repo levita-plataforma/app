@@ -1,6 +1,7 @@
 import "server-only";
 import { createSupabaseServerClient } from "@/server/supabase/server-client";
 import { toDomainError } from "@/server/activities/rpc";
+import { DomainError } from "@/server/errors/domain-error";
 import { env } from "@/server/env";
 
 /**
@@ -100,28 +101,40 @@ export function tiene(contexto: OperatorContext | null, capacidad: PlatformCapab
 // Lecturas
 // ---------------------------------------------------------------------------
 
-export type PlatformOverview = {
-  iglesiasActivas: number;
-  iglesiasArchivadas: number;
-  altasIncompletas: number;
+/** Modos de acceso comercial (Fase 15), tal como los devuelve app.church_access_mode. */
+export type AccessMode = "full" | "grace" | "trial_expired" | "suspended" | "cancelled" | "security_blocked" | "none";
+
+export type ConsoleSummary = {
+  porModo: Partial<Record<AccessMode, number>>;
+  enPrueba: number;
+  altasMes: number;
+  altasPendientes: number;
   invitacionesPendientes: number;
   invitacionesCaducadas: number;
-  iglesiasSinPropietario: number;
+  sinPropietario: number;
+  sesionesSoporteActivas: number;
+  entregasFallidas7d: number;
+  exportacionesFallidas7d: number;
 };
 
-export async function getOverview(): Promise<PlatformOverview> {
+/** Resumen de la consola: solo recuentos del plano de control, nunca datos de negocio. */
+export async function getConsoleSummary(): Promise<ConsoleSummary> {
   const supabase = await createSupabaseServerClient();
-  const { data, error } = await supabase.rpc("platform_overview");
+  const { data, error } = await supabase.rpc("platform_console_summary");
   if (error) throw toDomainError(error, "No se pudo cargar el resumen.");
-
-  const fila = data?.[0];
+  const d = (data ?? {}) as Record<string, unknown>;
+  const n = (k: string) => Number(d[k] ?? 0);
   return {
-    iglesiasActivas: fila?.iglesias_activas ?? 0,
-    iglesiasArchivadas: fila?.iglesias_archivadas ?? 0,
-    altasIncompletas: fila?.altas_incompletas ?? 0,
-    invitacionesPendientes: fila?.invitaciones_pendientes ?? 0,
-    invitacionesCaducadas: fila?.invitaciones_caducadas ?? 0,
-    iglesiasSinPropietario: fila?.iglesias_sin_propietario ?? 0,
+    porModo: (d.por_modo ?? {}) as Partial<Record<AccessMode, number>>,
+    enPrueba: n("en_prueba"),
+    altasMes: n("altas_mes"),
+    altasPendientes: n("altas_pendientes"),
+    invitacionesPendientes: n("invitaciones_pendientes"),
+    invitacionesCaducadas: n("invitaciones_caducadas"),
+    sinPropietario: n("sin_propietario"),
+    sesionesSoporteActivas: n("sesiones_soporte_activas"),
+    entregasFallidas7d: n("entregas_fallidas_7d"),
+    exportacionesFallidas7d: n("exportaciones_fallidas_7d"),
   };
 }
 
@@ -139,6 +152,12 @@ export type ChurchListItem = {
   campusesCount: number;
   peopleCount: number;
   hasOwner: boolean;
+  accessMode: AccessMode;
+  trialEndsAt: string | null;
+  country: string | null;
+  ownerName: string | null;
+  ownerInvitationPending: boolean;
+  lastActivityAt: string | null;
 };
 
 export type ChurchFilters = {
@@ -151,6 +170,11 @@ export type ChurchFilters = {
   onboardingPendiente?: boolean;
   /** Solo las que no tienen propietario: nadie puede administrarlas hasta resolverlo. */
   sinPropietario?: boolean;
+  /** Modo de acceso comercial (full, trial_expired, suspended, security_blocked...). */
+  accessMode?: string;
+  /** "vigente" o "vencida". */
+  trial?: string;
+  country?: string;
   page?: number;
   pageSize?: number;
 };
@@ -172,6 +196,9 @@ export async function listChurches(
     p_sin_propietario: filtros.sinPropietario ? true : undefined,
     p_limit: pageSize,
     p_offset: (page - 1) * pageSize,
+    p_access_mode: filtros.accessMode || undefined,
+    p_trial: filtros.trial || undefined,
+    p_country: filtros.country || undefined,
   });
 
   if (error) throw toDomainError(error, "No se pudo cargar el listado de iglesias.");
@@ -181,6 +208,8 @@ export async function listChurches(
     archived_at: string | null; plan_key: string | null; subscription_status: string | null;
     onboarding_completed: boolean; modules_enabled: number; campuses_count: number;
     people_count: number; has_owner: boolean; total_count: number;
+    access_mode: string; trial_ends_at: string | null; country: string | null;
+    owner_name: string | null; owner_invitation_pending: boolean; last_activity_at: string | null;
   };
   const filas = (data ?? []) as FilaIglesia[];
   return {
@@ -198,6 +227,12 @@ export async function listChurches(
       campusesCount: f.campuses_count,
       peopleCount: f.people_count,
       hasOwner: f.has_owner,
+      accessMode: f.access_mode as AccessMode,
+      trialEndsAt: f.trial_ends_at,
+      country: f.country,
+      ownerName: f.owner_name || null,
+      ownerInvitationPending: f.owner_invitation_pending,
+      lastActivityAt: f.last_activity_at,
     })),
     // El total viaja en cada fila porque la cuenta se hace dentro de la misma
     // consulta: pedirla aparte daría un número de otro instante.
@@ -218,10 +253,34 @@ export type ChurchDetail = {
   currency: string | null;
   created_at: string;
   archived_at: string | null;
+  country: string | null;
+  access_mode: AccessMode;
+  security_blocked: boolean;
+  security_blocked_at: string | null;
   onboarding: { current_step: string | null; completed_steps: unknown; started_at: string | null; completed_at: string | null } | null;
-  subscription: { plan_key: string; status: string; trial_ends_at: string | null; started_at: string | null; renews_at: string | null; cancel_at: string | null } | null;
+  subscription: {
+    plan_key: string;
+    status: string;
+    trial_started_at: string | null;
+    trial_ends_at: string | null;
+    past_due_since: string | null;
+    grace_ends_at: string | null;
+    cancelled_at: string | null;
+    started_at: string | null;
+    renews_at: string | null;
+    cancel_at: string | null;
+  } | null;
   responsables: { person_id: string; name: string; role_key: string; has_account: boolean }[];
-  invitaciones: { id: string; role_key: string; status: string; expires_at: string | null; created_at: string; caducada: boolean }[];
+  invitaciones: {
+    id: string;
+    role_key: string;
+    invited_name: string | null;
+    accepted_at: string | null;
+    status: string;
+    expires_at: string | null;
+    created_at: string;
+    caducada: boolean;
+  }[];
   sedes: { id: string; name: string; archived_at: string | null }[];
   modulos: { module_key: string; name: string; status: string; enabled_at: string | null }[];
   historial: { action: string; created_at: string; metadata: Record<string, unknown> }[];
@@ -348,4 +407,57 @@ export async function createChurch(input: CreateChurchInput): Promise<{ churchId
   });
   if (error) throw toDomainError(error, "No se pudo crear la iglesia.");
   return { churchId: (data?.[0]?.out_church_id ?? "") as string };
+}
+
+// ---------------------------------------------------------------------------
+// Invitaciones (transversal a todas las iglesias)
+// ---------------------------------------------------------------------------
+
+export type PlatformInvitation = {
+  id: string;
+  churchId: string;
+  churchName: string;
+  email: string;
+  invitedName: string | null;
+  roleKey: string;
+  status: string;
+  expiresAt: string | null;
+  createdAt: string;
+  caducada: boolean;
+};
+
+/** Exige platform.owners.manage: muestra correos. */
+export async function listPlatformInvitations(estado: "pendientes" | "caducadas" | "todas" = "pendientes"): Promise<PlatformInvitation[]> {
+  const supabase = await createSupabaseServerClient();
+  const { data, error } = await supabase.rpc("platform_invitations", { p_estado: estado, p_limit: 200 });
+  if (error) throw toDomainError(error, "No se pudieron cargar las invitaciones.");
+  type Fila = {
+    id: string; church_id: string; church_name: string; email: string; invited_name: string | null;
+    role_key: string; status: string; expires_at: string | null; created_at: string; caducada: boolean;
+  };
+  return ((data ?? []) as Fila[]).map((r) => ({
+    id: r.id,
+    churchId: r.church_id,
+    churchName: r.church_name,
+    email: r.email,
+    invitedName: r.invited_name,
+    roleKey: r.role_key,
+    status: r.status,
+    expiresAt: r.expires_at,
+    createdAt: r.created_at,
+    caducada: r.caducada,
+  }));
+}
+
+/**
+ * Reenvía una invitación pendiente: revoca la anterior y emite otra, en una sola
+ * transacción. Devuelve el token nuevo una vez; el anterior no se puede recuperar.
+ */
+export async function resendInvitation(invitationId: string): Promise<string> {
+  const supabase = await createSupabaseServerClient();
+  const { data, error } = await supabase.rpc("platform_resend_invitation", { p_invitation_id: invitationId });
+  if (error) throw toDomainError(error, "No se pudo reenviar la invitación.");
+  const token = (data as { out_token: string }[] | null)?.[0]?.out_token;
+  if (!token) throw new DomainError("INTERNAL_ERROR", "No se pudo reenviar la invitación.");
+  return token;
 }

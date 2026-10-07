@@ -4435,6 +4435,7 @@ export type Database = {
           expires_at: string
           id: string
           invited_by: string | null
+          invited_name: string | null
           person_id: string | null
           revoked_at: string | null
           role_key: string
@@ -4450,6 +4451,7 @@ export type Database = {
           expires_at?: string
           id?: string
           invited_by?: string | null
+          invited_name?: string | null
           person_id?: string | null
           revoked_at?: string | null
           role_key: string
@@ -4465,6 +4467,7 @@ export type Database = {
           expires_at?: string
           id?: string
           invited_by?: string | null
+          invited_name?: string | null
           person_id?: string | null
           revoked_at?: string | null
           role_key?: string
@@ -8510,12 +8513,14 @@ export type Database = {
       }
       assisted_provision_church: {
         Args: {
+          p_admin_email?: string
           p_country: string
           p_currency: string
           p_locale: string
           p_module_keys?: string[]
           p_name: string
           p_owner_email: string
+          p_owner_name?: string
           p_slug: string
           p_timezone: string
         }
@@ -9243,6 +9248,8 @@ export type Database = {
       }
       platform_churches: {
         Args: {
+          p_access_mode?: string
+          p_country?: string
           p_created_from?: string
           p_limit?: number
           p_module?: string
@@ -9252,28 +9259,36 @@ export type Database = {
           p_search?: string
           p_sin_propietario?: boolean
           p_status?: string
+          p_trial?: string
         }
         Returns: {
+          access_mode: string
           archived_at: string
           campuses_count: number
+          country: string
           created_at: string
           has_owner: boolean
           id: string
+          last_activity_at: string
           modules_enabled: number
           name: string
           onboarding_completed: boolean
+          owner_invitation_pending: boolean
+          owner_name: string
           people_count: number
           plan_key: string
           slug: string
           status: string
           subscription_status: string
           total_count: number
+          trial_ends_at: string
         }[]
       }
       platform_clear_security_block: {
         Args: { p_church_id: string; p_reason: string }
         Returns: undefined
       }
+      platform_console_summary: { Args: never; Returns: Json }
       platform_create_church: {
         Args: {
           p_country: string
@@ -9300,6 +9315,21 @@ export type Database = {
           p_starts_at?: string
         }
         Returns: string
+      }
+      platform_invitations: {
+        Args: { p_estado?: string; p_limit?: number }
+        Returns: {
+          caducada: boolean
+          church_id: string
+          church_name: string
+          created_at: string
+          email: string
+          expires_at: string
+          id: string
+          invited_name: string
+          role_key: string
+          status: string
+        }[]
       }
       platform_invite_admin: {
         Args: { p_church_id: string; p_email: string; p_role_key?: string }
@@ -9347,6 +9377,13 @@ export type Database = {
       platform_remove_admin: {
         Args: { p_church_id: string; p_motivo?: string; p_person_id: string }
         Returns: undefined
+      }
+      platform_resend_invitation: {
+        Args: { p_invitation_id: string }
+        Returns: {
+          out_invitation_id: string
+          out_token: string
+        }[]
       }
       platform_retry_storage_deletion: {
         Args: { p_id: string }

@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { Search, ChevronDown } from "lucide-react";
 import type { TenantContext } from "@/server/tenant/tenant-context";
 import MobileSidebarToggle from "./MobileSidebarToggle";
@@ -7,9 +8,11 @@ type ShellHeaderProps = {
   tenant: TenantContext;
   displayName: string;
   roleLabel: string;
+  /** Solo para operadores de plataforma: enlace a la consola, que es otro contexto. */
+  consolaHref?: string;
 };
 
-export default function ShellHeader({ tenant, displayName, roleLabel }: ShellHeaderProps) {
+export default function ShellHeader({ tenant, displayName, roleLabel, consolaHref }: ShellHeaderProps) {
   const initials = displayName
     .split(" ")
     .map((part) => part[0])
@@ -30,6 +33,11 @@ export default function ShellHeader({ tenant, displayName, roleLabel }: ShellHea
       </label>
 
       <div className="shell-header-actions">
+        {consolaHref && (
+          <Link href={consolaHref} style={{ fontSize: 12.5, whiteSpace: "nowrap" }}>
+            Administración LEVITA
+          </Link>
+        )}
         <button type="button" className="shell-campus-select">
           Sede principal
           <ChevronDown aria-hidden="true" width={14} height={14} />

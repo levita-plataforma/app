@@ -1,144 +1,107 @@
 import Link from "next/link";
-import { AlertTriangle, Building2, MailWarning, ShieldAlert, UserX } from "lucide-react";
-import { getOverview } from "@/server/platform/platform-service";
+import { getConsoleSummary, tiene } from "@/server/platform/platform-service";
 import { requireOperator } from "./guard";
 import "../app-shell.css";
 
 /**
- * Portada del panel de operación: cuántas iglesias hay, cuáles necesitan que
- * alguien entre a ayudar y qué invitaciones están esperando.
+ * Resumen de la consola de plataforma (LEVITA · Administración).
  *
- * Los cuatro indicadores salen de la base en la misma consulta y cada uno lleva
- * a su listado filtrado: un número sin sitio adonde ir no sirve para trabajar.
+ * Solo recuentos del plano de control: estado comercial de los tenants, altas,
+ * invitaciones, soporte e incidencias. Ningún dato de negocio de ninguna
+ * iglesia. Cada número lleva a su listado filtrado: un número sin sitio adonde
+ * ir no sirve para trabajar.
  */
 export default async function OperacionPage() {
   const acceso = await requireOperator("platform.churches.read");
   if ("bloqueado" in acceso) return acceso.bloqueado;
 
-  const resumen = await getOverview();
+  const r = await getConsoleSummary();
+  const modo = (k: keyof typeof r.porModo) => r.porModo[k] ?? 0;
+  const puedeInvitaciones = tiene(acceso.contexto, "platform.owners.manage");
+  const puedeSoporte = tiene(acceso.contexto, "platform.support.manage");
+  const puedeProcesos = tiene(acceso.contexto, "platform.operations.read");
 
-  // La navegación entre secciones vive en el layout, filtrada por capacidad.
-  // Aquí solo quedan los indicadores, que llevan a su listado ya filtrado: un
-  // número sin sitio adonde ir no sirve para trabajar.
-  const tarjetas = [
-    {
-      icono: Building2,
-      valor: resumen.iglesiasActivas,
-      etiqueta: "Iglesias activas",
-      href: "/operacion/iglesias",
-      alerta: false,
-    },
-    {
-      icono: AlertTriangle,
-      valor: resumen.altasIncompletas,
-      etiqueta: "Altas sin terminar",
-      href: "/operacion/iglesias?onboarding=pendiente",
-      alerta: resumen.altasIncompletas > 0,
-    },
-    {
-      icono: UserX,
-      valor: resumen.iglesiasSinPropietario,
-      etiqueta: "Sin propietario",
-      href: "/operacion/iglesias?sinPropietario=1",
-      alerta: resumen.iglesiasSinPropietario > 0,
-    },
-    {
-      icono: MailWarning,
-      valor: resumen.invitacionesCaducadas,
-      etiqueta: "Invitaciones caducadas",
-      href: "/operacion/iglesias",
-      alerta: resumen.invitacionesCaducadas > 0,
-    },
+  const tenants = [
+    { valor: modo("full") + modo("grace"), etiqueta: "Activas", href: "/operacion/iglesias?modo=full" },
+    { valor: r.enPrueba, etiqueta: "En prueba", href: "/operacion/iglesias?prueba=vigente" },
+    { valor: modo("trial_expired"), etiqueta: "Prueba vencida", href: "/operacion/iglesias?modo=trial_expired" },
+    { valor: modo("suspended"), etiqueta: "Suspendidas", href: "/operacion/iglesias?modo=suspended", alerta: true },
+    { valor: modo("cancelled"), etiqueta: "Canceladas", href: "/operacion/iglesias?modo=cancelled" },
+    { valor: modo("security_blocked"), etiqueta: "Bloqueadas por seguridad", href: "/operacion/iglesias?modo=security_blocked", alerta: true },
+    { valor: r.altasMes, etiqueta: "Altas este mes", href: "/operacion/iglesias" },
+  ];
+
+  const pendientes = [
+    { valor: r.altasPendientes, etiqueta: "Altas sin terminar", href: "/operacion/iglesias?onboarding=pendiente", alerta: true },
+    { valor: r.sinPropietario, etiqueta: "Sin propietario", href: "/operacion/iglesias?sinPropietario=1", alerta: true },
+    ...(puedeInvitaciones
+      ? [
+          { valor: r.invitacionesPendientes, etiqueta: "Invitaciones pendientes", href: "/operacion/invitaciones" },
+          { valor: r.invitacionesCaducadas, etiqueta: "Invitaciones caducadas", href: "/operacion/invitaciones?estado=caducadas", alerta: true },
+        ]
+      : []),
+    ...(puedeSoporte
+      ? [{ valor: r.sesionesSoporteActivas, etiqueta: "Sesiones de soporte activas", href: "/operacion/soporte" }]
+      : []),
+    ...(puedeProcesos
+      ? [
+          { valor: r.entregasFallidas7d, etiqueta: "Avisos fallidos (7 días)", href: "/operacion/procesos", alerta: true },
+          { valor: r.exportacionesFallidas7d, etiqueta: "Exportaciones fallidas (7 días)", href: "/operacion/procesos", alerta: true },
+        ]
+      : []),
   ];
 
   return (
-    <div style={{ padding: "32px 20px" }}>
-      <div style={{ maxWidth: 1100, margin: "0 auto", display: "flex", flexDirection: "column", gap: 20 }}>
-        <header style={{ display: "flex", flexWrap: "wrap", gap: 12, alignItems: "center", justifyContent: "space-between" }}>
-          <div>
-            <h1 style={{ margin: 0, fontSize: 20 }}>Operación LEVITA</h1>
-            <p style={{ margin: "4px 0 0", color: "var(--shell-text-muted)", fontSize: 13 }}>
-              Panel del equipo. No da acceso a los datos de ninguna iglesia.
-            </p>
-          </div>
-        </header>
-
-        {/*
-          El segundo factor es recomendado, no obligatorio (decisión de Carlos,
-          21-sep-2026). Un ajuste opcional que no se ve no lo activa nadie, así
-          que el aviso va en la portada y desaparece solo al configurarlo.
-        */}
-        {!acceso.contexto.mfaEnabled && (
-          <Link
-            href="/operacion/seguridad"
-            className="shell-card"
-            style={{
-              padding: "14px 16px",
-              display: "flex",
-              alignItems: "center",
-              gap: 12,
-              textDecoration: "none",
-              color: "var(--shell-text)",
-              borderLeft: "3px solid var(--shell-danger)",
-            }}
-          >
-            <ShieldAlert size={18} aria-hidden="true" style={{ flexShrink: 0 }} />
-            <span style={{ fontSize: 12.5 }}>
-              <strong>Tu cuenta no tiene segundo factor.</strong> Desde aquí se ven y modifican datos de todas las
-              iglesias; con solo una contraseña, eso es lo que se lleva quien la consiga. Configúralo.
-            </span>
+    <div className="consola-pagina">
+      <header style={{ display: "flex", flexWrap: "wrap", gap: 12, alignItems: "flex-end", justifyContent: "space-between" }}>
+        <div>
+          <h1>Resumen</h1>
+          <p className="consola-sub">Estado de la plataforma. No da acceso a los datos de ninguna iglesia.</p>
+        </div>
+        {tiene(acceso.contexto, "platform.churches.create") && (
+          <Link href="/operacion/altas" className="shell-button" style={{ fontSize: 12.5, textDecoration: "none" }}>
+            + Nueva iglesia
           </Link>
         )}
+      </header>
 
-        <div style={{ display: "grid", gap: 12, gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))" }}>
-          {tarjetas.map((t) => {
-            const Icono = t.icono;
-            return (
-              <Link
-                key={t.etiqueta}
-                href={t.href}
-                className="shell-card"
-                style={{
-                  padding: 16,
-                  textDecoration: "none",
-                  color: "inherit",
-                  display: "flex",
-                  flexDirection: "column",
-                  gap: 6,
-                  borderLeft: t.alerta ? "3px solid var(--shell-warning, #c98a00)" : undefined,
-                }}
-              >
-                <Icono aria-hidden="true" size={18} style={{ color: "var(--shell-text-muted)" }} />
-                <strong style={{ fontSize: 24, lineHeight: 1.1 }}>{t.valor}</strong>
-                <span style={{ fontSize: 12.5, color: "var(--shell-text-muted)" }}>{t.etiqueta}</span>
-              </Link>
-            );
-          })}
-        </div>
+      {/*
+        El segundo factor es recomendado, no obligatorio (decisión de Carlos,
+        21-sep-2026). Un ajuste opcional que no se ve no lo activa nadie.
+      */}
+      {!acceso.contexto.mfaEnabled && (
+        <Link
+          href="/operacion/seguridad"
+          className="shell-card"
+          style={{ padding: "12px 14px", textDecoration: "none", color: "var(--shell-text)", borderLeft: "3px solid var(--shell-danger)", fontSize: 12.5 }}
+        >
+          <strong>Tu cuenta no tiene segundo factor.</strong> Desde aquí se administran todas las iglesias; con solo una
+          contraseña, eso es lo que se lleva quien la consiga. Configúralo.
+        </Link>
+      )}
 
-        <section className="shell-card" style={{ padding: 16 }}>
-          <h2 style={{ margin: "0 0 10px", fontSize: 15 }}>Situación</h2>
-          <ul style={{ margin: 0, paddingLeft: 18, fontSize: 13, lineHeight: 1.7 }}>
-            <li>
-              {resumen.iglesiasActivas} iglesias activas
-              {resumen.iglesiasArchivadas > 0 && ` y ${resumen.iglesiasArchivadas} archivadas`}.
-            </li>
-            <li>
-              {resumen.invitacionesPendientes === 0
-                ? "No hay invitaciones esperando respuesta."
-                : `${resumen.invitacionesPendientes} invitaciones esperando respuesta.`}
-            </li>
-            {resumen.iglesiasSinPropietario > 0 && (
-              <li>
-                <strong>{resumen.iglesiasSinPropietario}</strong>{" "}
-                {resumen.iglesiasSinPropietario === 1 ? "iglesia no tiene" : "iglesias no tienen"} propietario ni
-                invitación viva: nadie puede administrarlas hasta que se resuelva.
-              </li>
-            )}
-          </ul>
-        </section>
-      </div>
+      <section aria-labelledby="tenants-titulo" style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+        <h2 id="tenants-titulo" style={{ margin: 0, fontSize: 14 }}>Iglesias por estado</h2>
+        <Metricas items={tenants} />
+      </section>
+
+      <section aria-labelledby="pendiente-titulo" style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+        <h2 id="pendiente-titulo" style={{ margin: 0, fontSize: 14 }}>Pendiente y operación</h2>
+        <Metricas items={pendientes} />
+      </section>
     </div>
   );
 }
 
+function Metricas({ items }: { items: { valor: number; etiqueta: string; href: string; alerta?: boolean }[] }) {
+  return (
+    <div className="consola-metricas">
+      {items.map((t) => (
+        <Link key={t.etiqueta} href={t.href} className={`consola-metrica${t.alerta && t.valor > 0 ? " is-alerta" : ""}`}>
+          <strong>{t.valor}</strong>
+          <span>{t.etiqueta}</span>
+        </Link>
+      ))}
+    </div>
+  );
+}

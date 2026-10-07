@@ -1,27 +1,35 @@
 import Link from "next/link";
-import { listChurches } from "@/server/platform/platform-service";
+import { listChurches, tiene } from "@/server/platform/platform-service";
 import { requireOperator } from "../guard";
+import { EstadoTenant, fechaCorta } from "../estado-tenant";
 import "../../app-shell.css";
 
 type SearchParams = {
   q?: string;
-  estado?: string;
-  plan?: string;
+  modo?: string;
+  prueba?: string;
+  pais?: string;
   modulo?: string;
-  desde?: string;
-  /** Los dos filtros a los que enlazan los indicadores de la portada. */
+  /** Los dos filtros a los que enlazan los indicadores del resumen. */
   onboarding?: string;
   sinPropietario?: string;
   page?: string;
 };
 
+const MODOS = [
+  { valor: "", texto: "Todos los estados" },
+  { valor: "full", texto: "Activas" },
+  { valor: "grace", texto: "Pago pendiente" },
+  { valor: "trial_expired", texto: "Prueba vencida" },
+  { valor: "suspended", texto: "Suspendidas" },
+  { valor: "cancelled", texto: "Canceladas" },
+  { valor: "security_blocked", texto: "Bloqueadas por seguridad" },
+];
+
 /**
- * Listado de iglesias con búsqueda, filtros y paginación.
- *
- * Lo que se enseña de cada una es administrativo: estado, plan, si terminó el
- * alta, cuántas sedes y cuántas personas tiene. El recuento de personas es un
- * número, nunca una puerta al directorio: para eso haría falta un permiso que
- * este panel no concede.
+ * Listado de iglesias (tenants). Lo que se enseña es administrativo: estado
+ * comercial, prueba, propietario, sedes, módulos, alta y última actividad
+ * (solo la fecha). Ningún dato de negocio.
  */
 export default async function IglesiasPage({ searchParams }: { searchParams: Promise<SearchParams> }) {
   const acceso = await requireOperator("platform.churches.read");
@@ -29,154 +37,153 @@ export default async function IglesiasPage({ searchParams }: { searchParams: Pro
 
   const params = await searchParams;
   const page = Math.max(Number(params.page ?? "1") || 1, 1);
-
-  // Hasta CA-2.1 estos dos llegaban en la URL desde la portada y se ignoraban:
-  // el listado salía entero y parecía que no había nada pendiente.
   const soloAltaPendiente = params.onboarding === "pendiente";
   const soloSinPropietario = params.sinPropietario === "1";
+  const buscaPorCorreo = tiene(acceso.contexto, "platform.owners.manage");
 
   const { items, total, pageSize } = await listChurches({
     search: params.q,
-    status: params.estado,
-    plan: params.plan,
     module: params.modulo,
-    createdFrom: params.desde,
+    accessMode: params.modo,
+    trial: params.prueba,
+    country: params.pais,
     onboardingPendiente: soloAltaPendiente,
     sinPropietario: soloSinPropietario,
     page,
   });
 
   const paginas = Math.max(Math.ceil(total / pageSize), 1);
+  const filtrado = Boolean(params.q || params.modo || params.prueba || params.pais || params.modulo || soloAltaPendiente || soloSinPropietario);
 
   return (
-    <div style={{ padding: "32px 20px" }}>
-      <div style={{ maxWidth: 1100, margin: "0 auto", display: "flex", flexDirection: "column", gap: 16 }}>
-        <header>
-          <Link href="/operacion" style={{ fontSize: 12.5 }}>
-            Volver al panel
-          </Link>
-          <h1 style={{ margin: "6px 0 0", fontSize: 20 }}>Iglesias</h1>
-          <p style={{ margin: "4px 0 0", color: "var(--shell-text-muted)", fontSize: 13 }}>
+    <div className="consola-pagina">
+      <header style={{ display: "flex", flexWrap: "wrap", gap: 12, alignItems: "flex-end", justifyContent: "space-between" }}>
+        <div>
+          <h1>Iglesias</h1>
+          <p className="consola-sub">
             {total === 1 ? "1 iglesia" : `${total} iglesias`}
-            {(soloAltaPendiente || soloSinPropietario) && " con el filtro aplicado"}
+            {filtrado && " con los filtros aplicados"}
+            {filtrado && (
+              <>
+                {" · "}
+                <Link href="/operacion/iglesias">Quitar filtros</Link>
+              </>
+            )}
           </p>
+        </div>
+        {tiene(acceso.contexto, "platform.churches.create") && (
+          <Link href="/operacion/altas" className="shell-button" style={{ fontSize: 12.5, textDecoration: "none" }}>
+            + Nueva iglesia
+          </Link>
+        )}
+      </header>
 
-          {/*
-            Si el filtro viene de un indicador de la portada, hay que decirlo:
-            un recuento pequeño sin explicación se lee como «hay pocas», no como
-            «estás viendo un subconjunto».
-          */}
-          {(soloAltaPendiente || soloSinPropietario) && (
-            <p style={{ margin: "8px 0 0", fontSize: 12.5, display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap" }}>
-              <span className="serving-chip is-warning">
-                {soloAltaPendiente ? "Solo altas sin terminar" : "Solo sin propietario"}
-              </span>
-              <Link href="/operacion/iglesias" style={{ color: "var(--shell-text-muted)" }}>
-                Ver todas
-              </Link>
-            </p>
-          )}
-        </header>
+      <form className="shell-card" style={{ padding: 12, display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center" }}>
+        <input
+          name="q"
+          defaultValue={params.q ?? ""}
+          placeholder={buscaPorCorreo ? "Nombre, identificador o correo" : "Nombre o identificador"}
+          aria-label="Buscar iglesia"
+          style={{ ...campoStyle, flex: "2 1 220px" }}
+        />
+        <select name="modo" defaultValue={params.modo ?? ""} aria-label="Estado" style={campoStyle}>
+          {MODOS.map((m) => (
+            <option key={m.valor} value={m.valor}>
+              {m.texto}
+            </option>
+          ))}
+        </select>
+        <select name="prueba" defaultValue={params.prueba ?? ""} aria-label="Prueba" style={campoStyle}>
+          <option value="">Prueba: todas</option>
+          <option value="vigente">En prueba</option>
+          <option value="vencida">Prueba vencida</option>
+        </select>
+        <input name="pais" defaultValue={params.pais ?? ""} placeholder="País" aria-label="País" style={{ ...campoStyle, maxWidth: 140 }} />
+        <label style={{ fontSize: 12.5, display: "flex", gap: 6, alignItems: "center" }}>
+          <input type="checkbox" name="onboarding" value="pendiente" defaultChecked={soloAltaPendiente} />
+          Alta pendiente
+        </label>
+        <button type="submit" className="shell-button" style={{ fontSize: 12.5 }}>
+          Filtrar
+        </button>
+      </form>
 
-        <form className="shell-card" style={{ padding: 14, display: "flex", gap: 8, flexWrap: "wrap" }}>
-          <input
-            name="q"
-            defaultValue={params.q ?? ""}
-            placeholder="Nombre o dirección"
-            aria-label="Buscar iglesia"
-            style={campoStyle}
-          />
-          <input
-            name="plan"
-            defaultValue={params.plan ?? ""}
-            placeholder="Plan"
-            aria-label="Filtrar por plan"
-            style={{ ...campoStyle, maxWidth: 140 }}
-          />
-          <input
-            name="modulo"
-            defaultValue={params.modulo ?? ""}
-            placeholder="Módulo activo"
-            aria-label="Filtrar por módulo"
-            style={{ ...campoStyle, maxWidth: 160 }}
-          />
-          <button type="submit" style={botonStyle}>
-            Filtrar
-          </button>
-        </form>
-
-        {items.length === 0 ? (
-          <div className="shell-card shell-empty-state" style={{ padding: "40px 20px" }}>
-            <h3>No hay iglesias que coincidan</h3>
-            <p>Prueba con otro término o quita los filtros.</p>
-          </div>
-        ) : (
-          <div className="shell-card" style={{ padding: 0, overflowX: "auto" }}>
-            <table className="serving-table" style={{ margin: 0 }}>
-              <thead>
-                <tr>
-                  <th>Iglesia</th>
-                  <th>Estado</th>
-                  <th>Plan</th>
-                  <th>Alta</th>
-                  <th>Módulos</th>
-                  <th>Sedes</th>
-                  <th>Personas</th>
+      {items.length === 0 ? (
+        <div className="shell-card shell-empty-state" style={{ padding: "40px 20px" }}>
+          <h3>No hay iglesias que coincidan</h3>
+          <p>Prueba con otro término o quita los filtros.</p>
+        </div>
+      ) : (
+        <div className="shell-card" style={{ padding: 0, overflowX: "auto" }}>
+          <table className="serving-table" style={{ margin: 0 }}>
+            <thead>
+              <tr>
+                <th>Iglesia</th>
+                <th>Estado</th>
+                <th>Prueba</th>
+                <th>Propietario</th>
+                <th>Sedes</th>
+                <th>Módulos</th>
+                <th>Alta</th>
+                <th>Última actividad</th>
+                <th aria-label="Acciones" />
+              </tr>
+            </thead>
+            <tbody>
+              {items.map((c) => (
+                <tr key={c.id}>
+                  <td>
+                    <Link href={`/operacion/iglesias/${c.id}`}>{c.name}</Link>
+                    <div style={{ fontSize: 11.5, color: "var(--shell-text-muted)" }}>
+                      {c.slug}
+                      {c.country && ` · ${c.country}`}
+                    </div>
+                  </td>
+                  <td>
+                    <EstadoTenant modo={c.accessMode} />
+                    {!c.onboardingCompleted && (
+                      <div style={{ marginTop: 4 }}>
+                        <span className="serving-chip is-warning">Alta sin terminar</span>
+                      </div>
+                    )}
+                  </td>
+                  <td style={{ whiteSpace: "nowrap" }}>
+                    {c.subscriptionStatus === "trial" ? `hasta ${fechaCorta(c.trialEndsAt)}` : "—"}
+                  </td>
+                  <td>
+                    {c.ownerName ? (
+                      c.ownerName
+                    ) : c.ownerInvitationPending ? (
+                      <span className="serving-chip is-warning">Invitado</span>
+                    ) : (
+                      <span className="serving-chip is-danger">Sin propietario</span>
+                    )}
+                  </td>
+                  <td>{c.campusesCount}</td>
+                  <td>{c.modulesEnabled}</td>
+                  <td style={{ whiteSpace: "nowrap" }}>{fechaCorta(c.createdAt)}</td>
+                  <td style={{ whiteSpace: "nowrap" }}>{fechaCorta(c.lastActivityAt)}</td>
+                  <td>
+                    <Link href={`/operacion/iglesias/${c.id}`} style={{ fontSize: 12.5 }}>
+                      Abrir
+                    </Link>
+                  </td>
                 </tr>
-              </thead>
-              <tbody>
-                {items.map((c) => (
-                  <tr key={c.id}>
-                    <td>
-                      <Link href={`/operacion/iglesias/${c.id}`}>{c.name}</Link>
-                      <div style={{ fontSize: 11.5, color: "var(--shell-text-muted)" }}>{c.slug}</div>
-                      {!c.hasOwner && (
-                        <span className="serving-chip is-danger" style={{ marginTop: 4, display: "inline-block" }}>
-                          Sin propietario
-                        </span>
-                      )}
-                    </td>
-                    <td>
-                      <span className={c.archivedAt ? "serving-chip is-muted" : "serving-chip is-success"}>
-                        {c.archivedAt ? "Archivada" : c.status}
-                      </span>
-                    </td>
-                    <td>{c.planKey ?? "—"}</td>
-                    <td>
-                      {c.onboardingCompleted ? (
-                        <span className="serving-chip is-success">Completada</span>
-                      ) : (
-                        <span className="serving-chip is-warning">Sin terminar</span>
-                      )}
-                    </td>
-                    <td>{c.modulesEnabled}</td>
-                    <td>{c.campusesCount}</td>
-                    <td>{c.peopleCount}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
 
-        {paginas > 1 && (
-          <nav style={{ display: "flex", gap: 8, alignItems: "center", justifyContent: "center" }}>
-            {page > 1 && (
-              <Link href={enlacePagina(params, page - 1)} style={botonStyle}>
-                Anterior
-              </Link>
-            )}
-            <span style={{ fontSize: 12.5, color: "var(--shell-text-muted)" }}>
-              Página {page} de {paginas}
-            </span>
-            {page < paginas && (
-              <Link href={enlacePagina(params, page + 1)} style={botonStyle}>
-                Siguiente
-              </Link>
-            )}
-          </nav>
-        )}
-      </div>
+      {paginas > 1 && (
+        <nav aria-label="Páginas" style={{ display: "flex", gap: 12, alignItems: "center", justifyContent: "center", fontSize: 12.5 }}>
+          {page > 1 && <Link href={enlacePagina(params, page - 1)}>Anterior</Link>}
+          <span style={{ color: "var(--shell-text-muted)" }}>
+            Página {page} de {paginas}
+          </span>
+          {page < paginas && <Link href={enlacePagina(params, page + 1)}>Siguiente</Link>}
+        </nav>
+      )}
     </div>
   );
 }
@@ -191,22 +198,11 @@ function enlacePagina(params: SearchParams, pagina: number): string {
 }
 
 const campoStyle: React.CSSProperties = {
-  flex: "1 1 180px",
-  minWidth: 140,
-  padding: "8px 10px",
+  flex: "1 1 160px",
+  minWidth: 120,
+  padding: "7px 10px",
   borderRadius: "var(--shell-radius-md)",
   border: "1px solid var(--shell-border)",
   fontSize: 13,
-};
-
-const botonStyle: React.CSSProperties = {
-  padding: "8px 14px",
-  borderRadius: "var(--shell-radius-md)",
-  border: "none",
-  background: "var(--shell-brand)",
-  color: "#fff",
-  fontSize: 12.5,
-  fontWeight: 600,
-  textDecoration: "none",
-  cursor: "pointer",
+  background: "var(--shell-surface, #fff)",
 };

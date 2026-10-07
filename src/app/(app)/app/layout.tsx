@@ -2,6 +2,7 @@ import { redirect } from "next/navigation";
 import { BrandMark } from "@/components/Logo";
 import SidebarNav from "@/components/shell/SidebarNav";
 import ShellHeader from "@/components/shell/ShellHeader";
+import { getOperatorContext } from "@/server/platform/platform-service";
 import { getTenantContext, isOperationalAccessMode } from "@/server/tenant/tenant-context";
 import { createSupabaseServerClient } from "@/server/supabase/server-client";
 import { getOnboardingState } from "@/server/onboarding/onboarding-service";
@@ -31,6 +32,10 @@ export default async function AppLayout({
     redirect(user ? "/acceso/onboarding" : "/acceso");
   }
 
+  // La consola de plataforma es otro contexto: se ofrece como enlace aparte,
+  // nunca como una iglesia más en el selector.
+  const consolaHref = (await getOperatorContext()) ? "/operacion" : undefined;
+
   const onboarding = await getOnboardingState(tenant.churchId);
   if (onboarding && !onboarding.completedAt) {
     redirect("/acceso/onboarding");
@@ -50,6 +55,11 @@ export default async function AppLayout({
           <div className="shell-church">
             <p className="shell-church-name">{tenant.churchName}</p>
           </div>
+          {consolaHref && (
+            <a href={consolaHref} style={{ fontSize: 12.5, padding: "0 16px" }}>
+              Administración LEVITA
+            </a>
+          )}
         </aside>
         <div className="shell-main">
           <SoporteActivoBanner churchId={tenant.churchId} />
@@ -111,7 +121,7 @@ export default async function AppLayout({
 
       <div className="shell-main">
         <SoporteActivoBanner churchId={tenant.churchId} />
-        <ShellHeader tenant={tenant} displayName={displayName} roleLabel={roleLabel} />
+        <ShellHeader tenant={tenant} displayName={displayName} roleLabel={roleLabel} consolaHref={consolaHref} />
         <main className="shell-content">{children}</main>
       </div>
     </div>

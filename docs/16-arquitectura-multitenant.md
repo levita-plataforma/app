@@ -106,6 +106,27 @@ No usar únicamente flags en frontend.
 
 La operación de la plataforma no recibe acceso silencioso a todos los datos.
 
+### Consola de plataforma (LEVITA · Administración)
+
+Hay dos superficies distintas y no se mezclan:
+
+| | Consola de plataforma | App de iglesia |
+|---|---|---|
+| Ruta | `/operacion` | `/app` |
+| Quién | operadores de plataforma (`platform_operators`) | miembros de una iglesia (`church_people`) |
+| Autorización | capacidades `platform.*`, deny-by-default | roles y capacidades de la iglesia |
+| Qué gestiona | plano de control: tenants, altas, invitaciones, módulos, suscripción, soporte, seguridad, auditoría | datos de negocio de esa iglesia |
+| Navegación | sidebar propia | sidebar de la iglesia |
+
+- La consola no es una iglesia más en el selector de iglesias. Un operador que también es miembro de una iglesia
+  cambia de contexto con un enlace explícito ("Administración LEVITA" en la app; "Ir a la app de iglesia" en la consola).
+- No hay superusuario: el propietario de LEVITA es un operador con capacidades explícitas
+  (`platform.churches.read`, `platform.churches.create`, `platform.owners.manage`, `platform.modules.manage`,
+  `platform.commercial.read/manage`, `platform.support.manage`, `platform.operations.read`,
+  `platform.church_security.read/manage`, `platform.audit.read`, `platform.operators.manage`, `platform.config.manage`).
+- La consola no lee datos de negocio (personas, Kids, ofrendas, acompañamiento, actividades). Solo metadatos y recuentos.
+  Una sesión de soporte tampoco los abre (ver Fase 15, sección 13).
+
 ### Soporte con impersonación
 
 Si se necesita asistencia dentro de un tenant:
