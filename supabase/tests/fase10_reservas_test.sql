@@ -314,9 +314,21 @@ select t_set('sala_aprob', app.save_resource(t_id('church'), jsonb_build_object(
 
 select test_set_auth_uid('f1000000-0000-0000-0000-000000000002');
 
+-- Estas dos van con fechas relativas, no fijas, porque más abajo se comprueba
+-- que un recurso con reservas FUTURAS no se puede archivar, y app.archive_resource
+-- decide eso con `starts_at >= now()`.
+--
+-- Estaban puestas al 8 de octubre de 2026. El 9 dejaron de ser futuras y la
+-- aserción empezó a fallar sola, sin que nadie tocara nada: desde entonces el CI
+-- quedó en rojo para cualquier rama del repositorio. Una prueba que caduca por el
+-- calendario no prueba lo que dice probar.
+--
+-- Se mantiene el solapamiento de una hora entre las dos, que es lo que hace
+-- falta para el resto de la sección.
 select t_set('pend1', app.create_reservation(t_id('church'), jsonb_build_object(
   'resource_id', t_id('sala_aprob'),
-  'starts_at', '2026-10-08T10:00:00+02', 'ends_at', '2026-10-08T12:00:00+02',
+  'starts_at', (now() + interval '3 days')::text,
+  'ends_at', (now() + interval '3 days 2 hours')::text,
   'purpose', 'Reunión de equipo'
 )));
 
@@ -335,7 +347,8 @@ select is(
 -- Dos pendientes solapadas conviven.
 select t_set('pend2', app.create_reservation(t_id('church'), jsonb_build_object(
   'resource_id', t_id('sala_aprob'),
-  'starts_at', '2026-10-08T11:00:00+02', 'ends_at', '2026-10-08T13:00:00+02',
+  'starts_at', (now() + interval '3 days 1 hour')::text,
+  'ends_at', (now() + interval '3 days 3 hours')::text,
   'purpose', 'Otra reunión'
 )));
 
