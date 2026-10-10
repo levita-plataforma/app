@@ -29,6 +29,16 @@ export async function cambiarModuloAction(_prev: PanelState, formData: FormData)
     return { error: "Falta la iglesia o el módulo.", ok: null };
   }
 
+  // Desactivar quita acceso a algo que esa iglesia estaba usando, y la auditoría
+  // sin motivo solo dice que alguien lo apagó. Se exige aquí y no solo en el
+  // formulario, porque un botón deshabilitado no es una regla.
+  //
+  // No se exige en la RPC a propósito: platform_set_module es compartida y
+  // cambiar su contrato afectaría a otros usos. Esta es una regla de la consola.
+  if (!activar && motivo.length === 0) {
+    return { error: "Indica por qué se desactiva: queda registrado.", ok: null };
+  }
+
   try {
     await setModule(churchId, moduleKey, activar, motivo || undefined);
   } catch (err) {

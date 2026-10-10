@@ -1,7 +1,12 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { inviteAdmin, resendInvitation, revokeInvitation } from "@/server/platform/platform-service";
+import {
+  getChurchContacts,
+  inviteAdmin,
+  resendInvitation,
+  revokeInvitation,
+} from "@/server/platform/platform-service";
 import { env } from "@/server/env";
 import { DomainError } from "@/server/errors/domain-error";
 
@@ -67,3 +72,38 @@ export async function reenviarInvitacionAction(
     throw err;
   }
 }
+
+/**
+ * Correos de los responsables, bajo petición (CA-3.2).
+ *
+ * La RPC existía desde la Fase 14 y ninguna pantalla la llamaba: la ficha
+ * prometía que los correos «se consultan con permiso» y no había dónde. Se pide
+ * de una en una y a propósito, porque cada consulta queda registrada en la
+ * auditoría: no es un dato más de la ficha.
+ */
+export async function verContactosAction(
+  churchId: string,
+): Promise<{ error: string | null; contactos?: Contacto[] }> {
+  try {
+    const contactos = await getChurchContacts(churchId);
+    return {
+      error: null,
+      contactos: contactos.map((c) => ({
+        personId: c.personId,
+        name: c.name,
+        roleKey: c.roleKey,
+        email: c.email,
+      })),
+    };
+  } catch (err) {
+    if (err instanceof DomainError) return { error: err.message };
+    throw err;
+  }
+}
+
+export type Contacto = {
+  personId: string;
+  name: string;
+  roleKey: string;
+  email: string | null;
+};

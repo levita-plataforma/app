@@ -1,7 +1,13 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { invitarResponsableAction, revocarInvitacionAction, reenviarInvitacionAction } from "./acciones-responsables";
+import {
+  invitarResponsableAction,
+  revocarInvitacionAction,
+  reenviarInvitacionAction,
+  verContactosAction,
+  type Contacto,
+} from "./acciones-responsables";
 
 /**
  * Invitar y revocar responsables desde la ficha (CA-2.4).
@@ -38,6 +44,7 @@ export default function PanelResponsables({
   const [email, setEmail] = useState("");
   const [rol, setRol] = useState<"church_owner" | "church_admin">("church_admin");
   const [resultado, setResultado] = useState<{ link: string | null; reutilizada: boolean } | null>(null);
+  const [contactos, setContactos] = useState<Contacto[] | null>(null);
 
   if (!puedeGestionar) {
     return (
@@ -59,6 +66,51 @@ export default function PanelResponsables({
           {error}
         </p>
       )}
+
+      {/*
+        Los correos de los responsables (CA-3.2). La RPC existía desde la Fase 14
+        y ninguna pantalla la llamaba: la ficha prometía que se consultaban «con
+        permiso» y no había dónde hacerlo. Se piden a propósito, no al cargar,
+        porque cada consulta queda registrada.
+      */}
+      <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+        {contactos === null ? (
+          <div style={{ display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap" }}>
+            <button
+              type="button"
+              className="shell-button"
+              disabled={pendiente}
+              style={{ fontSize: 11.5 }}
+              onClick={() => {
+                setError(null);
+                startTransition(async () => {
+                  const r = await verContactosAction(churchId);
+                  if (r.error) setError(r.error);
+                  else setContactos(r.contactos ?? []);
+                });
+              }}
+            >
+              Ver los correos
+            </button>
+            <span style={{ fontSize: 11.5, color: "var(--shell-text-muted)" }}>
+              Queda registrado quién los consulta y cuándo.
+            </span>
+          </div>
+        ) : contactos.length === 0 ? (
+          <p style={{ margin: 0, fontSize: 12.5, color: "var(--shell-text-muted)" }}>
+            Esta iglesia no tiene ningún responsable con correo registrado.
+          </p>
+        ) : (
+          <ul style={{ margin: 0, paddingLeft: 18, fontSize: 12.5, lineHeight: 1.8 }}>
+            {contactos.map((c) => (
+              <li key={`${c.personId}-${c.roleKey}`}>
+                {c.name || "Sin nombre"} · {c.roleKey === "church_owner" ? "Propietario" : "Administrador"} ·{" "}
+                {c.email ? <code>{c.email}</code> : "sin correo"}
+              </li>
+            ))}
+          </ul>
+        )}
+      </div>
 
       {invitaciones.length === 0 ? (
         <p style={{ margin: 0, fontSize: 12.5, color: "var(--shell-text-muted)" }}>No hay invitaciones.</p>
