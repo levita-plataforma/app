@@ -461,3 +461,89 @@ export async function resendInvitation(invitationId: string): Promise<string> {
   if (!token) throw new DomainError("INTERNAL_ERROR", "No se pudo reenviar la invitación.");
   return token;
 }
+
+/**
+ * Equipo de operación de LEVITA (CA-3.1).
+ *
+ * Conceder y retirar capacidades existía desde CA-0 sin wrapper público ni
+ * pantalla: dar de alta a alguien del equipo o quitarle permisos exigía entrar
+ * a la base a mano. Esto es lo que faltaba para poder hacerlo desde el panel.
+ *
+ * El catálogo se lee de la base en vez de reutilizar PLATFORM_CAPABILITIES:
+ * esa constante existe para tipar, y si alguien añade una capacidad en una
+ * migración sin tocar este fichero, la pantalla debe enseñarla igual.
+ */
+
+export type TeamMember = {
+  userId: string;
+  email: string | null;
+  createdAt: string;
+  capabilities: string[];
+  esUnoMismo: boolean;
+};
+
+export async function listTeam(): Promise<TeamMember[]> {
+  const supabase = await createSupabaseServerClient();
+  const { data, error } = await supabase.rpc("platform_team");
+  if (error) throw toDomainError(error, "No se pudo consultar el equipo.");
+
+  type Fila = {
+    user_id: string;
+    email: string | null;
+    created_at: string;
+    capabilities: string[] | null;
+    es_uno_mismo: boolean;
+  };
+
+  return ((data ?? []) as Fila[]).map((r) => ({
+    userId: r.user_id,
+    email: r.email,
+    createdAt: r.created_at,
+    capabilities: r.capabilities ?? [],
+    esUnoMismo: r.es_uno_mismo,
+  }));
+}
+
+export type CapabilityInfo = { key: string; description: string };
+
+export async function listCapabilityCatalog(): Promise<CapabilityInfo[]> {
+  const supabase = await createSupabaseServerClient();
+  const { data, error } = await supabase.rpc("platform_capability_catalog");
+  if (error) throw toDomainError(error, "No se pudo consultar el catálogo de capacidades.");
+  return ((data ?? []) as { key: string; description: string }[]).map((r) => ({
+    key: r.key,
+    description: r.description,
+  }));
+}
+
+export async function addOperator(email: string): Promise<string> {
+  const supabase = await createSupabaseServerClient();
+  const { data, error } = await supabase.rpc("platform_add_operator", { p_email: email });
+  if (error) throw toDomainError(error, "No se pudo dar de alta a esa cuenta.");
+  if (!data) throw new DomainError("INTERNAL_ERROR", "No se pudo dar de alta a esa cuenta.");
+  return data as unknown as string;
+}
+
+export async function removeOperator(userId: string): Promise<void> {
+  const supabase = await createSupabaseServerClient();
+  const { error } = await supabase.rpc("platform_remove_operator", { p_user_id: userId });
+  if (error) throw toDomainError(error, "No se pudo retirar a esa cuenta del equipo.");
+}
+
+export async function grantCapability(userId: string, capability: string): Promise<void> {
+  const supabase = await createSupabaseServerClient();
+  const { error } = await supabase.rpc("platform_grant_capability", {
+    p_user_id: userId,
+    p_capability: capability,
+  });
+  if (error) throw toDomainError(error, "No se pudo conceder la capacidad.");
+}
+
+export async function revokeCapability(userId: string, capability: string): Promise<void> {
+  const supabase = await createSupabaseServerClient();
+  const { error } = await supabase.rpc("platform_revoke_capability", {
+    p_user_id: userId,
+    p_capability: capability,
+  });
+  if (error) throw toDomainError(error, "No se pudo retirar la capacidad.");
+}

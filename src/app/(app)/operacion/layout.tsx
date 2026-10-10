@@ -33,6 +33,7 @@ const SECCIONES: Seccion[] = [
   { href: "/operacion/invitaciones", texto: "Invitaciones", capacidad: "platform.owners.manage" },
   { href: "/operacion/soporte", texto: "Soporte", capacidad: "platform.support.manage" },
   { href: "/operacion/procesos", texto: "Procesos", capacidad: "platform.operations.read" },
+  { href: "/operacion/equipo", texto: "Equipo", capacidad: "platform.operators.manage" },
   { href: "/operacion/seguridad", texto: "Seguridad" },
   { href: "/operacion/auditoria", texto: "Auditoría", capacidad: "platform.audit.read" },
   { href: "/operacion/planes", texto: "Configuración", capacidad: "platform.commercial.read" },

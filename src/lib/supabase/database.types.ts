@@ -9203,8 +9203,14 @@ export type Database = {
           title: string
         }[]
       }
+      platform_add_operator: { Args: { p_email: string }; Returns: string }
       platform_audit: {
-        Args: { p_action?: string; p_church_id?: string; p_limit?: number }
+        Args: {
+          p_action?: string
+          p_church_id?: string
+          p_limit?: number
+          p_offset?: number
+        }
         Returns: {
           action: string
           actor_user_id: string
@@ -9213,6 +9219,7 @@ export type Database = {
           created_at: string
           id: string
           metadata: Json
+          total_count: number
         }[]
       }
       platform_cancel_subscription: {
@@ -9222,6 +9229,13 @@ export type Database = {
           p_reason: string
         }
         Returns: Json
+      }
+      platform_capability_catalog: {
+        Args: never
+        Returns: {
+          description: string
+          key: string
+        }[]
       }
       platform_change_plan: {
         Args: {
@@ -9305,6 +9319,10 @@ export type Database = {
           out_invitation_id: string
         }[]
       }
+      platform_grant_capability: {
+        Args: { p_capability: string; p_user_id: string }
+        Returns: undefined
+      }
       platform_grant_override: {
         Args: {
           p_capability: string
@@ -9378,6 +9396,10 @@ export type Database = {
         Args: { p_church_id: string; p_motivo?: string; p_person_id: string }
         Returns: undefined
       }
+      platform_remove_operator: {
+        Args: { p_user_id: string }
+        Returns: undefined
+      }
       platform_resend_invitation: {
         Args: { p_invitation_id: string }
         Returns: {
@@ -9387,6 +9409,10 @@ export type Database = {
       }
       platform_retry_storage_deletion: {
         Args: { p_id: string }
+        Returns: undefined
+      }
+      platform_revoke_capability: {
+        Args: { p_capability: string; p_user_id: string }
         Returns: undefined
       }
       platform_revoke_invitation: {
@@ -9426,6 +9452,16 @@ export type Database = {
           reason: string
           revoked_at: string
           started_at: string
+        }[]
+      }
+      platform_team: {
+        Args: never
+        Returns: {
+          capabilities: string[]
+          created_at: string
+          email: string
+          es_uno_mismo: boolean
+          user_id: string
         }[]
       }
       preview_activity_recurrence: {

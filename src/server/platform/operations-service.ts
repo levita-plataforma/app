@@ -155,25 +155,42 @@ export type AuditEntry = {
   createdAt: string;
 };
 
-export async function listAudit(filters: { churchId?: string; action?: string; limit?: number } = {}): Promise<AuditEntry[]> {
+/**
+ * Auditoría de plataforma, por páginas (CA-3.5).
+ *
+ * Devuelve también el total de la consulta, no solo las filas: sin él la
+ * pantalla no puede decir si hay más ni cuántas, y antes se quedaba en la
+ * primera página sin manera de pasar a la siguiente.
+ */
+export async function listAudit(
+  filters: { churchId?: string; action?: string; limit?: number; offset?: number } = {},
+): Promise<{ entradas: AuditEntry[]; total: number }> {
   const supabase = await createSupabaseServerClient();
   const { data, error } = await supabase.rpc("platform_audit", {
     p_church_id: filters.churchId ?? undefined,
     p_action: filters.action ?? undefined,
     p_limit: filters.limit ?? 100,
+    p_offset: filters.offset ?? 0,
   });
   if (error) throw toDomainError(error, "No se pudo cargar la auditoría.");
   type Fila = {
     id: string; actor_user_id: string | null; action: string; church_id: string | null;
     church_name: string | null; metadata: Record<string, unknown> | null; created_at: string;
+    total_count: number | null;
   };
-  return ((data ?? []) as Fila[]).map((row) => ({
-    id: row.id as string,
-    actorUserId: row.actor_user_id as string | null,
-    action: row.action as string,
-    churchId: row.church_id as string | null,
-    churchName: row.church_name as string | null,
-    metadata: (row.metadata ?? {}) as Record<string, unknown>,
-    createdAt: row.created_at as string,
-  }));
+  const filas = (data ?? []) as Fila[];
+  return {
+    entradas: filas.map((row) => ({
+      id: row.id as string,
+      actorUserId: row.actor_user_id as string | null,
+      action: row.action as string,
+      churchId: row.church_id as string | null,
+      churchName: row.church_name as string | null,
+      metadata: (row.metadata ?? {}) as Record<string, unknown>,
+      createdAt: row.created_at as string,
+    })),
+    // Sin filas no hay total que leer: la consulta no devolvió ninguna, y eso
+    // significa cero, no «desconocido».
+    total: filas[0]?.total_count ?? 0,
+  };
 }

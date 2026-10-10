@@ -149,8 +149,8 @@ export default async function FichaIglesiaPage({ params }: { params: Promise<{ i
             </table>
           )}
           <p style={{ ...vacioStyle, marginTop: 10 }}>
-            Los correos no se muestran aquí: se consultan con permiso de gestión de responsables. No se puede retirar al
-            único propietario.
+            Los correos no se muestran aquí: se piden abajo, con permiso de gestión de responsables, y cada consulta
+            queda registrada. No se puede retirar al único propietario.
           </p>
         </section>
 

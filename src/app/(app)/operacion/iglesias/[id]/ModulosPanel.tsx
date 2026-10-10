@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState } from "react";
+import { useActionState, useState } from "react";
 import { cambiarModuloAction, type PanelState } from "./actions";
 
 const INICIAL: PanelState = { error: null, ok: null };
@@ -14,7 +14,13 @@ type Modulo = { module_key: string; name: string; status: string; enabled_at: st
  * concede roles a nadie: quién puede hacer qué dentro lo sigue decidiendo la
  * iglesia con sus propios permisos.
  *
- * Desactivar no borra nada, y conviene que se lea antes de pulsar, no después.
+ * Desactivar no borra nada, y conviene que se lea antes de pulsar, no después:
+ * de ahí la confirmación con el efecto escrito (CA-3.4).
+ *
+ * El motivo ya lo registraba la RPC y lo leía la server action, pero **este
+ * formulario no tenía el campo**, así que siempre llegaba vacío: en la auditoría
+ * constaba quién apagó un módulo y nunca por qué. Ahora se pide, y al desactivar
+ * es obligatorio, que es cuando alguien pierde acceso a algo.
  */
 export default function ModulosPanel({
   churchId,
@@ -26,6 +32,8 @@ export default function ModulosPanel({
   puedeGestionar: boolean;
 }) {
   const [estado, accion, pendiente] = useActionState(cambiarModuloAction, INICIAL);
+  const [abierto, setAbierto] = useState<string | null>(null);
+  const [motivo, setMotivo] = useState("");
 
   return (
     <section className="shell-card" style={{ padding: 16 }}>
@@ -62,17 +70,70 @@ export default function ModulosPanel({
                     {activo ? "Activo" : "Inactivo"}
                   </span>
 
-                  {puedeGestionar && (
-                    <form action={accion}>
-                      <input type="hidden" name="churchId" value={churchId} />
-                      <input type="hidden" name="moduleKey" value={m.module_key} />
-                      <input type="hidden" name="activar" value={activo ? "0" : "1"} />
-                      <button type="submit" style={botonStyle} disabled={pendiente}>
-                        {activo ? "Desactivar" : "Activar"}
-                      </button>
-                    </form>
+                  {puedeGestionar && abierto !== m.module_key && (
+                    <button
+                      type="button"
+                      style={botonStyle}
+                      disabled={pendiente}
+                      onClick={() => {
+                        setAbierto(m.module_key);
+                        setMotivo("");
+                      }}
+                    >
+                      {activo ? "Desactivar" : "Activar"}
+                    </button>
                   )}
                 </div>
+
+                {puedeGestionar && abierto === m.module_key && (
+                  <form
+                    action={accion}
+                    style={{ flexBasis: "100%", display: "flex", flexDirection: "column", gap: 8 }}
+                  >
+                    <input type="hidden" name="churchId" value={churchId} />
+                    <input type="hidden" name="moduleKey" value={m.module_key} />
+                    <input type="hidden" name="activar" value={activo ? "0" : "1"} />
+
+                    {/* El efecto, antes de pulsar y no después. */}
+                    <p style={{ margin: 0, fontSize: 12.5 }}>
+                      {activo ? (
+                        <>
+                          Las personas de esta iglesia dejarán de ver <strong>{m.name}</strong>. Los datos se conservan
+                          y vuelven a verse si se reactiva. No cambia los permisos de nadie.
+                        </>
+                      ) : (
+                        <>
+                          Esta iglesia podrá usar <strong>{m.name}</strong>. No concede permisos a ninguna persona:
+                          quién puede hacer qué dentro lo sigue decidiendo la iglesia.
+                        </>
+                      )}
+                    </p>
+
+                    <label style={{ fontSize: 12, display: "flex", flexDirection: "column", gap: 4 }}>
+                      {activo ? "Motivo (obligatorio)" : "Motivo (opcional)"}
+                      <input
+                        name="motivo"
+                        value={motivo}
+                        onChange={(e) => setMotivo(e.target.value)}
+                        placeholder={activo ? "Por qué se desactiva" : "Por qué se activa"}
+                        style={{ fontSize: 12.5, padding: "6px 8px" }}
+                      />
+                    </label>
+
+                    <div style={{ display: "flex", gap: 8 }}>
+                      <button
+                        type="submit"
+                        style={botonStyle}
+                        disabled={pendiente || (activo && motivo.trim().length === 0)}
+                      >
+                        {activo ? "Confirmar desactivación" : "Confirmar activación"}
+                      </button>
+                      <button type="button" style={botonStyle} onClick={() => setAbierto(null)}>
+                        Cancelar
+                      </button>
+                    </div>
+                  </form>
+                )}
               </li>
             );
           })}
